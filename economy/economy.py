@@ -26,16 +26,16 @@ MOCK_MEMBER = namedtuple("Member", "id guild")
 
 
 class SMReel(Enum):
-    cherries = "\N:KannaPat:755814906665893909"
-    cookie = "\N:KannaPog:755814906665893909"
-    two = "\N:KannaHat:755814887325696071"
-    flc = "\N:KannaSip:755814906665893909"
-    cyclone = "\N:kannaRawr:755814906665893909"
-    sunflower = "\N:KannaHug:755814887325696071"
-    six = "\N:KannaPretty:755814906665893909"
-    mushroom = "\N:KannaYay:755814906665893909"
-    heart = "\N:KannaHeart:755814887325696071"
-    snowflake = "\N:KannaCool:755814887325696071"
+    cherries = ":KannaPat:755814906665893909"
+    cookie = ":KannaPog:755814906665893909"
+    two = ":KannaHat:755814887325696071"
+    flc = ":KannaSip:755814906665893909"
+    cyclone = ":kannaRawr:755814906665893909"
+    sunflower = ":KannaHug:755814887325696071"
+    six = ":KannaPretty:755814906665893909"
+    mushroom = ":KannaYay:755814906665893909"
+    heart = ":KannaHeart:755814887325696071"
+    snowflake = ":KannaCool:755814887325696071"
 
 
 _ = lambda s: s
