@@ -1,0 +1,6 @@
+{
+    "author" : ["Mestro"],
+    "install_msg" : "General was installed!",
+    "short" : "General commands",
+    "description" : "Commands that don't fit any other category"
+}
