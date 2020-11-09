@@ -1,0 +1,6 @@
+{
+    "author" : ["Mestro"],
+    "install_msg" : "Economy was installed!",
+    "short" : "Various commands related to economy",
+    "description" : "Customized version of the built in Economy Cog"
+}
