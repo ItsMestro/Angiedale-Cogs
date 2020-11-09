@@ -1,0 +1,2 @@
+# Angiedale
+Angiedale Discord Bot
