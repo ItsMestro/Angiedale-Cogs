@@ -1,0 +1,6 @@
+{
+    "author" : ["Mestro"],
+    "install_msg" : "Interactions was installed!",
+    "short" : "Collection of interactive commands",
+    "description" : "Various commands for interacting with other users"
+}
