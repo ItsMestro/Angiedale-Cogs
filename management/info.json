@@ -1,0 +1,6 @@
+{
+    "author" : ["Mestro"],
+    "install_msg" : "Management was installed!",
+    "short" : "General management commands",
+    "description" : "Collection of commands for managing the bot or other cogs"
+}
