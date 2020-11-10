@@ -7,7 +7,6 @@ import urllib.parse
 import aiohttp
 import discord
 from redbot.core import commands
-from redbot.core.i18n import Translator, cog_i18n
 from redbot.core.utils.menus import menu, DEFAULT_CONTROLS
 from redbot.core.utils.chat_formatting import (
     bold,
@@ -17,10 +16,7 @@ from redbot.core.utils.chat_formatting import (
     humanize_timedelta,
 )
 
-_ = T_ = Translator("General", __file__)
 
-
-@cog_i18n(_)
 class General(commands.Cog):
     """General commands."""
 

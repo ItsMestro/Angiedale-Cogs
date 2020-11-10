@@ -11,14 +11,11 @@ import discord
 from redbot.cogs.bank import is_owner_if_bank_global
 from redbot.cogs.mod.converters import RawUserIds
 from redbot.core import Config, bank, commands, errors, checks
-from redbot.core.i18n import Translator, cog_i18n
 from redbot.core.utils import AsyncIter
 from redbot.core.utils.chat_formatting import box, humanize_number
 from redbot.core.utils.menus import close_menu, menu, DEFAULT_CONTROLS
 
 from redbot.core.bot import Red
-
-T_ = Translator("Economy", __file__)
 
 logger = logging.getLogger("red.economy")
 
@@ -80,7 +77,6 @@ SLOT_PAYOUTS_MSG = _(
     "Three symbols: Bet * 10\n"
     "Two symbols: Bet * 2"
 ).format(**SMReel.__dict__)
-_ = T_
 
 
 def guild_only_check():
@@ -113,7 +109,6 @@ class SetParser:
             raise RuntimeError
 
 
-@cog_i18n(_)
 class Economy(commands.Cog):
     """Get rich and have fun with imaginary currency!"""
 
@@ -684,7 +679,7 @@ class Economy(commands.Cog):
                     )
                 )
                 return
-            phrase = T_(payout["phrase"])
+            phrase = payout["phrase"]
         else:
             then = await bank.get_balance(author)
             await bank.withdraw_credits(author, bid)
