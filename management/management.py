@@ -321,7 +321,7 @@ class Management(commands.Cog):
         pass
 
     @alias.group(name="global")
-    async def global(self, ctx: commands.Context):
+    async def global_(self, ctx: commands.Context):
         """Manage global aliases."""
         pass
 
