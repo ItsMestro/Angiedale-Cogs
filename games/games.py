@@ -45,26 +45,26 @@ class Games(commands.Cog):
     global _
     _ = lambda s: s
     ball = [
-        _("As I see it, yes"),
-        _("It is certain"),
-        _("It is decidedly so"),
-        _("Most likely"),
-        _("Outlook good"),
-        _("Signs point to yes"),
-        _("Without a doubt"),
-        _("Yes"),
-        _("Yes – definitely"),
-        _("You may rely on it"),
-        _("Reply hazy, try again"),
-        _("Ask again later"),
-        _("Better not tell you now"),
-        _("Cannot predict now"),
-        _("Concentrate and ask again"),
-        _("Don't count on it"),
-        _("My reply is no"),
-        _("My sources say no"),
-        _("Outlook not so good"),
-        _("Very doubtful"),
+        ("As I see it, yes"),
+        ("It is certain"),
+        ("It is decidedly so"),
+        ("Most likely"),
+        ("Outlook good"),
+        ("Signs point to yes"),
+        ("Without a doubt"),
+        ("Yes"),
+        ("Yes – definitely"),
+        ("You may rely on it"),
+        ("Reply hazy, try again"),
+        ("Ask again later"),
+        ("Better not tell you now"),
+        ("Cannot predict now"),
+        ("Concentrate and ask again"),
+        ("Don't count on it"),
+        ("My reply is no"),
+        ("My sources say no"),
+        ("Outlook not so good"),
+        ("Very doubtful"),
     ]
 
     def __init__(self):
@@ -91,10 +91,10 @@ class Games(commands.Cog):
                 )
             )
         elif number <= 1:
-            await ctx.send(_("{author.mention} Maybe higher than 1? ;P").format(author=author))
+            await ctx.send(("{author.mention} Maybe higher than 1? ;P").format(author=author))
         else:
             await ctx.send(
-                _("{author.mention} Max allowed number is {maxamount}.").format(
+                ("{author.mention} Max allowed number is {maxamount}.").format(
                     author=author, maxamount=humanize_number(MAX_ROLL)
                 )
             )
@@ -109,7 +109,7 @@ class Games(commands.Cog):
             msg = ""
             if user.id == ctx.bot.user.id:
                 user = ctx.author
-                msg = _("Nice try. You think this is funny?\n How about *this* instead:\n\n")
+                msg = ("Nice try. You think this is funny?\n How about *this* instead:\n\n")
             char = "abcdefghijklmnopqrstuvwxyz"
             tran = "ɐqɔpǝɟƃɥᴉɾʞlɯuodbɹsʇnʌʍxʎz"
             table = str.maketrans(char, tran)
@@ -120,7 +120,7 @@ class Games(commands.Cog):
             name = name.translate(table)
             await ctx.send(msg + "(╯°□°）╯︵ " + name[::-1])
         else:
-            await ctx.send(_("*flips a coin and... ") + choice([_("HEADS!*"), _("TAILS!*")]))
+            await ctx.send(("*flips a coin and... ") + choice([("HEADS!*"), ("TAILS!*")]))
 
     @commands.command()
     async def rps(self, ctx, your_choice: RPSParser):
@@ -129,7 +129,7 @@ class Games(commands.Cog):
         player_choice = your_choice.choice
         if not player_choice:
             return await ctx.send(
-                _("This isn't a valid option. Try {r}, {p}, or {s}.").format(
+                ("This isn't a valid option. Try {r}, {p}, or {s}.").format(
                     r="rock", p="paper", s="scissors"
                 )
             )
@@ -150,19 +150,19 @@ class Games(commands.Cog):
 
         if outcome is True:
             await ctx.send(
-                _("{choice} You win {author.mention}!").format(
+                ("{choice} You win {author.mention}!").format(
                     choice=red_choice.value, author=author
                 )
             )
         elif outcome is False:
             await ctx.send(
-                _("{choice} You lose {author.mention}!").format(
+                ("{choice} You lose {author.mention}!").format(
                     choice=red_choice.value, author=author
                 )
             )
         else:
             await ctx.send(
-                _("{choice} We're square {author.mention}!").format(
+                ("{choice} We're square {author.mention}!").format(
                     choice=red_choice.value, author=author
                 )
             )
@@ -174,6 +174,6 @@ class Games(commands.Cog):
         Question must end with a question mark.
         """
         if question.endswith("?") and question != "?":
-            await ctx.send("`" + T_(choice(self.ball)) + "`")
+            await ctx.send("`" + T(choice(self.ball)) + "`")
         else:
-            await ctx.send(_("That doesn't look like a question."))
+            await ctx.send(("That doesn't look like a question."))

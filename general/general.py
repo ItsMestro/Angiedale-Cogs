@@ -41,7 +41,7 @@ class General(commands.Cog):
         """
         choices = [escape(c, mass_mentions=True) for c in choices if c]
         if len(choices) < 2:
-            await ctx.send(_("Not enough options to pick from."))
+            await ctx.send(("Not enough options to pick from."))
         else:
             await ctx.send(choice(choices))
 
@@ -51,12 +51,12 @@ class General(commands.Cog):
         author = ctx.author
         if author.id not in self.stopwatches:
             self.stopwatches[author.id] = int(time.perf_counter())
-            await ctx.send(author.mention + _(" Stopwatch started!"))
+            await ctx.send(author.mention + (" Stopwatch started!"))
         else:
             tmp = abs(self.stopwatches[author.id] - int(time.perf_counter()))
             tmp = str(datetime.timedelta(seconds=tmp))
             await ctx.send(
-                author.mention + _(" Stopwatch stopped! Time: **{seconds}**").format(seconds=tmp)
+                author.mention + (" Stopwatch stopped! Time: **{seconds}**").format(seconds=tmp)
             )
             self.stopwatches.pop(author.id, None)
 
@@ -78,7 +78,7 @@ class General(commands.Cog):
         """
         guild = ctx.guild
         passed = (ctx.message.created_at - guild.created_at).days
-        created_at = _("Created on {date}. That's over {num} days ago!").format(
+        created_at = ("Created on {date}. That's over {num} days ago!").format(
             date=guild.created_at.strftime("%d %b %Y %H:%M"),
             num=humanize_number(passed),
         )
@@ -90,16 +90,16 @@ class General(commands.Cog):
         voice_channels = humanize_number(len(guild.voice_channels))
         if not details:
             data = discord.Embed(description=created_at, colour=await ctx.embed_colour())
-            data.add_field(name=_("Region"), value=str(guild.region))
-            data.add_field(name=_("Users online"), value=f"{online}/{total_users}")
-            data.add_field(name=_("Text Channels"), value=text_channels)
-            data.add_field(name=_("Voice Channels"), value=voice_channels)
-            data.add_field(name=_("Roles"), value=humanize_number(len(guild.roles)))
-            data.add_field(name=_("Owner"), value=str(guild.owner))
+            data.add_field(name=("Region"), value=str(guild.region))
+            data.add_field(name=("Users online"), value=f"{online}/{total_users}")
+            data.add_field(name=("Text Channels"), value=text_channels)
+            data.add_field(name=("Voice Channels"), value=voice_channels)
+            data.add_field(name=("Roles"), value=humanize_number(len(guild.roles)))
+            data.add_field(name=("Owner"), value=str(guild.owner))
             data.set_footer(
-                text=_("Server ID: ")
+                text=("Server ID: ")
                 + str(guild.id)
-                + _("  •  Use {command} for more info on the server.").format(
+                + ("  •  Use {command} for more info on the server.").format(
                     command=f"{ctx.clean_prefix}serverinfo 1"
                 )
             )
@@ -125,7 +125,7 @@ class General(commands.Cog):
                 return "{0:.1f}{1}".format(num, "YB")
 
             shard_info = (
-                _("\nShard ID: **{shard_id}/{shard_count}**").format(
+                ("\nShard ID: **{shard_id}/{shard_count}**").format(
                     shard_id=humanize_number(guild.shard_id + 1),
                     shard_count=humanize_number(ctx.bot.shard_count),
                 )
@@ -134,8 +134,8 @@ class General(commands.Cog):
             )
             # Logic from: https://github.com/TrustyJAID/Trusty-cogs/blob/master/serverstats/serverstats.py#L159
             online_stats = {
-                _("Humans: "): lambda x: not x.bot,
-                _(" • Bots: "): lambda x: x.bot,
+                ("Humans: "): lambda x: not x.bot,
+                (" • Bots: "): lambda x: x.bot,
                 "\N{LARGE GREEN CIRCLE}": lambda x: x.status is discord.Status.online,
                 "\N{LARGE ORANGE CIRCLE}": lambda x: x.status is discord.Status.idle,
                 "\N{LARGE RED CIRCLE}": lambda x: x.status is discord.Status.do_not_disturb,
@@ -147,7 +147,7 @@ class General(commands.Cog):
                 ),
                 "\N{MOBILE PHONE}": lambda x: x.is_on_mobile(),
             }
-            member_msg = _("Users online: **{online}/{total_users}**\n").format(
+            member_msg = ("Users online: **{online}/{total_users}**\n").format(
                 online=online, total_users=total_users
             )
             count = 1
@@ -164,54 +164,54 @@ class General(commands.Cog):
                 count += 1
 
             vc_regions = {
-                "vip-us-east": _("__VIP__ US East ") + "\U0001F1FA\U0001F1F8",
-                "vip-us-west": _("__VIP__ US West ") + "\U0001F1FA\U0001F1F8",
-                "vip-amsterdam": _("__VIP__ Amsterdam ") + "\U0001F1F3\U0001F1F1",
-                "eu-west": _("EU West ") + "\U0001F1EA\U0001F1FA",
-                "eu-central": _("EU Central ") + "\U0001F1EA\U0001F1FA",
-                "europe": _("Europe ") + "\U0001F1EA\U0001F1FA",
-                "london": _("London ") + "\U0001F1EC\U0001F1E7",
-                "frankfurt": _("Frankfurt ") + "\U0001F1E9\U0001F1EA",
-                "amsterdam": _("Amsterdam ") + "\U0001F1F3\U0001F1F1",
-                "us-west": _("US West ") + "\U0001F1FA\U0001F1F8",
-                "us-east": _("US East ") + "\U0001F1FA\U0001F1F8",
-                "us-south": _("US South ") + "\U0001F1FA\U0001F1F8",
-                "us-central": _("US Central ") + "\U0001F1FA\U0001F1F8",
-                "singapore": _("Singapore ") + "\U0001F1F8\U0001F1EC",
-                "sydney": _("Sydney ") + "\U0001F1E6\U0001F1FA",
-                "brazil": _("Brazil ") + "\U0001F1E7\U0001F1F7",
-                "hongkong": _("Hong Kong ") + "\U0001F1ED\U0001F1F0",
-                "russia": _("Russia ") + "\U0001F1F7\U0001F1FA",
-                "japan": _("Japan ") + "\U0001F1EF\U0001F1F5",
-                "southafrica": _("South Africa ") + "\U0001F1FF\U0001F1E6",
-                "india": _("India ") + "\U0001F1EE\U0001F1F3",
-                "dubai": _("Dubai ") + "\U0001F1E6\U0001F1EA",
-                "south-korea": _("South Korea ") + "\U0001f1f0\U0001f1f7",
+                "vip-us-east": ("__VIP__ US East ") + "\U0001F1FA\U0001F1F8",
+                "vip-us-west": ("__VIP__ US West ") + "\U0001F1FA\U0001F1F8",
+                "vip-amsterdam": ("__VIP__ Amsterdam ") + "\U0001F1F3\U0001F1F1",
+                "eu-west": ("EU West ") + "\U0001F1EA\U0001F1FA",
+                "eu-central": ("EU Central ") + "\U0001F1EA\U0001F1FA",
+                "europe": ("Europe ") + "\U0001F1EA\U0001F1FA",
+                "london": ("London ") + "\U0001F1EC\U0001F1E7",
+                "frankfurt": ("Frankfurt ") + "\U0001F1E9\U0001F1EA",
+                "amsterdam": ("Amsterdam ") + "\U0001F1F3\U0001F1F1",
+                "us-west": ("US West ") + "\U0001F1FA\U0001F1F8",
+                "us-east": ("US East ") + "\U0001F1FA\U0001F1F8",
+                "us-south": ("US South ") + "\U0001F1FA\U0001F1F8",
+                "us-central": ("US Central ") + "\U0001F1FA\U0001F1F8",
+                "singapore": ("Singapore ") + "\U0001F1F8\U0001F1EC",
+                "sydney": ("Sydney ") + "\U0001F1E6\U0001F1FA",
+                "brazil": ("Brazil ") + "\U0001F1E7\U0001F1F7",
+                "hongkong": ("Hong Kong ") + "\U0001F1ED\U0001F1F0",
+                "russia": ("Russia ") + "\U0001F1F7\U0001F1FA",
+                "japan": ("Japan ") + "\U0001F1EF\U0001F1F5",
+                "southafrica": ("South Africa ") + "\U0001F1FF\U0001F1E6",
+                "india": ("India ") + "\U0001F1EE\U0001F1F3",
+                "dubai": ("Dubai ") + "\U0001F1E6\U0001F1EA",
+                "south-korea": ("South Korea ") + "\U0001f1f0\U0001f1f7",
             }
             verif = {
-                "none": _("0 - None"),
-                "low": _("1 - Low"),
-                "medium": _("2 - Medium"),
-                "high": _("3 - High"),
-                "extreme": _("4 - Extreme"),
+                "none": ("0 - None"),
+                "low": ("1 - Low"),
+                "medium": ("2 - Medium"),
+                "high": ("3 - High"),
+                "extreme": ("4 - Extreme"),
             }
 
             features = {
-                "PARTNERED": _("Partnered"),
-                "VERIFIED": _("Verified"),
-                "DISCOVERABLE": _("Server Discovery"),
-                "FEATURABLE": _("Featurable"),
-                "COMMUNITY": _("Community"),
-                "PUBLIC_DISABLED": _("Public disabled"),
-                "INVITE_SPLASH": _("Splash Invite"),
-                "VIP_REGIONS": _("VIP Voice Servers"),
-                "VANITY_URL": _("Vanity URL"),
-                "MORE_EMOJI": _("More Emojis"),
-                "COMMERCE": _("Commerce"),
-                "NEWS": _("News Channels"),
-                "ANIMATED_ICON": _("Animated Icon"),
-                "BANNER": _("Banner Image"),
-                "MEMBER_LIST_DISABLED": _("Member list disabled"),
+                "PARTNERED": ("Partnered"),
+                "VERIFIED": ("Verified"),
+                "DISCOVERABLE": ("Server Discovery"),
+                "FEATURABLE": ("Featurable"),
+                "COMMUNITY": ("Community"),
+                "PUBLIC_DISABLED": ("Public disabled"),
+                "INVITE_SPLASH": ("Splash Invite"),
+                "VIP_REGIONS": ("VIP Voice Servers"),
+                "VANITY_URL": ("Vanity URL"),
+                "MORE_EMOJI": ("More Emojis"),
+                "COMMERCE": ("Commerce"),
+                "NEWS": ("News Channels"),
+                "ANIMATED_ICON": ("Animated Icon"),
+                "BANNER": ("Banner Image"),
+                "MEMBER_LIST_DISABLED": ("Member list disabled"),
             }
             guild_features_list = [
                 f"\N{WHITE HEAVY CHECK MARK} {name}"
@@ -219,7 +219,7 @@ class General(commands.Cog):
                 if feature in guild.features
             ]
 
-            joined_on = _(
+            joined_on = (
                 "{bot_name} joined this server on {bot_join}. That's over {since_join} days ago!"
             ).format(
                 bot_name=ctx.bot.user.name,
@@ -241,17 +241,17 @@ class General(commands.Cog):
             )
             if guild.icon_url:
                 data.set_thumbnail(url=guild.icon_url)
-            data.add_field(name=_("Members:"), value=member_msg)
+            data.add_field(name=("Members:"), value=member_msg)
             data.add_field(
-                name=_("Channels:"),
-                value=_(
+                name=("Channels:"),
+                value=(
                     "\N{SPEECH BALLOON} Text: {text}\n"
                     "\N{SPEAKER WITH THREE SOUND WAVES} Voice: {voice}"
                 ).format(text=bold(text_channels), voice=bold(voice_channels)),
             )
             data.add_field(
-                name=_("Utility:"),
-                value=_(
+                name=("Utility:"),
+                value=(
                     "Owner: {owner}\nVoice region: {region}\nVerif. level: {verif}\nServer ID: {id}{shard_info}"
                 ).format(
                     owner=bold(str(guild.owner)),
@@ -263,13 +263,13 @@ class General(commands.Cog):
                 inline=False,
             )
             data.add_field(
-                name=_("Misc:"),
-                value=_(
+                name=("Misc:"),
+                value=(
                     "AFK channel: {afk_chan}\nAFK timeout: {afk_timeout}\nCustom emojis: {emoji_count}\nRoles: {role_count}"
                 ).format(
                     afk_chan=bold(str(guild.afk_channel))
                     if guild.afk_channel
-                    else bold(_("Not set")),
+                    else bold(("Not set")),
                     afk_timeout=bold(humanize_timedelta(seconds=guild.afk_timeout)),
                     emoji_count=bold(humanize_number(len(guild.emojis))),
                     role_count=bold(humanize_number(len(guild.roles))),
@@ -277,9 +277,9 @@ class General(commands.Cog):
                 inline=False,
             )
             if guild_features_list:
-                data.add_field(name=_("Server features:"), value="\n".join(guild_features_list))
+                data.add_field(name=("Server features:"), value="\n".join(guild_features_list))
             if guild.premium_tier != 0:
-                nitro_boost = _(
+                nitro_boost = (
                     "Tier {boostlevel} with {nitroboosters} boosts\n"
                     "File size limit: {filelimit}\n"
                     "Emoji limit: {emojis_limit}\n"
@@ -291,7 +291,7 @@ class General(commands.Cog):
                     emojis_limit=bold(str(guild.emoji_limit)),
                     bitrate=bold(_bitsize(guild.bitrate_limit)),
                 )
-                data.add_field(name=_("Nitro Boost:"), value=nitro_boost)
+                data.add_field(name=("Nitro Boost:"), value=nitro_boost)
             if guild.splash:
                 data.set_image(url=guild.splash_url_as(format="png"))
             data.set_footer(text=joined_on)
@@ -318,19 +318,19 @@ class General(commands.Cog):
 
         except aiohttp.ClientError:
             await ctx.send(
-                _("No Urban Dictionary entries were found, or there was an error in the process.")
+                ("No Urban Dictionary entries were found, or there was an error in the process.")
             )
             return
 
         if data.get("error") != 404:
             if not data.get("list"):
-                return await ctx.send(_("No Urban Dictionary entries were found."))
+                return await ctx.send(("No Urban Dictionary entries were found."))
             if await ctx.embed_requested():
                 # a list of embeds
                 embeds = []
                 for ud in data["list"]:
                     embed = discord.Embed()
-                    title = _("{word} by {author}").format(
+                    title = ("{word} by {author}").format(
                         word=ud["word"].capitalize(), author=ud["author"]
                     )
                     if len(title) > 256:
@@ -338,13 +338,13 @@ class General(commands.Cog):
                     embed.title = title
                     embed.url = ud["permalink"]
 
-                    description = _("{definition}\n\n**Example:** {example}").format(**ud)
+                    description = ("{definition}\n\n**Example:** {example}").format(**ud)
                     if len(description) > 2048:
                         description = "{}...".format(description[:2045])
                     embed.description = description
 
                     embed.set_footer(
-                        text=_(
+                        text=(
                             "{thumbs_down} Down / {thumbs_up} Up, Powered by Urban Dictionary."
                         ).format(**ud)
                     )
@@ -363,13 +363,13 @@ class General(commands.Cog):
                 messages = []
                 for ud in data["list"]:
                     ud.setdefault("example", "N/A")
-                    message = _(
+                    message = (
                         "<{permalink}>\n {word} by {author}\n\n{description}\n\n"
                         "{thumbs_down} Down / {thumbs_up} Up, Powered by Urban Dictionary."
                     ).format(word=ud.pop("word").capitalize(), description="{description}", **ud)
                     max_desc_len = 2000 - len(message)
 
-                    description = _("{definition}\n\n**Example:** {example}").format(**ud)
+                    description = ("{definition}\n\n**Example:** {example}").format(**ud)
                     if len(description) > max_desc_len:
                         description = "{}...".format(description[: max_desc_len - 3])
 
@@ -387,7 +387,7 @@ class General(commands.Cog):
                     )
         else:
             await ctx.send(
-                _("No Urban Dictionary entries were found, or there was an error in the process.")
+                ("No Urban Dictionary entries were found, or there was an error in the process.")
             )
 
     @commands.command()

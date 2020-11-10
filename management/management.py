@@ -212,9 +212,9 @@ class Management(commands.Cog):
             count += 1
             page = page.lstrip("\n")
             page = (
-                _("Aliases:\n")
+                ("Aliases:\n")
                 + page
-                + _("\n\nPage {page}/{total}").format(page=count, total=len(temp))
+                + ("\n\nPage {page}/{total}").format(page=count, total=len(temp))
             )
             alias_list.append(box("".join(page), "diff"))
         if len(alias_list) == 1:
@@ -228,7 +228,7 @@ class Management(commands.Cog):
         pass
 
     @alias.group(name="global")
-    async def global_(self, ctx: commands.Context):
+    async def global(self, ctx: commands.Context):
         """Manage global aliases."""
         pass
 
@@ -241,7 +241,7 @@ class Management(commands.Cog):
         is_command = self.is_command(alias_name)
         if is_command:
             await ctx.send(
-                _(
+                (
                     "You attempted to create a new alias"
                     " with the name {name} but that"
                     " name is already a command on this bot."
@@ -252,7 +252,7 @@ class Management(commands.Cog):
         alias = await self._aliases.get_alias(ctx.guild, alias_name)
         if alias:
             await ctx.send(
-                _(
+                (
                     "You attempted to create a new alias"
                     " with the name {name} but that"
                     " alias already exists."
@@ -263,7 +263,7 @@ class Management(commands.Cog):
         is_valid_name = self.is_valid_alias_name(alias_name)
         if not is_valid_name:
             await ctx.send(
-                _(
+                (
                     "You attempted to create a new alias"
                     " with the name {name} but that"
                     " name is an invalid alias name. Alias"
@@ -275,7 +275,7 @@ class Management(commands.Cog):
         given_command_exists = self.bot.get_command(command.split(maxsplit=1)[0]) is not None
         if not given_command_exists:
             await ctx.send(
-                _("You attempted to create a new alias for a command that doesn't exist.")
+                ("You attempted to create a new alias for a command that doesn't exist.")
             )
             return
         # endregion
@@ -289,7 +289,7 @@ class Management(commands.Cog):
             return await ctx.send(" ".join(e.args))
 
         await ctx.send(
-            _("A new alias with the trigger `{name}` has been created.").format(name=alias_name)
+            ("A new alias with the trigger `{name}` has been created.").format(name=alias_name)
         )
 
     @checks.is_owner()
@@ -300,7 +300,7 @@ class Management(commands.Cog):
         is_command = self.is_command(alias_name)
         if is_command:
             await ctx.send(
-                _(
+                (
                     "You attempted to create a new global alias"
                     " with the name {name} but that"
                     " name is already a command on this bot."
@@ -311,7 +311,7 @@ class Management(commands.Cog):
         alias = await self._aliases.get_alias(None, alias_name)
         if alias:
             await ctx.send(
-                _(
+                (
                     "You attempted to create a new global alias"
                     " with the name {name} but that"
                     " alias already exists."
@@ -322,7 +322,7 @@ class Management(commands.Cog):
         is_valid_name = self.is_valid_alias_name(alias_name)
         if not is_valid_name:
             await ctx.send(
-                _(
+                (
                     "You attempted to create a new global alias"
                     " with the name {name} but that"
                     " name is an invalid alias name. Alias"
@@ -334,7 +334,7 @@ class Management(commands.Cog):
         given_command_exists = self.bot.get_command(command.split(maxsplit=1)[0]) is not None
         if not given_command_exists:
             await ctx.send(
-                _("You attempted to create a new alias for a command that doesn't exist.")
+                ("You attempted to create a new alias for a command that doesn't exist.")
             )
             return
         # endregion
@@ -345,7 +345,7 @@ class Management(commands.Cog):
             return await ctx.send(" ".join(e.args))
 
         await ctx.send(
-            _("A new global alias with the trigger `{name}` has been created.").format(
+            ("A new global alias with the trigger `{name}` has been created.").format(
                 name=alias_name
             )
         )
@@ -357,7 +357,7 @@ class Management(commands.Cog):
         if alias:
             await self.bot.send_help_for(ctx, alias.command)
         else:
-            await ctx.send(_("No such alias exists."))
+            await ctx.send(("No such alias exists."))
 
     @alias.command(name="show")
     async def _show_alias(self, ctx: commands.Context, alias_name: str):
@@ -366,12 +366,12 @@ class Management(commands.Cog):
 
         if alias:
             await ctx.send(
-                _("The `{alias_name}` alias will execute the command `{command}`").format(
+                ("The `{alias_name}` alias will execute the command `{command}`").format(
                     alias_name=alias_name, command=alias.command
                 )
             )
         else:
-            await ctx.send(_("There is no alias with the name `{name}`").format(name=alias_name))
+            await ctx.send(("There is no alias with the name `{name}`").format(name=alias_name))
 
     @checks.mod_or_permissions(manage_guild=True)
     @alias.command(name="delete", aliases=["del", "remove"])
@@ -379,30 +379,30 @@ class Management(commands.Cog):
     async def _del_alias(self, ctx: commands.Context, alias_name: str):
         """Delete an existing alias on this server."""
         if not await self._aliases.get_guild_aliases(ctx.guild):
-            await ctx.send(_("There are no aliases on this server."))
+            await ctx.send(("There are no aliases on this server."))
             return
 
         if await self._aliases.delete_alias(ctx, alias_name):
             await ctx.send(
-                _("Alias with the name `{name}` was successfully deleted.").format(name=alias_name)
+                ("Alias with the name `{name}` was successfully deleted.").format(name=alias_name)
             )
         else:
-            await ctx.send(_("Alias with name `{name}` was not found.").format(name=alias_name))
+            await ctx.send(("Alias with name `{name}` was not found.").format(name=alias_name))
 
     @checks.is_owner()
     @global_.command(name="delete", aliases=["del", "remove"])
     async def _del_global_alias(self, ctx: commands.Context, alias_name: str):
         """Delete an existing global alias."""
         if not await self._aliases.get_global_aliases():
-            await ctx.send(_("There are no global aliases on this bot."))
+            await ctx.send(("There are no global aliases on this bot."))
             return
 
         if await self._aliases.delete_alias(ctx, alias_name, global_=True):
             await ctx.send(
-                _("Alias with the name `{name}` was successfully deleted.").format(name=alias_name)
+                ("Alias with the name `{name}` was successfully deleted.").format(name=alias_name)
             )
         else:
-            await ctx.send(_("Alias with name `{name}` was not found.").format(name=alias_name))
+            await ctx.send(("Alias with name `{name}` was not found.").format(name=alias_name))
 
     @alias.command(name="list")
     @commands.guild_only()
@@ -411,7 +411,7 @@ class Management(commands.Cog):
         """List the available aliases on this server."""
         guild_aliases = await self._aliases.get_guild_aliases(ctx.guild)
         if not guild_aliases:
-            return await ctx.send(_("There are no aliases on this server."))
+            return await ctx.send(("There are no aliases on this server."))
         await self.paginate_alias_list(ctx, guild_aliases)
 
     @global_.command(name="list")
@@ -420,7 +420,7 @@ class Management(commands.Cog):
         """List the available global aliases on this bot."""
         global_aliases = await self._aliases.get_global_aliases()
         if not global_aliases:
-            return await ctx.send(_("There are no global aliases."))
+            return await ctx.send(("There are no global aliases."))
         await self.paginate_alias_list(ctx, global_aliases)
 
     @commands.Cog.listener()
@@ -465,12 +465,12 @@ class Management(commands.Cog):
             group = bank._config.guild(ctx.guild)
         group_data = await group.all()
         bank_name = group_data["bank_name"]
-        bank_scope = _("Global") if cur_setting else _("Server")
+        bank_scope = ("Global") if cur_setting else ("Server")
         currency_name = group_data["currency"]
         default_balance = group_data["default_balance"]
         max_balance = group_data["max_balance"]
 
-        settings = _(
+        settings = (
             "Bank settings:\n\nBank name: {bank_name}\nBank scope: {bank_scope}\n"
             "Currency: {currency_name}\nDefault balance: {default_balance}\n"
             "Maximum allowed balance: {maximum_bal}\n"
@@ -493,17 +493,17 @@ class Management(commands.Cog):
         """
         cur_setting = await bank.is_global()
 
-        word = _("per-server") if cur_setting else _("global")
+        word = ("per-server") if cur_setting else ("global")
         if confirm is False:
             await ctx.send(
-                _(
+                (
                     "This will toggle the bank to be {banktype}, deleting all accounts "
                     "in the process! If you're sure, type `{command}`"
                 ).format(banktype=word, command=f"{ctx.clean_prefix}bankset toggleglobal yes")
             )
         else:
             await bank.set_global(not cur_setting)
-            await ctx.send(_("The bank is now {banktype}.").format(banktype=word))
+            await ctx.send(("The bank is now {banktype}.").format(banktype=word))
 
     @is_owner_if_bank_global()
     @checks.guildowner_or_permissions(administrator=True)
@@ -511,7 +511,7 @@ class Management(commands.Cog):
     async def bankset_bankname(self, ctx: commands.Context, *, name: str):
         """Set the bank's name."""
         await bank.set_bank_name(name, ctx.guild)
-        await ctx.send(_("Bank name has been set to: {name}").format(name=name))
+        await ctx.send(("Bank name has been set to: {name}").format(name=name))
 
     @is_owner_if_bank_global()
     @checks.guildowner_or_permissions(administrator=True)
@@ -519,7 +519,7 @@ class Management(commands.Cog):
     async def bankset_creditsname(self, ctx: commands.Context, *, name: str):
         """Set the name for the bank's currency."""
         await bank.set_currency_name(name, ctx.guild)
-        await ctx.send(_("Currency name has been set to: {name}").format(name=name))
+        await ctx.send(("Currency name has been set to: {name}").format(name=name))
 
     @is_owner_if_bank_global()
     @checks.guildowner_or_permissions(administrator=True)
@@ -531,10 +531,10 @@ class Management(commands.Cog):
         except ValueError:
             # noinspection PyProtectedMember
             return await ctx.send(
-                _("Amount must be greater than zero and less than {max}.").format(
+                ("Amount must be greater than zero and less than {max}.").format(
                     max=humanize_number(bank._MAX_BALANCE)
                 )
             )
         await ctx.send(
-            _("Maximum balance has been set to: {amount}").format(amount=humanize_number(amount))
+            ("Maximum balance has been set to: {amount}").format(amount=humanize_number(amount))
         )
