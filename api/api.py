@@ -327,9 +327,13 @@ class API(commands.Cog):
         else:
             return None
 
-    @commands.command()
+    @commands.group()
+    async def anilist(self, ctx: commands.Context):
+        """Search Anilist for things."""
+
+    @anilist.command(name="anime")
     @commands.bot_has_permissions(embed_links=True, add_reactions=True)
-    async def anime(self, ctx, *, entered_title):
+    async def anilist_anime(self, ctx, *, entered_title):
         """Searches for anime using Anilist"""
 
         try:
@@ -344,9 +348,9 @@ class API(commands.Cog):
         except TypeError:
             await ctx.send("No anime was found or there was an error in the process")
 
-    @commands.command()
+    @anilist.command(name="mange")
     @commands.bot_has_permissions(embed_links=True, add_reactions=True)
-    async def manga(self, ctx, *, entered_title):
+    async def anilist_manga(self, ctx, *, entered_title):
         """Searches for manga using Anilist"""
 
         try:
@@ -361,8 +365,8 @@ class API(commands.Cog):
         except TypeError:
             await ctx.send("No mangas were found or there was an error in the process")
 
-    @commands.command()
-    async def character(self, ctx, *, entered_title):
+    @anilist.command(name="character")
+    async def anilist_character(self, ctx, *, entered_title):
         """Searches for characters using Anilist"""
 
         try:
@@ -376,9 +380,9 @@ class API(commands.Cog):
         except TypeError:
             await ctx.send("No characters were found or there was an error in the process")
 
-    @commands.command()
+    @anilist.command(name="user")
     @commands.bot_has_permissions(embed_links=True, add_reactions=True)
-    async def user(self, ctx, *, entered_title):
+    async def anilist_user(self, ctx, *, entered_title):
         """Searches users using Anilist"""
 
         try:
