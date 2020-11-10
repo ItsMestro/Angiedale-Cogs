@@ -1,4 +1,6 @@
 from .games import Games
+from .session import *
+from .log import *
 
 
 def setup(bot):
