@@ -8,7 +8,7 @@ from typing import cast, Iterable, Union, Literal
 
 import discord
 
-from redbot.cogs.bank import is_owner_if_bank_global
+from management.management import is_owner_if_bank_global
 from redbot.cogs.mod.converters import RawUserIds
 from redbot.core import Config, bank, commands, errors, checks
 from redbot.core.utils import AsyncIter
