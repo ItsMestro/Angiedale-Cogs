@@ -97,7 +97,7 @@ class Games(commands.Cog):
     def __init__(self):
         super().__init__()
         self.trivia_sessions = []
-        self.config = Config.get_conf(self, identifier=1387004, force_registration=True)
+        self.config = Config.get_conf(self, identifier=1387004, cog_name="GamesTrivia", force_registration=True)
 
         self.config.register_guild(
             max_score=10,
