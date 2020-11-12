@@ -25,7 +25,7 @@ class Interactions(BaseCog):
     def __init__(self, bot):
         super().__init__()
         self.bot = bot
-        self.config = Config.get_conf(self, identifier=1387002)
+        self.config = Config.get_conf(self, identifier=1387002, cog_name="Interactions")
         default_global = {
             "hugs": [
                 "https://img2.gelbooru.com/images/ff/63/ff63a3c4329fda2bf1e9704d4e150fea.gif",

@@ -64,7 +64,7 @@ class Management(commands.Cog):
     def __init__(self, bot: Red):
         super().__init__()
         self.bot = bot
-        self.config = Config.get_conf(self, 1387003)
+        self.config = Config.get_conf(self, 1387003, cog_name="ManagementAlias")
         self.config.register_global(entries=[], handled_string_creator=False)
         self.config.register_guild(entries=[])
         self._aliases: AliasCache = AliasCache(config=self.config, cache_enabled=True)
