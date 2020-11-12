@@ -300,7 +300,7 @@ class General(commands.Cog):
 
     @commands.command()
     @commands.bot_has_permissions(add_reactions=True)
-    async def pressf(self, ctx, *, user: discord.User = None):
+    async def respecc(self, ctx, *, user: discord.User = None):
         """Pay respects by pressing F"""
         if str(ctx.channel.id) in self.channels:
             return await ctx.send(
@@ -317,12 +317,12 @@ class General(commands.Cog):
                 return m.author == ctx.author and m.channel == ctx.channel
 
             try:
-                pressf = await ctx.bot.wait_for("message", timeout=120.0, check=check)
+                respecc = await ctx.bot.wait_for("message", timeout=120.0, check=check)
             except asyncio.TimeoutError:
                 del self.channels[str(ctx.channel.id)]
                 return await ctx.send("You took too long to reply.")
 
-            answer = pressf.content[:1900]
+            answer = respecc.content[:1900]
 
         message = await ctx.send(
             f"Everyone, let's pay respects to **{filter_mass_mentions(answer)}**! Press the f reaction on the this message to pay respects."
