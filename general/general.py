@@ -351,3 +351,22 @@ class General(commands.Cog):
             if str(reaction.emoji) == "\U0001f1eb":
                 await reaction.message.channel.send(f"**{user.name}** has paid their respects.")
                 self.channels[str(reaction.message.channel.id)]["reacted"].append(user.id)
+
+    @commands.command(Aliases=["pfp"])
+    async def avatar(self, ctx, *, user: discord.Member=None):
+        """Returns user avatar URL.
+
+        User argument can be user mention, nickname, username, user ID.
+        Default to yourself when no argument is supplied.
+        """
+        author = ctx.author
+
+        if not user:
+            user = author
+
+        if user.is_avatar_animated():
+            url = user.avatar_url_as(format="gif")
+        if not user.is_avatar_animated():
+            url = user.avatar_url_as(static_format="png")
+
+        await ctx.send("{}'s Avatar URL : {}".format(user.name, url))
