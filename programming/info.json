@@ -1,0 +1,9 @@
+{
+    "author" : ["Mestro"],
+    "install_msg" : "Programming was installed!",
+    "short" : "Collection of coding commands",
+    "description" : "Collection of commands for programmers and coders",
+    "requirements": ["pylint"],
+    "end_user_data_statement": "This cog does not store any End User Data",
+    "min_bot_version": "3.3.0"
+}
