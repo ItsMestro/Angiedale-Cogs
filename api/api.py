@@ -5,6 +5,7 @@ import re
 import aiohttp
 import discord
 from redbot.core.utils.menus import menu, commands, DEFAULT_CONTROLS
+from redbot.core.bot import Red
 
 SEARCH_ANIME_MANGA_QUERY = """
 query ($id: Int, $page: Int, $search: String, $type: MediaType) {
@@ -127,7 +128,7 @@ query ($id: Int, $page: Int, $search: String) {
 class API(commands.Cog):
     """Search the web for information"""
 
-    def __init__(self):
+    def __init__(self, bot: Red):
         self.url = "https://graphql.anilist.co"
 
     def format_name(self, first_name, last_name):  # Combines first_name and last_name and/or shows either of the two

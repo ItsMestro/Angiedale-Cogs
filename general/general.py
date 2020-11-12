@@ -8,6 +8,7 @@ import aiohttp
 import discord
 import asyncio
 from redbot.core import commands
+from redbot.core.bot import Red
 from redbot.core.utils.menus import menu, DEFAULT_CONTROLS
 from redbot.core.utils.common_filters import filter_mass_mentions
 from redbot.core.utils.chat_formatting import (
@@ -22,7 +23,7 @@ from redbot.core.utils.chat_formatting import (
 class General(commands.Cog):
     """General commands."""
 
-    def __init__(self, bot):
+    def __init__(self, bot: Red):
         super().__init__()
         self.stopwatches = {}
         self.bot = bot

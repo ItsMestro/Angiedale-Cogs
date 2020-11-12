@@ -2,11 +2,10 @@ import discord
 from pylint import epylint as lint
 from redbot.core import Config, commands
 from redbot.core.bot import Red
-from redbot.core.commands import Cog
 from redbot.core.data_manager import cog_data_path
 
 
-class CogLint(Cog):
+class Programming(commands.Cog):
     """Programming commands"""
 
     def __init__(self, bot: Red):
@@ -46,7 +45,6 @@ class CogLint(Cog):
         Toggle autolinting with `[p]autopylint`
         """
         await self.lint_message(ctx.message)
-        await ctx.maybe_send_embed("Hello World")
 
     async def lint_code(self, code):
         self.counter += 1

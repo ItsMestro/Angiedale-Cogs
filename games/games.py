@@ -16,6 +16,7 @@ import discord
 
 from collections import Counter
 from redbot.core import commands, Config, checks
+from redbot.core.bot import Red
 from management.management import is_owner_if_bank_global
 from redbot.core.data_manager import cog_data_path
 from redbot.core.utils import AsyncIter
@@ -94,7 +95,7 @@ class Games(commands.Cog):
         ("Very doubtful"),
     ]
 
-    def __init__(self):
+    def __init__(self, bot: Red):
         super().__init__()
         self.trivia_sessions = []
         self.config = Config.get_conf(self, identifier=1387004, cog_name="GamesTrivia", force_registration=True)

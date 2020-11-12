@@ -1,6 +1,7 @@
 import discord
 from redbot.core import commands, Config
 from random import randint
+from redbot.core.bot import Red
 from bs4 import BeautifulSoup
 import aiohttp
 import logging
@@ -16,13 +17,11 @@ else:
     console.setLevel(logging.INFO)
 log.addHandler(console)
 
-BaseCog = getattr(commands, "Cog", object)
 
-
-class Interactions(BaseCog):
+class Interactions(commands.Cog):
     """Interact with people!"""
 
-    def __init__(self, bot):
+    def __init__(self, bot: Red):
         super().__init__()
         self.bot = bot
         self.config = Config.get_conf(self, identifier=1387002, cog_name="Interactions")
