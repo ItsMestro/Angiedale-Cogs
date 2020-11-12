@@ -1,9 +1,8 @@
 {
-    "author" : ["Mestro"],
-    "install_msg" : "Programming was installed!",
-    "short" : "Collection of coding commands",
+    "author" : ["Mestro", "Bobloy"],
     "description" : "Collection of commands for programmers and coders",
-    "requirements": ["pylint"],
+    "install_msg" : "Programming was loaded!",
+    "short" : "Collection of coding commands",
     "end_user_data_statement": "This cog does not store any End User Data",
-    "min_bot_version": "3.3.0"
+    "requirements": ["pylint"]
 }

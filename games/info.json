@@ -1,6 +1,7 @@
 {
     "author" : ["Mestro"],
-    "install_msg" : "Games was installed!",
+    "description" : "A collection of games and other minor things",
+    "install_msg" : "Games was loaded!",
     "short" : "Various games",
-    "description" : "A collection of games and other minor things"
+    "end_user_data_statement": "This cog stores statistics of the users that participate in some of the games. This cog does not support data requests, but will respect deletion requests."
 }

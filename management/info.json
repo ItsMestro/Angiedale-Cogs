@@ -1,6 +1,7 @@
 {
     "author" : ["Mestro"],
-    "install_msg" : "Management was installed!",
+    "description" : "Collection of commands for managing the bot or other cogs",
+    "install_msg" : "Management was loaded!",
     "short" : "General management commands",
-    "description" : "Collection of commands for managing the bot or other cogs"
+    "end_user_data_statement": "This cog stores user IDs of users that create aliases. This cog does not support data requests, but will respect deletion requests."
 }

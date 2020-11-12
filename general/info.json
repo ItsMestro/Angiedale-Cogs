@@ -1,6 +1,7 @@
 {
-    "author" : ["Mestro"],
-    "install_msg" : "General was installed!",
+    "author" : ["Mestro", "aikaterna", "Yukirin"],
+    "description" : "Commands that don't fit any other category",
+    "install_msg" : "General was loaded!",
     "short" : "General commands",
-    "description" : "Commands that don't fit any other category"
+    "end_user_data_statement": "This cog does not store any End User Data"
 }

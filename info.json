@@ -1,7 +1,7 @@
 {
     "author" : ["Mestro (Mestro#2232)"],
+    "description" : "A big compilation of cogs that are customized for use with Angiedale",
     "install_msg" : "Enjoy your cogs! Where to find me: [Mestro#2232](https://discord.gg/xxjdXmR)",
-    "name" : "Angiedale",
     "short" : "All in one package for Angiedale",
-    "description" : "A big compilation of cogs that are customized for use with Angiedale"
+    "name" : "Angiedale"
 }

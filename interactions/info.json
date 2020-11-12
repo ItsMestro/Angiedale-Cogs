@@ -1,7 +1,8 @@
 {
-    "author" : ["Mestro"],
-    "install_msg" : "Interactions was installed!",
-    "short" : "Collection of interactive commands",
+    "author" : ["Mestro", "Jintaku", "Bobloy", "SnappyDragon"],
     "description" : "Various commands for interacting with other users",
-    "requirements" : ["beautifulsoup4"]
+    "install_msg" : "Interactions was loaded!",
+    "short" : "Collection of interactive commands",
+    "end_user_data_statement": "This cog does not store any End User Data",
+    "requirements": ["beautifulsoup4"]
 }
