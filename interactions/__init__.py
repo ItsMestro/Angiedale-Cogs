@@ -2,4 +2,5 @@ from .interactions import Interactions
 
 
 def setup(bot):
-    bot.add_cog(Interactions(bot))
+    cog = Interactions(bot)
+    bot.add_cog(cog)

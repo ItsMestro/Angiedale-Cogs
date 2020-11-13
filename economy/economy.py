@@ -8,7 +8,6 @@ from typing import cast, Iterable, Union, Literal
 
 import discord
 
-from management.management import is_owner_if_bank_global
 from redbot.cogs.mod.converters import RawUserIds
 from redbot.core import Config, bank, commands, errors, checks
 from redbot.core.utils import AsyncIter
@@ -22,6 +21,27 @@ log = logging.getLogger("red.angiedale.economy")
 MOCK_MEMBER = namedtuple("Member", "id guild")
 
 
+def is_owner_if_bank_global():
+    """
+    Command decorator. If the bank is global, it checks if the author is
+    bot owner, otherwise it only checks
+    if command was used in guild - it DOES NOT check any permissions.
+
+    When used on the command, this should be combined
+    with permissions check like `guildowner_or_permissions()`.
+    """
+
+    async def pred(ctx: commands.Context):
+        author = ctx.author
+        if not await bank.is_global():
+            if not ctx.guild:
+                return False
+            return True
+        else:
+            return await ctx.bot.is_owner(author)
+
+    return commands.check(pred)
+
 class SMReel(Enum):
     cherries = "<:KannaPat:755808378575650826>"
     cookie = "<:KannaPog:755808378210746400>"
@@ -33,7 +53,6 @@ class SMReel(Enum):
     mushroom = "<:KannaYay:755808378705412116>"
     heart = "<:KannaHeart:755808377946243213>"
     snowflake = "<:KannaCool:755808377933791372>"
-
 
 _ = lambda s: s
 PAYOUTS = {

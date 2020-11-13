@@ -3,6 +3,7 @@ from .session import *
 from .log import *
 
 
-def setup(bot):
-    bot.add_cog(Games(bot))
-    await Games(bot).initialise()
+async def setup(bot):
+    cog = Games(bot)
+    bot.add_cog(cog)
+    await cog.initialise()

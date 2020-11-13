@@ -35,7 +35,7 @@ class Utility(commands.Cog):
         self.raffleconfig = Config.get_conf(self, 1387009, cog_name="UtilityRaffle", force_registration=True)
         self.raffleconfig.register_guild(**self.raffle_defaults)
         self.load_check = self.bot.loop.create_task(self.raffle_worker())
-        self.conf = Config.get_conf(self, identifier=1387011, cog_name="UtilityReactPoll" force_registration=True)
+        self.conf = Config.get_conf(self, identifier=1387011, cog_name="UtilityReactPoll", force_registration=True)
         default_guild_settings = {"polls": {}, "embed": True}
         self.conf.register_guild(**default_guild_settings)
         self.conf.register_global(polls=[])
@@ -870,7 +870,7 @@ class Utility(commands.Cog):
             Settings for reaction polls
         """
 
-    @rpollset.command(name="embed", aliases=["embeds"])
+    @pollset.command(name="embed", aliases=["embeds"])
     async def rpoll_set_embed(self, ctx: commands.Context):
         """
             Toggle embed usage for polls in this server

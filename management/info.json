@@ -1,5 +1,5 @@
 {
-    "author" : ["Mestro", "aikaterna", , "retke (El Laggron)"],
+    "author" : ["Mestro", "aikaterna", "retke (El Laggron)"],
     "description" : "Collection of commands for managing the bot or other cogs",
     "install_msg" : "Management was loaded!",
     "short" : "General management commands",

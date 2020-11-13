@@ -6,6 +6,7 @@ import re
 from enum import Enum
 from random import randint, choice
 from typing import Final, List, Literal, Union
+from operator import itemgetter
 
 import urllib.parse
 import aiohttp
@@ -21,7 +22,6 @@ from collections import Counter
 from redbot.core import commands, Config, checks, bank
 from redbot.core.bot import Red
 from redbot.core.errors import BalanceTooHigh
-from management.management import is_owner_if_bank_global
 from redbot.core.data_manager import cog_data_path
 from redbot.core.utils import AsyncIter
 from redbot.core.utils.menus import menu, DEFAULT_CONTROLS, start_adding_reactions
@@ -53,6 +53,27 @@ log = logging.getLogger("red.angiedale.games")
 _SCHEMA_VERSION: Final[int] = 2
 
 
+def is_owner_if_bank_global():
+    """
+    Command decorator. If the bank is global, it checks if the author is
+    bot owner, otherwise it only checks
+    if command was used in guild - it DOES NOT check any permissions.
+
+    When used on the command, this should be combined
+    with permissions check like `guildowner_or_permissions()`.
+    """
+
+    async def pred(ctx: commands.Context):
+        author = ctx.author
+        if not await bank.is_global():
+            if not ctx.guild:
+                return False
+            return True
+        else:
+            return await ctx.bot.is_owner(author)
+
+    return commands.check(pred)
+
 class InvalidListError(Exception):
     """A Trivia list file is in invalid format."""
 
@@ -80,11 +101,9 @@ class RPSParser:
 MAX_ROLL: Final[int] = 2 ** 64 - 1
 
 
-class Games(commands.Cog):
+class Games(Database, commands.Cog):
     """Collection of games for you to play."""
 
-    global _
-    _ = lambda s: s
     ball = [
         ("As I see it, yes"),
         ("It is certain"),
@@ -115,9 +134,9 @@ class Games(commands.Cog):
         self.bot = bot
         self.cycle_task = self.bot.loop.create_task(self.membership_updater())
         self.trivia_sessions = []
-        self.config = Config.get_conf(self, identifier=1387004, cog_name="GamesTrivia", force_registration=True)
+        self.triviaconfig = Config.get_conf(self, identifier=1387004, cog_name="GamesTrivia", force_registration=True)
 
-        self.config.register_guild(
+        self.triviaconfig.register_guild(
             max_score=10,
             timeout=120.0,
             delay=15.0,
@@ -127,7 +146,7 @@ class Games(commands.Cog):
             allow_override=True,
         )
 
-        self.config.register_member(wins=0, games=0, total_score=0)
+        self.triviaconfig.register_member(wins=0, games=0, total_score=0)
 
     async def initialise(self):
         self.migration_task = self.bot.loop.create_task(
@@ -145,11 +164,17 @@ class Games(commands.Cog):
         if requester != "discord_deleted_user":
             return
 
-        all_members = await self.config.all_members()
+        all_members1 = await self.triviaconfig.all_members()
 
-        async for guild_id, guild_data in AsyncIter(all_members.items(), steps=100):
+        async for guild_id, guild_data in AsyncIter(all_members1.items(), steps=100):
             if user_id in guild_data:
-                await self.config.member_from_ids(guild_id, user_id).clear()
+                await self.triviaconfig.member_from_ids(guild_id, user_id).clear()
+
+        await super().config.user_from_id(user_id).clear()
+        all_members2 = await super().config.all_members()
+        async for guild_id, guild_data in AsyncIter(all_members2.items(), steps=100):
+            if user_id in guild_data:
+                await super().config.member_from_ids(guild_id, user_id).clear()
 
     @commands.command()
     async def roll(self, ctx, number: int = 100):
@@ -264,7 +289,7 @@ class Games(commands.Cog):
     @triviaset.command(name="showsettings")
     async def triviaset_showsettings(self, ctx: commands.Context):
         """Show the current trivia settings."""
-        settings = self.config.guild(ctx.guild)
+        settings = self.triviaconfig.guild(ctx.guild)
         settings_dict = await settings.all()
         msg = box(
             (
@@ -287,7 +312,7 @@ class Games(commands.Cog):
         if score < 0:
             await ctx.send(("Score must be greater than 0."))
             return
-        settings = self.config.guild(ctx.guild)
+        settings = self.triviaconfig.guild(ctx.guild)
         await settings.max_score.set(score)
         await ctx.send(("Done. Points required to win set to {num}.").format(num=score))
 
@@ -297,14 +322,14 @@ class Games(commands.Cog):
         if seconds < 4.0:
             await ctx.send(("Must be at least 4 seconds."))
             return
-        settings = self.config.guild(ctx.guild)
+        settings = self.triviaconfig.guild(ctx.guild)
         await settings.delay.set(seconds)
         await ctx.send(("Done. Maximum seconds to answer set to {num}.").format(num=seconds))
 
     @triviaset.command(name="stopafter")
     async def triviaset_stopafter(self, ctx: commands.Context, seconds: finite_float):
         """Set how long until trivia stops due to no response."""
-        settings = self.config.guild(ctx.guild)
+        settings = self.triviaconfig.guild(ctx.guild)
         if seconds < await settings.delay():
             await ctx.send(("Must be larger than the answer time limit."))
             return
@@ -318,7 +343,7 @@ class Games(commands.Cog):
     @triviaset.command(name="override")
     async def triviaset_allowoverride(self, ctx: commands.Context, enabled: bool):
         """Allow/disallow trivia lists to override settings."""
-        settings = self.config.guild(ctx.guild)
+        settings = self.triviaconfig.guild(ctx.guild)
         await settings.allow_override.set(enabled)
         if enabled:
             await ctx.send(
@@ -338,7 +363,7 @@ class Games(commands.Cog):
 
         If enabled, the bot will gain a point if no one guesses correctly.
         """
-        settings = self.config.guild(ctx.guild)
+        settings = self.triviaconfig.guild(ctx.guild)
         await settings.bot_plays.set(enabled)
         if enabled:
             await ctx.send(("Done. I'll now gain a point if users don't answer in time."))
@@ -352,7 +377,7 @@ class Games(commands.Cog):
         If enabled, the bot will reveal the answer if no one guesses correctly
         in time.
         """
-        settings = self.config.guild(ctx.guild)
+        settings = self.triviaconfig.guild(ctx.guild)
         await settings.reveal_answer.set(enabled)
         if enabled:
             await ctx.send(("Done. I'll reveal the answer if no one knows it."))
@@ -372,7 +397,7 @@ class Games(commands.Cog):
         The number of credits is determined by multiplying their total score by
         this multiplier.
         """
-        settings = self.config.guild(ctx.guild)
+        settings = self.triviaconfig.guild(ctx.guild)
         if multiplier < 0:
             await ctx.send(("Multiplier must be at least 0."))
             return
@@ -509,7 +534,7 @@ class Games(commands.Cog):
                 ("The trivia list was parsed successfully, however it appears to be empty!")
             )
             return
-        settings = await self.config.guild(ctx.guild).all()
+        settings = await self.triviaconfig.guild(ctx.guild).all()
         config = trivia_dict.pop("CONFIG", None)
         if config and settings["allow_override"]:
             settings.update(config)
@@ -588,7 +613,7 @@ class Games(commands.Cog):
             )
             return
         guild = ctx.guild
-        data = await self.config.all_members(guild)
+        data = await self.triviaconfig.all_members(guild)
         data = {guild.get_member(u): d for u, d in data.items()}
         data.pop(None, None)  # remove any members which aren't in the guild
         await self.send_leaderboard(ctx, data, key, top)
@@ -616,7 +641,7 @@ class Games(commands.Cog):
                 ).format(field_name=sort_by, prefix=ctx.clean_prefix)
             )
             return
-        data = await self.config.all_members()
+        data = await self.triviaconfig.all_members()
         collated_data = {}
         for guild_id, guild_data in data.items():
             guild = ctx.bot.get_guild(guild_id)
@@ -760,12 +785,12 @@ class Games(commands.Cog):
         for member, score in session.scores.items():
             if member.id == session.ctx.bot.user.id:
                 continue
-            stats = await self.config.member(member).all()
+            stats = await self.triviaconfig.member(member).all()
             if score == max_score:
                 stats["wins"] += 1
             stats["total_score"] += score
             stats["games"] += 1
-            await self.config.member(member).set(stats)
+            await self.triviaconfig.member(member).set(stats)
 
     def get_trivia_list(self, category: str) -> dict:
         """Get the trivia list corresponding to the given category.
@@ -874,12 +899,6 @@ class Games(commands.Cog):
     def cog_unload(self):
         for session in self.trivia_sessions:
             session.force_stop()
-
-
-def get_core_lists() -> List[pathlib.Path]:
-    """Return a list of paths for all trivia lists packaged with the bot."""
-    core_lists_path = pathlib.Path(__file__).parent.resolve() / "data/lists"
-    return list(core_lists_path.glob("*.yaml"))
 
     @commands.command()
     @commands.guild_only()
@@ -1751,7 +1770,7 @@ def get_core_lists() -> List[pathlib.Path]:
             async with ctx.typing():
                 await self.cog_ready_event.wait()
 
-    class Membership(Database):
+class Membership(Database):
     """This class handles membership processing."""
 
     __slots__ = ("ctx", "timeout", "cancel", "mode", "coro")
@@ -2185,6 +2204,11 @@ def get_core_lists() -> List[pathlib.Path]:
         else:
             return False
 
+
+def get_core_lists() -> List[pathlib.Path]:
+    """Return a list of paths for all trivia lists packaged with the bot."""
+    core_lists_path = pathlib.Path(__file__).parent.resolve() / "data/lists"
+    return list(core_lists_path.glob("*.yaml"))
 
 class ExitProcess(Exception):
     pass

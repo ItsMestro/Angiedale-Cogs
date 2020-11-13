@@ -2,4 +2,5 @@ from .utility import Utility
 
 
 def setup(bot):
-    bot.add_cog(Utility(bot))
+    cog = Utility(bot)
+    bot.add_cog(cog)

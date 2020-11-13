@@ -4,10 +4,7 @@ from re import findall
 import discord
 from discord.ext.commands.view import StringView
 from redbot.core import commands, Config
-from redbot.core.i18n import Translator
 from redbot.core.utils import AsyncIter
-
-_ = Translator("Alias", __file__)
 
 
 class ArgParseError(Exception):
@@ -195,14 +192,14 @@ class AliasCache:
             try:
                 indices = [int(a[0]) for a in indices]
             except IndexError:
-                raise ArgParseError(_("Arguments must be specified with a number."))
+                raise ArgParseError(("Arguments must be specified with a number."))
             low = min(indices)
             indices = [a - low for a in indices]
             high = max(indices)
             gaps = set(indices).symmetric_difference(range(high + 1))
             if gaps:
                 raise ArgParseError(
-                    _("Arguments must be sequential. Missing arguments: ")
+                    ("Arguments must be sequential. Missing arguments: ")
                     + ", ".join(str(i + low) for i in gaps)
                 )
             command = command.format(*(f"{{{i}}}" for i in range(-low, high + low + 1)))

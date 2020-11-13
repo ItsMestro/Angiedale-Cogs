@@ -2,4 +2,5 @@ from .general import General
 
 
 def setup(bot):
-    bot.add_cog(General(bot))
+    cog = General(bot)
+    bot.add_cog(cog)

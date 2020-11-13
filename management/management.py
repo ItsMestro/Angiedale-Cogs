@@ -173,7 +173,7 @@ class Management(commands.Cog):
             return True
 
         prompt = await ctx.send(
-            _("Are you sure you want to delete {number} messages? (y/n)").format(
+            ("Are you sure you want to delete {number} messages? (y/n)").format(
                 number=humanize_number(number)
             )
         )
@@ -187,7 +187,7 @@ class Management(commands.Cog):
                 pass
             return True
         else:
-            await ctx.send(_("Cancelled."))
+            await ctx.send(("Cancelled."))
             return False
 
     @staticmethod
@@ -805,7 +805,7 @@ class Management(commands.Cog):
         try:
             after = await channel.fetch_message(message_id)
         except discord.NotFound:
-            return await ctx.send(_("Message not found."))
+            return await ctx.send(("Message not found."))
 
         to_delete = await self.get_messages_for_deletion(
             channel=channel, number=None, after=after, delete_pinned=delete_pinned
@@ -851,7 +851,7 @@ class Management(commands.Cog):
         try:
             before = await channel.fetch_message(message_id)
         except discord.NotFound:
-            return await ctx.send(_("Message not found."))
+            return await ctx.send(("Message not found."))
 
         to_delete = await self.get_messages_for_deletion(
             channel=channel, number=number, before=before, delete_pinned=delete_pinned
@@ -898,13 +898,13 @@ class Management(commands.Cog):
             mone = await channel.fetch_message(one)
         except discord.errors.NotFound:
             return await ctx.send(
-                _("Could not find a message with the ID of {id}.".format(id=one))
+                ("Could not find a message with the ID of {id}.".format(id=one))
             )
         try:
             mtwo = await channel.fetch_message(two)
         except discord.errors.NotFound:
             return await ctx.send(
-                _("Could not find a message with the ID of {id}.".format(id=two))
+                ("Could not find a message with the ID of {id}.".format(id=two))
             )
         to_delete = await self.get_messages_for_deletion(
             channel=channel, before=mtwo, after=mone, delete_pinned=delete_pinned
@@ -1370,23 +1370,23 @@ class Management(commands.Cog):
                 author = ctx.author
                 try:
                     await ctx.send(
-                        _("I am not allowed to send messages in ") + channel.mention,
+                        ("I am not allowed to send messages in ") + channel.mention,
                         delete_after=2,
                     )
                 except discord.errors.Forbidden:
                     await author.send(
-                        _("I am not allowed to send messages in ") + channel.mention,
+                        ("I am not allowed to send messages in ") + channel.mention,
                         delete_after=15,
                     )
                     # If this fails then fuck the command author
             elif not ctx.guild.me.permissions_in(channel).attach_files:
                 try:
                     await ctx.send(
-                        _("I am not allowed to upload files in ") + channel.mention, delete_after=2
+                        ("I am not allowed to upload files in ") + channel.mention, delete_after=2
                     )
                 except discord.errors.Forbidden:
                     await author.send(
-                        _("I am not allowed to upload files in ") + channel.mention,
+                        ("I am not allowed to upload files in ") + channel.mention,
                         delete_after=15,
                     )
             else:
@@ -1429,9 +1429,9 @@ class Management(commands.Cog):
             await ctx.message.delete()
         except discord.errors.Forbidden:
             try:
-                await ctx.send(_("Not enough permissions to delete messages."), delete_after=2)
+                await ctx.send(("Not enough permissions to delete messages."), delete_after=2)
             except discord.errors.Forbidden:
-                await author.send(_("Not enough permissions to delete messages."), delete_after=15)
+                await author.send(("Not enough permissions to delete messages."), delete_after=15)
 
         await self.say(ctx, channel, text, files)
 
@@ -1454,7 +1454,7 @@ class Management(commands.Cog):
                 channel = ctx.channel
 
         if u in self.interaction:
-            await ctx.send(_("A session is already running."))
+            await ctx.send(("A session is already running."))
             return
 
         message = await u.send(
@@ -1477,7 +1477,7 @@ class Management(commands.Cog):
             try:
                 message = await self.bot.wait_for("message", timeout=300)
             except asyncio.TimeoutError:
-                await u.send(_("Request timed out. Session closed"))
+                await u.send(("Request timed out. Session closed"))
                 self.interaction.remove(u)
                 return
 
@@ -1517,7 +1517,7 @@ class Management(commands.Cog):
 
     async def stop_interaction(self, user):
         self.interaction.remove(user)
-        await user.send(_("Session closed"))
+        await user.send(("Session closed"))
 
     def __unload(self):
         self.cog_unload()
