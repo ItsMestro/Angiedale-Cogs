@@ -1,8 +1,8 @@
 {
-    "author" : ["Mestro", "Bobloy", "Ribose", "Redjumpman"],
+    "author" : ["Mestro", "Bobloy", "Ribose", "Redjumpman", "FlapJack", "aikaterna", "TrustyJAID"],
     "description" : "Collection of utility commands",
     "install_msg" : "Utility was loaded!",
     "short" : "Collection of utility commands",
-    "end_user_data_statement": "This cog does not store any End User Data",
+    "end_user_data_statement": "This cog stores Discord IDs temporarily for polls and gets deleted when they conclude",
     "requirements": ["pylint"]
 }
