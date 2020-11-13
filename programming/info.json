@@ -1,8 +1,0 @@
-{
-    "author" : ["Mestro", "Bobloy"],
-    "description" : "Collection of commands for programmers and coders",
-    "install_msg" : "Programming was loaded!",
-    "short" : "Collection of coding commands",
-    "end_user_data_statement": "This cog does not store any End User Data",
-    "requirements": ["pylint"]
-}
