@@ -71,7 +71,7 @@ from .menus import (
 
 _ = Translator("Adventure", __file__)
 
-log = logging.getLogger("red.cogs.adventure")
+log = logging.getLogger("red.angiedale.adventure")
 
 REBIRTH_LVL = 20
 REBIRTH_STEP = 10

@@ -17,7 +17,7 @@ from redbot.core.utils.menus import close_menu, menu, DEFAULT_CONTROLS
 
 from redbot.core.bot import Red
 
-logger = logging.getLogger("red.economy")
+log = logging.getLogger("red.angiedale.economy")
 
 MOCK_MEMBER = namedtuple("Member", "id guild")
 

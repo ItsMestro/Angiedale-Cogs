@@ -7,6 +7,7 @@ import urllib.parse
 import aiohttp
 import discord
 import asyncio
+import logging
 from redbot.core import commands
 from redbot.core.bot import Red
 from redbot.core.utils.menus import menu, DEFAULT_CONTROLS
@@ -18,6 +19,8 @@ from redbot.core.utils.chat_formatting import (
     humanize_number,
     humanize_timedelta,
 )
+
+log = logging.getLogger("red.angiedale.general")
 
 
 class General(commands.Cog):

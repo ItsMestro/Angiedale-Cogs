@@ -12,7 +12,7 @@ from redbot.core.utils.chat_formatting import humanize_timedelta, pagify
 from redbot.core.utils.menus import start_adding_reactions
 from redbot.core.utils.predicates import ReactionPredicate
 
-log = logging.getLogger("red.flapjackcogs.reactpoll")
+log = logging.getLogger("red.angiedale.utility.polls")
 
 
 class Poll:

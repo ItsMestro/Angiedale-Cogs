@@ -49,7 +49,7 @@ from .session import TriviaSession
 
 __all__ = ["Trivia", "UNIQUE_ID", "get_core_lists"]
 
-log = logging.getLogger("red.jumper-plugins.casino")
+log = logging.getLogger("red.angiedale.games")
 _SCHEMA_VERSION: Final[int] = 2
 
 

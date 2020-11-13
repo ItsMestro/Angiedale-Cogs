@@ -12,7 +12,7 @@ from redbot.vendored.discord.ext import menus
 from . import bank
 
 _ = Translator("Adventure", __file__)
-log = logging.getLogger("red.cogs.adventure.menus")
+log = logging.getLogger("red.angiedale.adventure.menus")
 
 
 class LeaderboardSource(menus.ListPageSource):

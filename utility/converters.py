@@ -7,7 +7,7 @@ from discord.ext.commands.converter import Converter
 from discord.ext.commands.errors import BadArgument
 from redbot.core import commands
 
-log = logging.getLogger("red.flapjackcogs.reactpoll")
+log = logging.getLogger("red.angiedale.utility.converters")
 
 # the following regex is slightly modified from Red
 # https://github.com/Cog-Creators/Red-DiscordBot/blob/V3/develop/redbot/core/commands/converter.py#L55

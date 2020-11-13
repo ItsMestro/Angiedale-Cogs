@@ -135,7 +135,7 @@ _DataNamedTuple = namedtuple("Casino", "foo")
 _DataObj = _DataNamedTuple(foo=None)
 
 
-log = logging.getLogger("red.jumper-plugins.casino")
+log = logging.getLogger("red.angiedale.games.data")
 
 
 class Database:

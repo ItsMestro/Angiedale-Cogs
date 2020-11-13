@@ -22,9 +22,7 @@ from .alias_entry import AliasEntry, AliasCache, ArgParseError
 from .checks import check_self_permissions
 from .converters import PositiveInt, RawMessageIds, positive_int
 
-log = logging.getLogger("red.cogs.alias")
-log = logging.getLogger("red.cleanup")
-log = logging.getLogger("red.aikaterna.rndstatus")
+log = logging.getLogger("red.angiedale.management")
 
 
 def is_owner_if_bank_global():

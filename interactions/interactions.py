@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 import aiohttp
 import logging
 
-log = logging.getLogger("Interactions")  # Thanks to Sinbad for the example code for logging
+log = logging.getLogger("red.angiedale.interactions")
 log.setLevel(logging.DEBUG)
 
 console = logging.StreamHandler()

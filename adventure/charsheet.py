@@ -28,7 +28,7 @@ from redbot.core.utils.predicates import ReactionPredicate
 
 from . import bank
 
-log = logging.getLogger("red.cogs.adventure")
+log = logging.getLogger("red.angiedale.adventure.charsheet")
 
 _ = Translator("Adventure", __file__)
 

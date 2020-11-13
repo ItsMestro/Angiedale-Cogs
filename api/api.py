@@ -4,8 +4,11 @@ import json
 import re
 import aiohttp
 import discord
+import logging
 from redbot.core.utils.menus import menu, commands, DEFAULT_CONTROLS
 from redbot.core.bot import Red
+
+log = logging.getLogger("red.angiedale.api")
 
 SEARCH_ANIME_MANGA_QUERY = """
 query ($id: Int, $page: Int, $search: String, $type: MediaType) {

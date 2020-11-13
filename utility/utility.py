@@ -16,8 +16,7 @@ from redbot.core.utils.menus import start_adding_reactions
 from .polls import Poll
 from .converters import PollOptions, TIME_RE, MULTI_RE
 
-log = logging.getLogger("red.raffle")
-log = logging.getLogger("red.flapjackcogs.reactpoll")
+log = logging.getLogger("red.angiedale.utility")
 
 EMOJI_RE = re.compile(r"<a?:[a-zA-Z0-9\_]+:([0-9]+)>")
 
