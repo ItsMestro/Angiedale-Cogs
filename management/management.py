@@ -251,7 +251,7 @@ class Management(commands.Cog):
             try:
                 t.result()
             except Exception as exc:
-                log1.exception("Failed to load alias cog", exc_info=exc)
+                log.exception("Failed to load alias cog", exc_info=exc)
                 # Maybe schedule extension unloading with message to owner in future
 
         t.add_done_callback(done_callback)
