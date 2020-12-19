@@ -302,11 +302,6 @@ class Utility(commands.Cog):
         """Raffle group command"""
         pass
 
-    @raffle.command()
-    async def version(self, ctx):
-        """Displays the currently installed version of raffle."""
-        await ctx.send(f"You are running raffle version {__version__}")
-
     @raffle.command(hidden=True)
     @commands.is_owner()
     async def clear(self, ctx):
@@ -324,19 +319,18 @@ class Utility(commands.Cog):
         30:10    - 30 minutes and 10 seconds
         24:00:00 - 1 day or 24 hours
 
-        Title should not be longer than 35 characters.
         Only one raffle can be active per server.
         """
-        timer = await self.start_checks(ctx, timer, title)
+        timer = await self.start_checks(ctx, timer)
         if timer is None:
             return
 
         try:
-            description, winners, dos, roles = await self.raffle_setup(ctx)
+            description, url, winners, dos, roles = await self.raffle_setup(ctx)
         except asyncio.TimeoutError:
             return await ctx.send("Response timed out. A raffle failed to start.")
         str_roles = [r[0] for r in roles]
-        description = f"{description}\n\nReact to this message with \U0001F39F to enter.\n\n"
+        description = f"{description}\n\nReact to this message with <:KannaPog:755808378210746400> to enter.\n\n"
 
         channel = await self._get_channel(ctx)
         end = calendar.timegm(ctx.message.created_at.utctimetuple()) + timer
@@ -344,11 +338,11 @@ class Utility(commands.Cog):
 
         try:
             embed = discord.Embed(
-                description=description, title=title, color=self.bot.color
+                description=description, url=url, title=title, color=self.bot.color
             )  ### old compat, i think ?
         except:
             color = await self.bot.get_embed_color(ctx)
-            embed = discord.Embed(description=description, title=title, color=color)  ### new code
+            embed = discord.Embed(description=description, url=url, title=title, color=color)  ### new code
         embed.add_field(name="Days on Server", value=f"{dos}")
         role_info = f'{", ".join(str_roles) if roles else "@everyone"}'
         embed.add_field(name="Allowed Roles", value=role_info)
@@ -359,7 +353,7 @@ class Utility(commands.Cog):
             )
         )
         await msg.edit(embed=embed)
-        await msg.add_reaction("\U0001F39F")
+        await msg.add_reaction("<:KannaPog:755808378210746400>")
 
         async with self.raffleconfig.guild(ctx.guild).Raffles() as r:
             new_raffle = {
@@ -512,12 +506,9 @@ class Utility(commands.Cog):
     def __unload(self):
         self.load_check.cancel()
 
-    async def start_checks(self, ctx, timer, title):
+    async def start_checks(self, ctx, timer):
         timer = self.time_converter(timer)
-        if len(title) > 35:
-            await ctx.send("Title is too long. Must be 35 characters or less.")
-            return None
-        elif timer is None:
+        if timer is None:
             await ctx.send("Incorrect time format. Please use help on this command for more information.")
             return None
         else:
@@ -568,7 +559,7 @@ class Utility(commands.Cog):
         return channel
 
     async def raffle_setup(self, ctx):
-        predicate1 = lambda m: len(m.content) <= 200
+        predicate1 = lambda m: len(m.content) <= 1000
 
         def predicate2(m):
             try:
@@ -587,27 +578,35 @@ class Utility(commands.Cog):
                 return False
             except ValueError:
                 return False
+                
+        predicate5 = lambda m: m.content.startswith("http")
 
-        q1 = "Please set a brief description (200 chars max)"
-        q2 = (
+        q1 = "Please set a brief description (1000 chars max)"
+        q2 = "Would you like to link this raffle somewhere?"
+        q3 = (
             "Please set how many winners are pulled.\n**Note**: If there are "
             "more winners than entries, I will make everyone a winner."
         )
-        q3 = "Would you like to set a 'days on server' requirement?"
-        q4 = "Do you want to limit this raffle to specific roles?"
+        q4 = "Would you like to set a 'days on server' requirement?"
+        q5 = "Do you want to limit this raffle to specific roles?"
 
         description = await self._get_response(ctx, q1, predicate1)
-        winners = await self._get_response(ctx, q2, predicate2)
+        url = ""
+
+        if await self._get_response(ctx, q2, predicate3) == "yes":
+            url = await self._get_response(ctx, "What's the link?", predicate5)
+
+        winners = await self._get_response(ctx, q3, predicate2)
         dos = 0
         roles = []
 
-        if await self._get_response(ctx, q3, predicate3) == "yes":
+        if await self._get_response(ctx, q4, predicate3) == "yes":
             dos = await self._get_response(ctx, "How many days on the server are required?", predicate4)
 
-        if await self._get_response(ctx, q4, predicate3) == "yes":
+        if await self._get_response(ctx, q5, predicate3) == "yes":
             roles = await self._get_roles(ctx)
 
-        return description, int(winners), int(dos), roles
+        return description, url, int(winners), int(dos), roles
 
     async def raffle_worker(self):
         """Restarts raffle timers
@@ -680,7 +679,7 @@ class Utility(commands.Cog):
                 pass
 
     async def pick_winner(self, guild, channel, msg):
-        reaction = next(filter(lambda x: x.emoji == "\U0001F39F", msg.reactions), None)
+        reaction = next(filter(lambda x: x.emoji == self.bot.get_emoji(755808378210746400), msg.reactions), None)
         if reaction is None:
             return await channel.send(
                 "It appears there were no valid entries, so a winner for the raffle could not be picked."
