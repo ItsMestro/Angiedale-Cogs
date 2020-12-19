@@ -156,6 +156,7 @@ class Interactions(commands.Cog):
 
         author = ctx.message.author
         images = await self.get_images("highfive")
+
         mn = len(images)
         i = randint(0, mn - 1)
 
@@ -250,6 +251,24 @@ class Interactions(commands.Cog):
         embed.set_image(url=images[i])
         await ctx.send(embed=embed)
 
+    @commands.command()
+    @commands.bot_has_permissions(embed_links=True)
+    async def bonk(self, ctx, *, user: discord.Member):
+        """Bonk a user!"""
+
+        author = ctx.message.author
+        images = self.get_images("bonk")
+
+        mn = len(images)
+        i = randint(0, mn - 1)
+
+        # Build Embed
+        embed = discord.Embed()
+        embed.description = f"**{author.mention} bonks {user.mention}**"
+        embed.set_footer(text="Made with the help of nekos.life")
+        embed.set_image(url=images[i])
+        await ctx.send(embed=embed)
+
     async def fetch_nekos_life(self, ctx, rp_action):
 
         async with aiohttp.ClientSession() as session:
@@ -323,3 +342,15 @@ class Interactions(commands.Cog):
         )
         em.set_image(url=f"https://www.lovecalculator.com/{result_image}")
         await ctx.send(embed=em)
+
+    @commands.command(hidden=True)
+    async def et(self, ctx, user: discord.Member=None):
+        """Marcinho is ET"""
+
+        author = ctx.message.author
+        if not user:
+            message = f"{author.mention} thinks <@253588524652036096> is ET"
+        else:
+            message = f"{author.mention} thinks {user.mention} is ET"
+
+        await ctx.send(message)
