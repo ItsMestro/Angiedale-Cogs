@@ -697,7 +697,8 @@ class Management(commands.Cog):
             before=ctx.message,
             delete_pinned=delete_pinned,
         )
-        to_delete.append(ctx.message)
+        if can_mass_purge:
+            to_delete.append(ctx.message)
 
         reason = "{}({}) deleted {} messages containing '{}' in channel {}.".format(
             author.name,
