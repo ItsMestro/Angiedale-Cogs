@@ -3,9 +3,10 @@ import time
 import calendar
 import logging
 import re
+import random
 from enum import Enum
 from random import randint, choice
-from typing import Final, List, Literal, Union
+from typing import cast, Iterable, Final, List, Literal, Union
 from operator import itemgetter
 
 import urllib.parse
@@ -18,7 +19,7 @@ import io
 import yaml
 import discord
 
-from collections import Counter
+from collections import Counter, defaultdict, deque, namedtuple
 from redbot.core import commands, Config, checks, bank
 from redbot.core.bot import Red
 from redbot.core.errors import BalanceTooHigh
@@ -100,6 +101,73 @@ class RPSParser:
 
 MAX_ROLL: Final[int] = 2 ** 64 - 1
 
+class SMReel(Enum):
+    cherries = "<:KannaPat:755808378575650826>"
+    cookie = "<:KannaPog:755808378210746400>"
+    two = "<:KannaHat:755808378382450758> "
+    flc = "<:KannaSip:755808378722320545>"
+    cyclone = "<:KannaRawr:755808378357284985>"
+    sunflower = "<:KannaHug:755808378130923530>"
+    six = "<:KannaPretty:755808378692960267>"
+    mushroom = "<:KannaYay:755808378705412116>"
+    heart = "<:KannaHeart:755808377946243213>"
+    snowflake = "<:KannaCool:755808377933791372>"
+
+_ = lambda s: s
+PAYOUTS = {
+    (SMReel.two, SMReel.two, SMReel.six): {
+        "payout": lambda x: x * 50,
+        "phrase": ("JACKPOT! 226! Your bid has been multiplied * 50!"),
+    },
+    (SMReel.flc, SMReel.flc, SMReel.flc): {
+        "payout": lambda x: x * 25,
+        "phrase": ("4LC! Your bid has been multiplied * 25!"),
+    },
+    (SMReel.cherries, SMReel.cherries, SMReel.cherries): {
+        "payout": lambda x: x * 20,
+        "phrase": ("Three pats! Your bid has been multiplied * 20!"),
+    },
+    (SMReel.two, SMReel.six): {
+        "payout": lambda x: x * 4,
+        "phrase": ("2 6! Your bid has been multiplied * 4!"),
+    },
+    (SMReel.cherries, SMReel.cherries): {
+        "payout": lambda x: x * 3,
+        "phrase": ("Two pats! Your bid has been multiplied * 3!"),
+    },
+    "3 symbols": {
+        "payout": lambda x: x * 10,
+        "phrase": ("Three symbols! Your bid has been multiplied * 10!"),
+    },
+    "2 symbols": {
+        "payout": lambda x: x * 2,
+        "phrase": ("Two consecutive symbols! Your bid has been multiplied * 2!"),
+    },
+}
+
+SLOT_PAYOUTS_MSG = (
+    "Slot machine payouts:\n"
+    "{two.value} {two.value} {six.value} Bet * 50\n"
+    "{flc.value} {flc.value} {flc.value} Bet * 25\n"
+    "{cherries.value} {cherries.value} {cherries.value} Bet * 20\n"
+    "{two.value} {six.value} Bet * 4\n"
+    "{cherries.value} {cherries.value} Bet * 3\n\n"
+    "Three symbols: Bet * 10\n"
+    "Two symbols: Bet * 2"
+).format(**SMReel.__dict__)
+
+
+def guild_only_check():
+    async def pred(ctx: commands.Context):
+        if await bank.is_global():
+            return True
+        elif not await bank.is_global() and ctx.guild is not None:
+            return True
+        else:
+            return False
+
+    return commands.check(pred)
+
 
 class Games(Database, commands.Cog):
     """Collection of games for you to play."""
@@ -147,6 +215,8 @@ class Games(Database, commands.Cog):
         )
 
         self.triviaconfig.register_member(wins=0, games=0, total_score=0)
+
+        self.economyconfig = Config.get_conf(self, 1387001, cog_name="Economy")
 
     async def initialise(self):
         self.migration_task = self.bot.loop.create_task(
@@ -1004,6 +1074,138 @@ class Games(Database, commands.Cog):
         ph = [(x[0], int(x[2:])) if x[2:].isdigit() else (x[0], x[2:]) for x in ph.split(", ")]
         dh = [(x[0], int(x[2:])) if x[2:].isdigit() else (x[0], x[2:]) for x in dh.split(", ")]
         await Blackjack(self.old_message_cache).mock(ctx, bet, ph, dh)
+
+    @commands.command()
+    @guild_only_check()
+    async def slot(self, ctx: commands.Context, bid: int):
+        """Use the slot machine.
+
+        Example:
+            - `[p]slot 50`
+
+        **Arguments**
+
+        - `<bid>` The amount to bet on the slot machine. Winning payouts are higher when you bet more.
+        """
+        author = ctx.author
+        guild = ctx.guild
+        channel = ctx.channel
+        if await bank.is_global():
+            valid_bid = await self.economyconfig.SLOT_MIN() <= bid <= await self.economyconfig.SLOT_MAX()
+            slot_time = await self.economyconfig.SLOT_TIME()
+            last_slot = await self.economyconfig.user(author).last_slot()
+        else:
+            valid_bid = (
+                await self.economyconfig.guild(guild).SLOT_MIN()
+                <= bid
+                <= await self.economyconfig.guild(guild).SLOT_MAX()
+            )
+            slot_time = await self.economyconfig.guild(guild).SLOT_TIME()
+            last_slot = await self.economyconfig.member(author).last_slot()
+        now = calendar.timegm(ctx.message.created_at.utctimetuple())
+
+        if (now - last_slot) < slot_time:
+            await ctx.send(("You're on cooldown, try again in a bit."))
+            return
+        if not valid_bid:
+            await ctx.send(("That's an invalid bid amount, sorry :/"))
+            return
+        if not await bank.can_spend(author, bid):
+            await ctx.send(("You ain't got enough money, friend."))
+            return
+        if await bank.is_global():
+            await self.economyconfig.user(author).last_slot.set(now)
+        else:
+            await self.economyconfig.member(author).last_slot.set(now)
+        await self.slot_machine(author, channel, bid)
+
+    @staticmethod
+    async def slot_machine(author, channel, bid):
+        default_reel = deque(cast(Iterable, SMReel))
+        reels = []
+        for i in range(3):
+            default_reel.rotate(random.randint(-999, 999))  # weeeeee
+            new_reel = deque(default_reel, maxlen=3)  # we need only 3 symbols
+            reels.append(new_reel)  # for each reel
+        rows = (
+            (reels[0][0], reels[1][0], reels[2][0]),
+            (reels[0][1], reels[1][1], reels[2][1]),
+            (reels[0][2], reels[1][2], reels[2][2]),
+        )
+
+        slot = "~~\n~~"  # Mobile friendly
+        for i, row in enumerate(rows):  # Let's build the slot to show
+            sign = "  "
+            if i == 1:
+                sign = ">"
+            slot += "{}{} {} {}\n".format(
+                sign, *[c.value for c in row]  # pylint: disable=no-member
+            )
+
+        payout = PAYOUTS.get(rows[1])
+        if not payout:
+            # Checks for two-consecutive-symbols special rewards
+            payout = PAYOUTS.get((rows[1][0], rows[1][1]), PAYOUTS.get((rows[1][1], rows[1][2])))
+        if not payout:
+            # Still nothing. Let's check for 3 generic same symbols
+            # or 2 consecutive symbols
+            has_three = rows[1][0] == rows[1][1] == rows[1][2]
+            has_two = (rows[1][0] == rows[1][1]) or (rows[1][1] == rows[1][2])
+            if has_three:
+                payout = PAYOUTS["3 symbols"]
+            elif has_two:
+                payout = PAYOUTS["2 symbols"]
+
+        pay = 0
+        if payout:
+            then = await bank.get_balance(author)
+            pay = payout["payout"](bid)
+            now = then - bid + pay
+            try:
+                await bank.set_balance(author, now)
+            except errors.BalanceTooHigh as exc:
+                await bank.set_balance(author, exc.max_balance)
+                await channel.send(
+                    (
+                        "You've reached the maximum amount of {currency}! "
+                        "Please spend some more \N{GRIMACING FACE}\n{old_balance} -> {new_balance}!"
+                    ).format(
+                        currency=await bank.get_currency_name(getattr(channel, "guild", None)),
+                        old_balance=humanize_number(then),
+                        new_balance=humanize_number(exc.max_balance),
+                    )
+                )
+                return
+            phrase = payout["phrase"]
+        else:
+            then = await bank.get_balance(author)
+            await bank.withdraw_credits(author, bid)
+            now = then - bid
+            phrase = ("Nothing!")
+        await channel.send(
+            (
+                "{slot}\n{author.mention} {phrase}\n\n"
+                + ("Your bid: {bid}")
+                + ("\n{old_balance} - {bid} (Your bid) + {pay} (Winnings) → {new_balance}!")
+            ).format(
+                slot=slot,
+                author=author,
+                phrase=phrase,
+                bid=humanize_number(bid),
+                old_balance=humanize_number(then),
+                new_balance=humanize_number(now),
+                pay=humanize_number(pay),
+            )
+        )
+
+    @commands.command()
+    @guild_only_check()
+    async def slotpayout(self, ctx: commands.Context):
+        """Show the payouts for the slot machine."""
+        try:
+            await ctx.author.send(SLOT_PAYOUTS_MSG)
+        except discord.Forbidden:
+            await ctx.send(("I can't send direct messages to you."))
 
     @commands.group()
     @commands.guild_only()
