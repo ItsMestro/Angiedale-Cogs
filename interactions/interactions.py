@@ -298,7 +298,7 @@ class Interactions(commands.Cog):
     async def lovers(
         self, ctx: commands.Context, lover: discord.Member, loved: discord.Member
     ):
-        """Calculate the love percentage!"""
+        """Calculate the love between two users!"""
 
         x = lover.display_name
         y = loved.display_name

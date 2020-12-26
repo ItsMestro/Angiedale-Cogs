@@ -30,8 +30,8 @@ class Utility(commands.Cog):
     def __init__(self, bot: Red):
         super().__init__()
         self.bot = bot
-        self.config = Config.get_conf(self, identifier=1387007, cog_name="UtilityPyLint", force_registration=True)
-        default_global = {"lint": True}
+        self.pylintconfig = Config.get_conf(self, identifier=1387007, cog_name="UtilityPyLint", force_registration=True)
+        default_global = {"lint": False}
         default_guild = {}
         self.raffleconfig = Config.get_conf(self, 1387009, cog_name="UtilityRaffle", force_registration=True)
         self.raffleconfig.register_guild(**self.raffle_defaults)
@@ -53,20 +53,21 @@ class Utility(commands.Cog):
 
         # self.answer_path = self.path + "/tmpfile.py"
 
-        self.config.register_global(**default_global)
-        self.config.register_guild(**default_guild)
+        self.pylintconfig.register_global(**default_global)
+        self.pylintconfig.register_guild(**default_guild)
 
     async def red_delete_data_for_user(self, **kwargs):
         """Nothing to delete"""
         return
 
+    @checks.guildowner()
     @commands.command()
     async def autopylint(self, ctx: commands.Context):
         """Toggles automatically linting code"""
-        curr = await self.config.lint()
+        curr = await self.pylintconfig.lint()
 
         self.do_lint = not curr
-        await self.config.lint.set(not curr)
+        await self.pylintconfig.lint.set(not curr)
         await ctx.maybe_send_embed("Autolinting is now set to {}".format(not curr))
 
     @commands.command()
@@ -97,7 +98,7 @@ class Utility(commands.Cog):
 
     async def lint_message(self, message):
         if self.do_lint is None:
-            self.do_lint = await self.config.lint()
+            self.do_lint = await self.pylintconfig.lint()
         if not self.do_lint:
             return
         code_blocks = message.content.split("```")[1::2]
@@ -297,7 +298,7 @@ class Utility(commands.Cog):
 
     @commands.group(autohelp=True)
     @commands.guild_only()
-    @commands.has_permissions(administrator=True)
+    @commands.mod_or_permissions(administrator=True)
     async def raffle(self, ctx):
         """Raffle group command"""
         pass
@@ -483,7 +484,7 @@ class Utility(commands.Cog):
 
     @commands.group(autohelp=True)
     @commands.guild_only()
-    @commands.has_permissions(administrator=True)
+    @commands.guildowner()
     async def setraffle(self, ctx):
         """Set Raffle group command"""
         pass
@@ -864,7 +865,7 @@ class Utility(commands.Cog):
 
     @commands.group()
     @commands.guild_only()
-    @checks.mod_or_permissions(manage_messages=True)
+    @checks.guildowner()
     async def pollset(self, ctx: commands.Context):
         """
             Settings for reaction polls
@@ -883,6 +884,7 @@ class Utility(commands.Cog):
             verb = "on"
         await ctx.send(f"Reaction poll embeds turned {verb}.")
 
+    @checks.mod_or_permissions(manage_messages=True)
     @commands.group()
     @commands.guild_only()
     async def poll(self, ctx: commands.Context):

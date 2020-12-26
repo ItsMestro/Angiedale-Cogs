@@ -205,9 +205,9 @@ class Games(Database, commands.Cog):
         self.triviaconfig = Config.get_conf(self, identifier=1387004, cog_name="GamesTrivia", force_registration=True)
 
         self.triviaconfig.register_guild(
-            max_score=10,
-            timeout=120.0,
-            delay=15.0,
+            max_score=5,
+            timeout=60.0,
+            delay=20.0,
             bot_plays=False,
             reveal_answer=True,
             payout_multiplier=0.0,
@@ -352,7 +352,7 @@ class Games(Database, commands.Cog):
 
     @commands.group()
     @commands.guild_only()
-    @checks.mod_or_permissions(administrator=True)
+    @checks.guildowner()
     async def triviaset(self, ctx: commands.Context):
         """Manage Trivia settings."""
 

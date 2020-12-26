@@ -382,8 +382,8 @@ class Adventure(commands.Cog):
             "max_allowed_withdraw": 50000,
         }
         default_global = {
-            "god_name": _("Herbert"),
-            "cart_name": _("Hawl's brother"),
+            "god_name": _("Kanna Kamui"),
+            "cart_name": _("Angiedale's Supplies"),
             "theme": "default",
             "restrict": False,
             "embed": True,
@@ -394,7 +394,7 @@ class Adventure(commands.Cog):
             "themes": {},
             "daily_bonus": {"1": 0, "2": 0, "3": 0.5, "4": 0, "5": 0.5, "6": 1.0, "7": 1.0},
             "tax_brackets": {},
-            "separate_economy": True,
+            "separate_economy": False,
             "to_conversion_rate": 10,
             "from_conversion_rate": 11,
             "max_allowed_withdraw": 50000,
@@ -2117,6 +2117,7 @@ class Adventure(commands.Cog):
                 )
                 await ctx.send(current_stats)
 
+    @commands.guildowner()
     @commands.group()
     @commands.guild_only()
     async def adventureset(self, ctx: commands.Context):
@@ -2492,7 +2493,7 @@ class Adventure(commands.Cog):
 
     @commands.group()
     @commands.guild_only()
-    @commands.admin_or_permissions(administrator=True)
+    @commands.is_owner()
     async def themeset(self, ctx: commands.Context):
         """[Admin] Modify themes."""
 

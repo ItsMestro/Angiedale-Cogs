@@ -322,6 +322,7 @@ class Management(commands.Cog):
             return
         await menu(ctx, alias_list, DEFAULT_CONTROLS)
 
+    @checks.mod_or_permissions(manage_guild=True)
     @commands.group()
     async def alias(self, ctx: commands.Context):
         """Manage command aliases."""
@@ -332,7 +333,7 @@ class Management(commands.Cog):
         """Manage global aliases."""
         pass
 
-    @checks.mod_or_permissions(manage_guild=True)
+    @checks.admin_or_permissions(administrator=True)
     @alias.command(name="add")
     @commands.guild_only()
     async def _add_alias(self, ctx: commands.Context, alias_name: str, *, command):
@@ -450,6 +451,7 @@ class Management(commands.Cog):
             )
         )
 
+    @checks.mod_or_permissions(manage_guild=True)
     @alias.command(name="help")
     async def _help_alias(self, ctx: commands.Context, alias_name: str):
         """Try to execute help for the base command of the alias."""
@@ -459,6 +461,7 @@ class Management(commands.Cog):
         else:
             await ctx.send(("No such alias exists."))
 
+    @checks.mod_or_permissions(manage_guild=True)
     @alias.command(name="show")
     async def _show_alias(self, ctx: commands.Context, alias_name: str):
         """Show what command the alias executes."""
@@ -473,7 +476,7 @@ class Management(commands.Cog):
         else:
             await ctx.send(("There is no alias with the name `{name}`").format(name=alias_name))
 
-    @checks.mod_or_permissions(manage_guild=True)
+    @checks.admin_or_permissions(administrator=True)
     @alias.command(name="delete", aliases=["del", "remove"])
     @commands.guild_only()
     async def _del_alias(self, ctx: commands.Context, alias_name: str):
@@ -507,6 +510,7 @@ class Management(commands.Cog):
     @alias.command(name="list")
     @commands.guild_only()
     @checks.bot_has_permissions(add_reactions=True)
+    @checks.mod_or_permissions(manage_guild=True)
     async def _list_alias(self, ctx: commands.Context):
         """List the available aliases on this server."""
         guild_aliases = await self._aliases.get_guild_aliases(ctx.guild)
@@ -516,6 +520,7 @@ class Management(commands.Cog):
 
     @global_.command(name="list")
     @checks.bot_has_permissions(add_reactions=True)
+    @checks.mod_or_permissions(manage_guild=True)
     async def _list_global_alias(self, ctx: commands.Context):
         """List the available global aliases on this bot."""
         global_aliases = await self._aliases.get_global_aliases()
@@ -639,6 +644,7 @@ class Management(commands.Cog):
             ("Maximum balance has been set to: {amount}").format(amount=humanize_number(amount))
         )
 
+    @checks.mod_or_permissions(manage_messages=True)
     @commands.group()
     async def cleanup(self, ctx: commands.Context):
         """Base command for deleting messages."""
@@ -1313,7 +1319,7 @@ class Management(commands.Cog):
         await self.say(ctx, channel, text, files)
 
     @commands.command(name="interact")
-    @checks.guildowner()
+    @checks.is_owner()
     async def _interact(self, ctx, channel: discord.TextChannel = None):
         """Start receiving and sending messages as the bot through DM"""
 
