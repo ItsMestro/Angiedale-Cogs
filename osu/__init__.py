@@ -1,6 +1,6 @@
-from .osu import osu
+from .osu import Osu
 
 
 def setup(bot):
-    cog = osu(bot)
+    cog = Osu(bot)
     bot.add_cog(cog)

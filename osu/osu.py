@@ -15,17 +15,20 @@ from redbot.core.bot import Red
 log = logging.getLogger("red.angiedale.osu")
 
 
-class osu(commands.Cog):
+class Osu(commands.Cog):
     """osu! commands.
     
     Has the ability to fetch profile info.
     """
 
+    default_user_settings = {"username": None, "userid": None}
+
     def __init__(self, bot: Red):
         self.bot = bot
         super().__init__()
-        self.osuconfig: Config = Config.get_conf(self, 1387002)
+        self.osuconfig: Config = Config.get_conf(self, 1387002, cog_name="Osu")
         self.osu_bearer_cache: dict = {}
+        self.osuconfig.register_user(**self.default_user_settings)
 
         self.bot: Red = bot
 
@@ -115,64 +118,92 @@ class osu(commands.Cog):
             if self.osu_bearer_cache["expires_at"] - datetime.now().timestamp() <= 60:
                 await self.get_osu_bearer_token()
 
-    @commands.command()
+    @commands.command(aliases=["standard", "std"])
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def osu(self, ctx: commands.Context, player_id: str):
+    async def osu(self, ctx: commands.Context, player_id: str = None):
         """Get profile info of a player."""
-        await self.maybe_renew_osu_bearer_token()
+        user_id = await self.osuconfig.user(ctx.author).userid()
+        if player_id is None and user_id is None:
+            await self.profilelinking(ctx)
+        else:
+            if player_id is None:
+                player_id = user_id
 
-        token = (await self.bot.get_shared_api_tokens("osu")).get("client_id")
-        endpoint = "https://osu.ppy.sh/api/v2/users/"
-        bearer = self.osu_bearer_cache.get("access_token", None)
-        args = f"{player_id}/osu"
+            await self.maybe_renew_osu_bearer_token()
 
-        data = await self.fetch_api(ctx, bearer, token, endpoint, args)
-        await self.profile_embed(ctx, data, player_id, "Standard")
+            token = (await self.bot.get_shared_api_tokens("osu")).get("client_id")
+            endpoint = "https://osu.ppy.sh/api/v2/users/"
+            bearer = self.osu_bearer_cache.get("access_token", None)
+            args = f"{player_id}/osu"
+
+            data = await self.fetch_api(ctx, bearer, token, endpoint, args)
+            await self.profile_embed(ctx, data, player_id, "Standard")
 
     @commands.command(hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def taiko(self, ctx: commands.Context, player_id: str):
         """Get profile info of a player."""
-        await self.maybe_renew_osu_bearer_token()
+        user_id = await self.osuconfig.user(ctx.author).userid()
+        if player_id is None and user_id is None:
+            await self.profilelinking(ctx)
+        else:
+            if player_id is None:
+                player_id = user_id
 
-        token = (await self.bot.get_shared_api_tokens("osu")).get("client_id")
-        endpoint = "https://osu.ppy.sh/api/v2/users/"
-        bearer = self.osu_bearer_cache.get("access_token", None)
-        args = f"{player_id}/taiko"
+            await self.maybe_renew_osu_bearer_token()
 
-        data = await self.fetch_api(ctx, bearer, token, endpoint, args)
-        await self.profile_embed(ctx, data, player_id, "Taiko")
+            token = (await self.bot.get_shared_api_tokens("osu")).get("client_id")
+            endpoint = "https://osu.ppy.sh/api/v2/users/"
+            bearer = self.osu_bearer_cache.get("access_token", None)
+            args = f"{player_id}/taiko"
+
+            data = await self.fetch_api(ctx, bearer, token, endpoint, args)
+            await self.profile_embed(ctx, data, player_id, "Taiko")
 
     @commands.command(aliases=["catch", "ctb"], hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def fruits(self, ctx: commands.Context, player_id: str):
         """Get profile info of a player."""
-        await self.maybe_renew_osu_bearer_token()
+        user_id = await self.osuconfig.user(ctx.author).userid()
+        if player_id is None and user_id is None:
+            await self.profilelinking(ctx)
+        else:
+            if player_id is None:
+                player_id = user_id
 
-        token = (await self.bot.get_shared_api_tokens("osu")).get("client_id")
-        endpoint = "https://osu.ppy.sh/api/v2/users/"
-        bearer = self.osu_bearer_cache.get("access_token", None)
-        args = f"{player_id}/fruits"
+            await self.maybe_renew_osu_bearer_token()
 
-        data = await self.fetch_api(ctx, bearer, token, endpoint, args)
-        await self.profile_embed(ctx, data, player_id, "Catch")
+            token = (await self.bot.get_shared_api_tokens("osu")).get("client_id")
+            endpoint = "https://osu.ppy.sh/api/v2/users/"
+            bearer = self.osu_bearer_cache.get("access_token", None)
+            args = f"{player_id}/fruits"
+
+            data = await self.fetch_api(ctx, bearer, token, endpoint, args)
+            await self.profile_embed(ctx, data, player_id, "Catch")
 
     @commands.command(hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def mania(self, ctx: commands.Context, player_id: str):
         """Get profile info of a player."""
-        await self.maybe_renew_osu_bearer_token()
+        user_id = await self.osuconfig.user(ctx.author).userid()
+        if player_id is None and user_id is None:
+            await self.profilelinking(ctx)
+        else:
+            if player_id is None:
+                player_id = user_id
 
-        token = (await self.bot.get_shared_api_tokens("osu")).get("client_id")
-        endpoint = "https://osu.ppy.sh/api/v2/users/"
-        bearer = self.osu_bearer_cache.get("access_token", None)
-        args = f"{player_id}/mania"
+            await self.maybe_renew_osu_bearer_token()
 
-        data = await self.fetch_api(ctx, bearer, token, endpoint, args)
-        await self.profile_embed(ctx, data, player_id, "Mania")
+            token = (await self.bot.get_shared_api_tokens("osu")).get("client_id")
+            endpoint = "https://osu.ppy.sh/api/v2/users/"
+            bearer = self.osu_bearer_cache.get("access_token", None)
+            args = f"{player_id}/mania"
+
+            data = await self.fetch_api(ctx, bearer, token, endpoint, args)
+            await self.profile_embed(ctx, data, player_id, "Mania")
 
     async def fetch_api(self, ctx, bearer, token, endpoint, args):
-        url = f"https://osu.ppy.sh/api/v2/users/{args}"
+        url = f"{endpoint}{args}"
         header = {"client_id": str(token)}
         if bearer is not None:
             header = {**header, "Authorization": f"Bearer {bearer}"}
@@ -315,3 +346,40 @@ class osu(commands.Cog):
             message = f"{author.mention} thinks {user.mention} is ET"
 
         await ctx.send(message)
+
+    async def profilelinking(self, ctx):
+        prefix = ctx.clean_prefix
+        message = await ctx.maybe_send_embed(f"Looks like you haven't linked an account.\nYou can do so using `{prefix}osulink <username>`"
+            "\n\nAlternatively you can use the command\nwith a username or id after it")
+        await asyncio.sleep(10)
+        try:
+            await message.delete()
+        except (discord.errors.NotFound, discord.errors.Forbidden):
+            pass
+
+    @commands.command()
+    async def osulink(self, ctx, username: str):
+        """Link your account with an osu! user"""
+
+        await self.maybe_renew_osu_bearer_token()
+
+        token = (await self.bot.get_shared_api_tokens("osu")).get("client_id")
+        endpoint = f"https://osu.ppy.sh/api/v2/users/"
+        bearer = self.osu_bearer_cache.get("access_token", None)
+        args = username
+
+        data = await self.fetch_api(ctx, bearer, token, endpoint, args)
+
+        if data == 404:
+            message = await ctx.send(f"Could not find a user matching {username}")
+            await asyncio.sleep(10)
+            try:
+                await message.delete()
+            except (discord.errors.NotFound, discord.errors.Forbidden):
+                pass
+        else:
+            username = data["username"]
+            user_id = data["id"]
+            await self.osuconfig.user(ctx.author).username.set(username)
+            await self.osuconfig.user(ctx.author).userid.set(user_id)
+            await ctx.send(f"{username} is successfully linked to your account!")
