@@ -342,15 +342,3 @@ class Interactions(commands.Cog):
         )
         em.set_image(url=f"https://www.lovecalculator.com/{result_image}")
         await ctx.send(embed=em)
-
-    @commands.command(hidden=True)
-    async def et(self, ctx, user: discord.Member=None):
-        """Marcinho is ET"""
-
-        author = ctx.message.author
-        if not user:
-            message = f"{author.mention} thinks <@253588524652036096> is ET"
-        else:
-            message = f"{author.mention} thinks {user.mention} is ET"
-
-        await ctx.send(message)

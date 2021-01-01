@@ -302,3 +302,16 @@ class osu(commands.Cog):
                 embed.timestamp = datetime(last_online[0], last_online[1], last_online[2], hour=last_online[3], minute=last_online[4], second=last_online[5])
                 
             await ctx.send(embed=embed)
+
+    @commands.command(hidden=True)
+    @commands.cooldown(5, 10, commands.BucketType.user)
+    async def et(self, ctx, user: discord.Member=None):
+        """Marcinho is ET"""
+
+        author = ctx.message.author
+        if not user:
+            message = f"{author.mention} thinks <@253588524652036096> is ET"
+        else:
+            message = f"{author.mention} thinks {user.mention} is ET"
+
+        await ctx.send(message)
