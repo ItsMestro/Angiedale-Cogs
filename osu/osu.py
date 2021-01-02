@@ -550,7 +550,17 @@ class Osu(commands.Cog):
                 beatmap = data[index]["beatmap"]
                 versionraw = beatmap["version"]
                 beatmapmode = beatmap["mode_int"]
+                starrating = beatmap["difficulty_rating"]
                 comboraw = data[index]["max_combo"]
+                version = f"[{versionraw}]"
+                beatmapurl = beatmap["url"]
+                user_id = data[index]["user_id"]
+                score = data[index]["score"]
+                creator = beatmapset["creator"]
+                creator_id = beatmapset["user_id"]
+                mapstatus = beatmapset["status"]
+                accuracy = "{:.2%}".format(data[index]["accuracy"])
+
                 if beatmapmode == 3:
                     comboratio = "Combo / Ratio"
                     versionraw = re.sub(r"^\S*\s", "", versionraw)
@@ -561,22 +571,18 @@ class Osu(commands.Cog):
                     comboratio = "Combo"
                     combo = f"**{comboraw:,}x**"
                     hits = f"{count_300:,}/{count_100:,}/{count_50:,}/{count_miss:,}"
-                version = f"[{versionraw}]"
-                beatmapurl = beatmap["url"]
-                user_id = data[index]["user_id"]
+
                 mods = ""
                 if data[0]["mods"]:
                     mods = mods.join(data[index]["mods"])
                     mods = f" +{mods}"
-                score = data[index]["score"]
-                accuracy = "{:.2%}".format(data[index]["accuracy"])
+
                 try:
                     performance = round(data[index]["pp"],2)
                 except TypeError:
                     performance = 0
-                creator = beatmapset["creator"]
-                creator_id = beatmapset["user_id"]
-                mapstatus = beatmapset["status"]
+
+
                 embed = discord.Embed(
                     color=await self.bot.get_embed_color(ctx)
                 )
@@ -620,7 +626,7 @@ class Osu(commands.Cog):
                 )
                 embed.add_field(
                     name="Map Info",
-                    value=f"Mapper: [{creator}](https://osu.ppy.sh/users/{creator_id})\nStatus: `{mapstatus.capitalize()}`",
+                    value=f"Mapper: [{creator}](https://osu.ppy.sh/users/{creator_id})\nStatus: `{mapstatus.capitalize()}` | SR: `{starrating}`",
                     inline=False
                 )
                 embed.set_footer(
