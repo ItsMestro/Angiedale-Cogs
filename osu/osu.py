@@ -4,13 +4,11 @@ import json
 import aiohttp
 import asyncio
 import re
-from math import ceil
 from datetime import datetime
 from typing import Optional, List, Dict
 
 from redbot.core import checks, commands, Config
-from redbot.core.utils.chat_formatting import inline, humanize_timedelta, humanize_number
-from redbot.core.utils.menus import close_menu, menu, DEFAULT_CONTROLS
+from redbot.core.utils._internal_utils import send_to_owners_with_prefix_replaced
 
 from redbot.core.bot import Red
 
@@ -29,9 +27,7 @@ EMOJI_F = "<:F_Rank:794823687781613609>"
 class Osu(commands.Cog):
     """osu! commands.
     
-    [p]<mode> Gets a profile
-    [p]recent<mode> Gets a players most recent play
-    [p]top<mode> Gets a players top plays
+    Has the ability to fetch profile info.
     """
 
     default_user_settings = {"username": None, "userid": None}
@@ -135,7 +131,6 @@ class Osu(commands.Cog):
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def osu(self, ctx, username: str = None):
         """Get profile info of a player."""
-        
         user_id = await self.osuconfig.user(ctx.author).userid()
         if username is None and user_id is None:
             await self.profilelinking(ctx)
@@ -156,7 +151,6 @@ class Osu(commands.Cog):
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def taiko(self, ctx, username: str = None):
         """Get profile info of a player."""
-        
         user_id = await self.osuconfig.user(ctx.author).userid()
         if username is None and user_id is None:
             await self.profilelinking(ctx)
@@ -177,7 +171,6 @@ class Osu(commands.Cog):
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def fruits(self, ctx, username: str = None):
         """Get profile info of a player."""
-        
         user_id = await self.osuconfig.user(ctx.author).userid()
         if username is None and user_id is None:
             await self.profilelinking(ctx)
@@ -198,7 +191,6 @@ class Osu(commands.Cog):
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def mania(self, ctx, username: str = None):
         """Get profile info of a player."""
-        
         user_id = await self.osuconfig.user(ctx.author).userid()
         if username is None and user_id is None:
             await self.profilelinking(ctx)
@@ -230,29 +222,34 @@ class Osu(commands.Cog):
 
     async def profile_embed(self, ctx, data, player_id, mode):
         if data == 404:
-            await self.no_user(ctx, player_id)
+            message = await ctx.send(f"Could not find the user {player_id}")
+            await asyncio.sleep(10)
+            try:
+                await message.delete()
+            except (discord.errors.NotFound, discord.errors.Forbidden):
+                pass
         else:
             statistics = data["statistics"]
             rank = statistics["rank"]
             user_id = data["id"]
             country = data["country_code"]
             username = data["username"]
-            ranking = humanize_number(rank["global"])
-            country_ranking = humanize_number(rank["country"])
+            ranking = rank["global"]
+            country_ranking = rank["country"]
             accuracy = round(float(statistics["hit_accuracy"]),2)
-            playcount = humanize_number(statistics["play_count"])
-            last_online = data["last_visit"]
-            max_combo = humanize_number(statistics["maximum_combo"])
+            playcount = statistics["play_count"]
+            last_online = list(map(int, re.split(r"-|T|:|\+", data["last_visit"])))
+            max_combo = statistics["maximum_combo"]
             level = statistics["level"]
             level_current = level["current"]
             level_progress = level["progress"]
-            performance = humanize_number(statistics["pp"])
+            performance = statistics["pp"]
             grades = statistics["grade_counts"]
-            grade_ss = humanize_number(grades["ss"])
-            grade_ssh = humanize_number(grades["ssh"])
-            grade_s = humanize_number(grades["s"])
-            grade_sh = humanize_number(grades["sh"])
-            grade_a = humanize_number(grades["a"])
+            grade_ss = grades["ss"]
+            grade_ssh = grades["ssh"]
+            grade_s = grades["s"]
+            grade_sh = grades["sh"]
+            grade_a = grades["a"]
             if mode == "Mania":
                 variant = statistics["variants"]
                 performance_4k = variant[0]["pp"]
@@ -265,27 +262,19 @@ class Osu(commands.Cog):
                 if performance_4k == 0 and performance_7k == 0:
                     performancevalue = f"{performance}pp"
                 elif performance_4k == 0:
-                    performance_7k = humanize_number(performance_7k)
                     performancevalue = f"{performance}pp\n{performance_7k}pp | **7k**"
                 elif performance_7k == 0:
-                    performance_4k = humanize_number(performance_4k)
                     performancevalue = f"{performance}pp\n{performance_4k}pp | **4k**"
                 else:
-                    performance_4k = humanize_number(performance_4k)
-                    performance_7k = humanize_number(performance_7k)
                     performancevalue = f"{performance}pp\n{performance_4k}pp | **4k**\n{performance_7k}pp | **7k**"
                 
                 if ranking_4k == None and ranking_7k == None:
                     rankingvalue = f"#{ranking} ({country} #{country_ranking})"
                 elif ranking_4k == None:
-                    ranking_7k = humanize_number(ranking_7k)
                     rankingvalue = f"#{ranking} ({country} #{country_ranking})\n#{ranking_7k} ({country} #{country_ranking_7k}) | **7k**"
                 elif ranking_7k == None:
-                    ranking_4k = humanize_number(ranking_4k)
                     rankingvalue = f"#{ranking} ({country} #{country_ranking})\n#{ranking_4k} ({country} #{country_ranking_4k}) | **4k**"
                 else:
-                    ranking_4k = humanize_number(ranking_4k)
-                    ranking_7k = humanize_number(ranking_7k)
                     rankingvalue = f"#{ranking} ({country} #{country_ranking})\n#{ranking_4k} ({country} #{country_ranking_4k}) | **4k**\n#{ranking_7k} ({country} #{country_ranking_7k}) | **7k**"
             else:
                 performancevalue = f"{performance}pp"
@@ -345,7 +334,7 @@ class Osu(commands.Cog):
                 embed.set_footer(
                     text="Last Online"
                 )
-                embed.timestamp = datetime.strptime(last_online, "%Y-%m-%dT%H:%M:%S%z")
+                embed.timestamp = datetime(last_online[0], last_online[1], last_online[2], hour=last_online[3], minute=last_online[4], second=last_online[5])
                 
             await ctx.send(embed=embed)
 
@@ -385,7 +374,12 @@ class Osu(commands.Cog):
         data = await self.fetch_api(ctx, bearer, token, endpoint)
 
         if data == 404:
-            await self.no_user(ctx, username)
+            message = await ctx.send(f"Could not find a user matching {username}")
+            await asyncio.sleep(10)
+            try:
+                await message.delete()
+            except (discord.errors.NotFound, discord.errors.Forbidden):
+                pass
         else:
             username = data["username"]
             user_id = data["id"]
@@ -402,7 +396,8 @@ class Osu(commands.Cog):
         if username is None and user_id is None:
             await self.profilelinking(ctx)
         else:
-            username = await self.check_context(ctx, username, user_id)
+            if username is None:
+                username = user_id
 
             await self.maybe_renew_osu_bearer_token()
 
@@ -426,7 +421,8 @@ class Osu(commands.Cog):
         if username is None and user_id is None:
             await self.profilelinking(ctx)
         else:
-            username = await self.check_context(ctx, username, user_id)
+            if username is None:
+                username = user_id
 
             await self.maybe_renew_osu_bearer_token()
 
@@ -450,7 +446,8 @@ class Osu(commands.Cog):
         if username is None and user_id is None:
             await self.profilelinking(ctx)
         else:
-            username = await self.check_context(ctx, username, user_id)
+            if username is None:
+                username = user_id
 
             await self.maybe_renew_osu_bearer_token()
 
@@ -474,7 +471,8 @@ class Osu(commands.Cog):
         if username is None and user_id is None:
             await self.profilelinking(ctx)
         else:
-            username = await self.check_context(ctx, username, user_id)
+            if username is None:
+                username = user_id
 
             await self.maybe_renew_osu_bearer_token()
 
@@ -491,7 +489,7 @@ class Osu(commands.Cog):
 
     def translatemode(self, mode):
         if mode == 0:
-            mode = "standard"
+            mode = "osu"
         elif mode == 1:
             mode = "taiko"
         elif mode == 2:
@@ -524,21 +522,26 @@ class Osu(commands.Cog):
 
     async def recent_embed(self, ctx, data, player_id):
         if data == 404:
-            await self.no_user(ctx, player_id)
+            message = await ctx.send(f"Could not find the user {player_id}")
+            await asyncio.sleep(10)
+            try:
+                await message.delete()
+            except (discord.errors.NotFound, discord.errors.Forbidden):
+                pass
         else:
             index = 0
             try:
                 beatmapset = data[index]["beatmapset"]
                 statistics = data[index]["statistics"]
                 user = data[index]["user"]
-                played = data[index]["created_at"]
+                played = list(map(int, re.split(r"-|T|:|\+", data[index]["created_at"])))
                 username = user["username"]
-                count_miss = humanize_number(statistics["count_miss"])
-                count_50 = humanize_number(statistics["count_50"])
-                count_100 = humanize_number(statistics["count_100"])
+                count_miss = statistics["count_miss"]
+                count_50 = statistics["count_50"]
+                count_100 = statistics["count_100"]
                 count_300 = statistics["count_300"]
                 count_geki = statistics["count_geki"]
-                count_katu = humanize_number(statistics["count_katu"])
+                count_katu = statistics["count_katu"]
                 rank = data[index]["rank"]
                 emoji = self.translateemote(rank)
                 artist = beatmapset["artist"]
@@ -552,7 +555,7 @@ class Osu(commands.Cog):
                 version = f"[{versionraw}]"
                 beatmapurl = beatmap["url"]
                 user_id = data[index]["user_id"]
-                score = humanize_number(data[index]["score"])
+                score = data[index]["score"]
                 creator = beatmapset["creator"]
                 creator_id = beatmapset["user_id"]
                 mapstatus = beatmapset["status"]
@@ -563,11 +566,11 @@ class Osu(commands.Cog):
                     versionraw = re.sub(r"^\S*\s", "", versionraw)
                     ratio = round(count_geki / count_300,2)
                     combo = f"**{comboraw:,}x** / {ratio}"
-                    hits = f"{humanize_number(count_geki)}/{humanize_number(count_300)}/{count_katu}/{count_100}/{count_50}/{count_miss}"
+                    hits = f"{count_geki:,}/{count_300:,}/{count_katu:,}/{count_100:,}/{count_50:,}/{count_miss:,}"
                 else:
                     comboratio = "Combo"
-                    combo = f"**{comboraw}x**"
-                    hits = f"{humanize_number(count_300)}/{count_100}/{count_50}/{count_miss}"
+                    combo = f"**{comboraw:,}x**"
+                    hits = f"{count_300:,}/{count_100:,}/{count_50:,}/{count_miss:,}"
 
                 mods = ""
                 if data[0]["mods"]:
@@ -575,7 +578,7 @@ class Osu(commands.Cog):
                     mods = f" +{mods}"
 
                 try:
-                    performance = humanize_number(round(data[index]["pp"],2))
+                    performance = round(data[index]["pp"],2)
                 except TypeError:
                     performance = 0
 
@@ -598,7 +601,7 @@ class Osu(commands.Cog):
                 )
                 embed.add_field(
                     name="Score",
-                    value=f"{score}",
+                    value=f"{score:,}",
                     inline=True
                 )
                 embed.add_field(
@@ -608,7 +611,7 @@ class Osu(commands.Cog):
                 )
                 embed.add_field(
                     name="PP",
-                    value=f"**{performance}pp**",
+                    value=f"**{performance:,}pp**",
                     inline=True
                 )
                 embed.add_field(
@@ -623,13 +626,13 @@ class Osu(commands.Cog):
                 )
                 embed.add_field(
                     name="Map Info",
-                    value=f"Mapper: [{creator}](https://osu.ppy.sh/users/{creator_id})\nStatus: {inline(mapstatus.capitalize())} | SR: {inline(str(starrating))}",
+                    value=f"Mapper: [{creator}](https://osu.ppy.sh/users/{creator_id})\nStatus: `{mapstatus.capitalize()}` | SR: `{starrating}`",
                     inline=False
                 )
                 embed.set_footer(
                     text=f"{username} | osu!{self.translatemode(beatmapmode).capitalize()} | Played"
                 )
-                embed.timestamp = datetime.strptime(played, "%Y-%m-%dT%H:%M:%S%z")
+                embed.timestamp = datetime(played[0], played[1], played[2], hour=played[3], minute=played[4], second=played[5])
             
                 await ctx.send(embed=embed)
             except IndexError:
@@ -639,214 +642,3 @@ class Osu(commands.Cog):
                     await message.delete()
                 except (discord.errors.NotFound, discord.errors.Forbidden):
                     pass
-
-    @commands.command(aliases=["topo","topstandard"])
-    @commands.cooldown(1, 10, commands.BucketType.user)
-    async def toposu(self, ctx, username: str = None):
-        """Get a users most recent plays"""
-
-        user_id = await self.osuconfig.user(ctx.author).userid()
-        if username is None and user_id is None:
-            await self.profilelinking(ctx)
-        else:
-            username = await self.check_context(ctx, username, user_id)
-
-            await self.maybe_renew_osu_bearer_token()
-
-            token = (await self.bot.get_shared_api_tokens("osu")).get("client_id")
-            endpoint = f"https://osu.ppy.sh/api/v2/users/{username}/scores/best"
-            bearer = self.osu_bearer_cache.get("access_token", None)
-            params = {
-                "mode": "osu",
-                "limit": "50",
-            }
-
-            data = await self.fetch_api(ctx, bearer, token, endpoint, params)
-            await self.top_embed(ctx, data, username, 0)
-
-    @commands.command(aliases=["topt"])
-    @commands.cooldown(1, 10, commands.BucketType.user)
-    async def toptaiko(self, ctx, username: str = None):
-        """Get a users most recent plays"""
-
-        user_id = await self.osuconfig.user(ctx.author).userid()
-        if username is None and user_id is None:
-            await self.profilelinking(ctx)
-        else:
-            username = await self.check_context(ctx, username, user_id)
-
-            await self.maybe_renew_osu_bearer_token()
-
-            token = (await self.bot.get_shared_api_tokens("osu")).get("client_id")
-            endpoint = f"https://osu.ppy.sh/api/v2/users/{username}/scores/best"
-            bearer = self.osu_bearer_cache.get("access_token", None)
-            params = {
-                "mode": "taiko",
-                "limit": "50",
-            }
-
-            data = await self.fetch_api(ctx, bearer, token, endpoint, params)
-            await self.top_embed(ctx, data, username, 1)
-
-    @commands.command(aliases=["topf","topcatch"])
-    @commands.cooldown(1, 10, commands.BucketType.user)
-    async def topfruits(self, ctx, username: str = None):
-        """Get a users most recent plays"""
-
-        user_id = await self.osuconfig.user(ctx.author).userid()
-        if username is None and user_id is None:
-            await self.profilelinking(ctx)
-        else:
-            username = await self.check_context(ctx, username, user_id)
-
-            await self.maybe_renew_osu_bearer_token()
-
-            token = (await self.bot.get_shared_api_tokens("osu")).get("client_id")
-            endpoint = f"https://osu.ppy.sh/api/v2/users/{username}/scores/best"
-            bearer = self.osu_bearer_cache.get("access_token", None)
-            params = {
-                "mode": "fruits",
-                "limit": "50",
-            }
-
-            data = await self.fetch_api(ctx, bearer, token, endpoint, params)
-            await self.top_embed(ctx, data, username, 2)
-
-    @commands.command(aliases=["topm"])
-    @commands.cooldown(1, 10, commands.BucketType.user)
-    async def topmania(self, ctx, username: str = None):
-        """Get a users most recent plays"""
-
-        user_id = await self.osuconfig.user(ctx.author).userid()
-        if username is None and user_id is None:
-            await self.profilelinking(ctx)
-        else:
-            username = await self.check_context(ctx, username, user_id)
-
-            await self.maybe_renew_osu_bearer_token()
-
-            token = (await self.bot.get_shared_api_tokens("osu")).get("client_id")
-            endpoint = f"https://osu.ppy.sh/api/v2/users/{username}/scores/best"
-            bearer = self.osu_bearer_cache.get("access_token", None)
-            params = {
-                "mode": "mania",
-                "limit": "50",
-            }
-
-            data = await self.fetch_api(ctx, bearer, token, endpoint, params)
-            await self.top_embed(ctx, data, username, 3)
-
-    async def top_embed(self, ctx, data, player_id, mode):
-        if data == 404:
-            await self.no_user(ctx, player_id)
-        else:
-            user = data[0]["user"]
-            username = user["username"]
-            user_id = user["id"]
-            country_code = user["country_code"]
-            page_num = 1
-            scores = []
-
-            # try:
-            base_embed = discord.Embed(
-                color=await self.bot.get_embed_color(ctx)
-            )
-            base_embed.set_author(
-                name=f"Top plays for {username} | osu!{self.translatemode(mode).capitalize()}",
-                url=f"https://osu.ppy.sh/users/{user_id}",
-                icon_url=f"https://osu.ppy.sh/images/flags/{country_code}.png"
-            )
-            base_embed.set_thumbnail(
-                url=f"https://a.ppy.sh/{user_id}"
-            )
-
-            while page_num <= ceil(len(data) / 5):
-                i = (page_num - 1) * 5
-                maps = ""
-                while i < (page_num * 5):
-                    maps = self.fetch_top(data, i, maps)
-                    i += 1
-                
-                embed = base_embed.copy()
-                embed.description = maps
-                embed.set_footer(text=f"Page {page_num}/{ceil(len(data) / 5)}")
-
-                scores.append(embed)
-                page_num += 1
-            
-            await  menu(ctx, scores, DEFAULT_CONTROLS if ceil(len(data)) > 1 else {"\N{CROSS MARK}": close_menu})
-
-            # except IndexError:
-            #     message = await ctx.send(f"Looks like you don't have any top plays in that mode")
-            #     await asyncio.sleep(10)
-            #     try:
-            #         await message.delete()
-            #     except (discord.errors.NotFound, discord.errors.Forbidden):
-            #         pass
-
-    def fetch_top(self, data, i, maps):
-        current_date = datetime.now()
-        beatmap = data[i]["beatmap"]
-        beatmapset = data[i]["beatmapset"]
-        statistics = data[i]["statistics"]
-        beatmapmode = beatmap["mode_int"]
-        version = beatmap["version"]
-        title = beatmapset["title"]
-        beatmapurl = beatmap["url"]
-        starrating = beatmap["difficulty_rating"]
-        performance = humanize_number(round(data[i]["pp"],2))
-        rank = data[i]["rank"]
-        score = humanize_number(data[i]["score"])
-        combo = humanize_number(data[i]["max_combo"])
-        count_miss = humanize_number(statistics["count_miss"])
-        count_50 = humanize_number(statistics["count_50"])
-        count_100 = humanize_number(statistics["count_100"])
-        count_300 = humanize_number(statistics["count_300"])
-        count_geki = humanize_number(statistics["count_geki"])
-        count_katu = humanize_number(statistics["count_katu"])
-        emoji = self.translateemote(rank)
-        accuracy = "{:.2%}".format(data[i]["accuracy"])
-        hits = f"{count_300}/{count_100}/{count_50}/{count_miss}"
-        played = data[i]["created_at"]
-
-        date = current_date - datetime.strptime(played, "%Y-%m-%dT%H:%M:%S%z").replace(tzinfo=None)
-        time = re.split(r",\s", humanize_timedelta(timedelta=date))
-        try:
-            time = f"{time[0]} {time[1]}"
-        except ValueError:
-            pass
-
-        if beatmapmode == 3:
-            version = re.sub(r"^\S*\s", "", beatmap["version"])
-            hits = f"{count_geki}/{count_300}/{count_katu}/{count_100}/{count_50}/{count_miss}"
-
-        mods = ""
-        if data[i]["mods"]:
-            mods = mods.join(data[i]["mods"])
-            mods = f" +{mods}"
-
-        maps = f"{maps}\n**{i+1}. [{title} - [{version}]]({beatmapurl}){mods}** [{starrating}★]\n{emoji} **{performance}pp** ◈ ({accuracy}) ◈ {score}\n**{combo}x** ◈ [{hits}] ◈ {time} ago\n"
-
-        return maps
-
-    async def no_user(self, ctx, player_id):
-        message = await ctx.send(f"Could not find the user {player_id}")
-        await asyncio.sleep(10)
-        try:
-            await message.delete()
-        except (discord.errors.NotFound, discord.errors.Forbidden):
-            pass
-
-    async def check_context(self, ctx, username, user_id):
-        if username is None:
-            username = user_id
-        elif not username.isnumeric():
-            data = await self.fetch_api(
-                ctx,
-                self.osu_bearer_cache.get("access_token", None),
-                (await self.bot.get_shared_api_tokens("osu")).get("client_id"),
-                f"https://osu.ppy.sh/api/v2/users/{username}"
-            )
-            username = data["id"]
-
-        return username
