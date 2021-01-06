@@ -302,6 +302,100 @@ class Osu(commands.Cog):
         data = await self.fetch_api(ctx, f"news")
         await self.news_embed(ctx, data)
 
+    @commands.command(aliases=["osur"])
+    @commands.cooldown(1, 10, commands.BucketType.user)
+    async def osurankings(self, ctx, *params):
+        """Show the top players from each leaderboard.
+
+        Examples:
+            - `[p]osurankings catch SE`
+            - `[p]osur mania 4k`
+        
+        **Arguments:**
+
+        - `<mode>` one of the 4 gamemodes. Only full names.
+        - `<type>` to sort by score use score. Else nothing.
+        - `<country>` a 2 digit ISO country code to get that countries leaderboard. Does not work with `<type>`.
+        - `<variant>` either 4k or 7k when `<mode>` is mania. Leave blank for global. Does not work with `<type>`.
+        """
+        params = [(x.lower()) for x in params]
+        params = list(dict.fromkeys(params))
+        variant = None
+        country = None
+        mode = "osu"
+        if "osu" in params or "standard" in params:
+            await ctx.send(params)
+            mode = "osu"
+            try:
+                params.remove("osu")
+            except:
+                params.remove("standard")
+        elif "taiko" in params:
+            mode = "taiko"
+            params.remove("taiko")
+        elif "catch" in params or "fruits" in params:
+            mode = "fruits"
+            try:
+                params.remove("catch")
+            except:
+                params.remove("fruits")
+        elif "mania" in params:
+            mode = "mania"
+            params.remove("mania")
+            if "4k" in params:
+                variant = "4k"
+                params.remove("4k")
+            elif "7k" in params:
+                variant = "7k"
+                params.remove("7k")
+        if "score" in params and variant:
+            message = await ctx.send(f"Can not keymodes with score rankings")
+            await asyncio.sleep(10)
+            try:
+                await message.delete()
+            except (discord.errors.NotFound, discord.errors.Forbidden):
+                pass
+        elif "score" in params and len(params) > 1:
+            message = await ctx.send(f"Score can not be used for country rankings")
+            await asyncio.sleep(10)
+            try:
+                await message.delete()
+            except (discord.errors.NotFound, discord.errors.Forbidden):
+                pass
+        elif "score" in params:
+            rtype = "score"
+            params.remove("score")
+        else:
+            rtype = "performance"
+        if len(params) > 0 and len(params) < 2:
+            countrylen = params[0]
+            if len(countrylen) > 2:
+                message = await ctx.send(f"Please use the 2 letter ISO code for countries")
+                await asyncio.sleep(10)
+                try:
+                    await message.delete()
+                except (discord.errors.NotFound, discord.errors.Forbidden):
+                    pass
+            else:
+                country = countrylen.upper()
+        elif len(params) >= 2:
+            message = await ctx.send(f"There seems to be too many arguments or something went wrong")
+            await asyncio.sleep(10)
+            try:
+                await message.delete()
+            except (discord.errors.NotFound, discord.errors.Forbidden):
+                pass
+        
+        if rtype:
+            params = {}
+            if country:
+                params["country"] = country
+            if variant:
+                params["variant"] = variant
+
+            data = await self.fetch_api(ctx, f"rankings/{mode}/{rtype}", params=params)
+            await self.rankings_embed(ctx, data, rtype, mode, country, variant)
+
     @commands.command(hidden=True)
     @commands.cooldown(10, 10, commands.BucketType.user)
     async def et(self, ctx, user: discord.Member=None):
@@ -329,6 +423,13 @@ class Osu(commands.Cog):
             async with session.get(endpoint, headers=header, params=params) as r:
                 if r.status == 404 and user is not None:
                     message = await ctx.send(f"Could not find the user {user}")
+                    await asyncio.sleep(10)
+                    try:
+                        await message.delete()
+                    except (discord.errors.NotFound, discord.errors.Forbidden):
+                        pass
+                elif r.status == 404:
+                    message = await ctx.send(f"Something went wrong with the api")
                     await asyncio.sleep(10)
                     try:
                         await message.delete()
@@ -449,6 +550,8 @@ class Osu(commands.Cog):
                 embed.set_footer(
                     text="Currently Online"
                 )
+            elif not last_online:
+                embed.set_footer(text="Last Online | Unknown")
             else:
                 embed.set_footer(
                     text="Last Online"
@@ -502,117 +605,116 @@ class Osu(commands.Cog):
     async def recent_embed(self, ctx, data, player_id):
         if data:
             index = 0
+            beatmapset = data[index]["beatmapset"]
+            statistics = data[index]["statistics"]
+            user = data[index]["user"]
+            played = data[index]["created_at"]
+            username = user["username"]
+            count_miss = humanize_number(statistics["count_miss"])
+            count_50 = humanize_number(statistics["count_50"])
+            count_100 = humanize_number(statistics["count_100"])
+            count_300 = statistics["count_300"]
+            count_geki = statistics["count_geki"]
+            count_katu = humanize_number(statistics["count_katu"])
+            rank = data[index]["rank"]
+            emoji = self.translateemote(rank)
+            artist = beatmapset["artist"]
+            beatmapsetid = beatmapset["id"]
+            title = beatmapset["title"]
+            beatmap = data[index]["beatmap"]
+            version = beatmap["version"]
+            beatmapmode = beatmap["mode_int"]
+            starrating = beatmap["difficulty_rating"]
+            comboraw = data[index]["max_combo"]
+            beatmapurl = beatmap["url"]
+            user_id = data[index]["user_id"]
+            score = humanize_number(data[index]["score"])
+            creator = beatmapset["creator"]
+            creator_id = beatmapset["user_id"]
+            mapstatus = beatmapset["status"]
+            accuracy = "{:.2%}".format(data[index]["accuracy"])
+
+            if beatmapmode == 3:
+                comboratio = "Combo / Ratio"
+                version = re.sub(r"^\S*\s", "", beatmap["version"])
+                ratio = round(count_geki / count_300,2)
+                combo = f"**{comboraw:,}x** / {ratio}"
+                hits = f"{humanize_number(count_geki)}/{humanize_number(count_300)}/{count_katu}/{count_100}/{count_50}/{count_miss}"
+            else:
+                comboratio = "Combo"
+                combo = f"**{comboraw}x**"
+                hits = f"{humanize_number(count_300)}/{count_100}/{count_50}/{count_miss}"
+
+            mods = ""
+            if data[0]["mods"]:
+                mods = mods.join(data[index]["mods"])
+                mods = f" +{mods}"
+
             try:
-                beatmapset = data[index]["beatmapset"]
-                statistics = data[index]["statistics"]
-                user = data[index]["user"]
-                played = data[index]["created_at"]
-                username = user["username"]
-                count_miss = humanize_number(statistics["count_miss"])
-                count_50 = humanize_number(statistics["count_50"])
-                count_100 = humanize_number(statistics["count_100"])
-                count_300 = statistics["count_300"]
-                count_geki = statistics["count_geki"]
-                count_katu = humanize_number(statistics["count_katu"])
-                rank = data[index]["rank"]
-                emoji = self.translateemote(rank)
-                artist = beatmapset["artist"]
-                beatmapsetid = beatmapset["id"]
-                title = beatmapset["title"]
-                beatmap = data[index]["beatmap"]
-                version = beatmap["version"]
-                beatmapmode = beatmap["mode_int"]
-                starrating = beatmap["difficulty_rating"]
-                comboraw = data[index]["max_combo"]
-                beatmapurl = beatmap["url"]
-                user_id = data[index]["user_id"]
-                score = humanize_number(data[index]["score"])
-                creator = beatmapset["creator"]
-                creator_id = beatmapset["user_id"]
-                mapstatus = beatmapset["status"]
-                accuracy = "{:.2%}".format(data[index]["accuracy"])
-
-                if beatmapmode == 3:
-                    comboratio = "Combo / Ratio"
-                    version = re.sub(r"^\S*\s", "", beatmap["version"])
-                    ratio = round(count_geki / count_300,2)
-                    combo = f"**{comboraw:,}x** / {ratio}"
-                    hits = f"{humanize_number(count_geki)}/{humanize_number(count_300)}/{count_katu}/{count_100}/{count_50}/{count_miss}"
-                else:
-                    comboratio = "Combo"
-                    combo = f"**{comboraw}x**"
-                    hits = f"{humanize_number(count_300)}/{count_100}/{count_50}/{count_miss}"
-
-                mods = ""
-                if data[0]["mods"]:
-                    mods = mods.join(data[index]["mods"])
-                    mods = f" +{mods}"
-
-                try:
-                    performance = humanize_number(round(data[index]["pp"],2))
-                except TypeError:
-                    performance = 0
+                performance = humanize_number(round(data[index]["pp"],2))
+            except TypeError:
+                performance = 0
 
 
-                embed = discord.Embed(
-                    color=await self.bot.get_embed_color(ctx)
-                )
-                embed.set_author(
-                    name=f"{artist} - {title} [{version}]",
-                    url=beatmapurl,
-                    icon_url=f"https://a.ppy.sh/{user_id}"
-                )
-                embed.set_image(
-                    url=f"https://assets.ppy.sh/beatmaps/{beatmapsetid}/covers/cover.jpg"
-                )
-                embed.add_field(
-                    name="Grade",
-                    value=f"{emoji}{mods}",
-                    inline=True
-                )
-                embed.add_field(
-                    name="Score",
-                    value=f"{score}",
-                    inline=True
-                )
-                embed.add_field(
-                    name="Acc",
-                    value=f"{accuracy}",
-                    inline=True
-                )
-                embed.add_field(
-                    name="PP",
-                    value=f"**{performance}pp**",
-                    inline=True
-                )
-                embed.add_field(
-                    name=comboratio,
-                    value=combo,
-                    inline=True
-                )
-                embed.add_field(
-                    name="Hits",
-                    value=hits,
-                    inline=True
-                )
-                embed.add_field(
-                    name="Map Info",
-                    value=f"Mapper: [{creator}](https://osu.ppy.sh/users/{creator_id})\nStatus: {inline(mapstatus.capitalize())} | SR: {inline(str(starrating))}",
-                    inline=False
-                )
-                embed.set_footer(
-                    text=f"{username} | osu!{self.translatemode(beatmapmode).capitalize()} | Played"
-                )
-                embed.timestamp = datetime.strptime(played, "%Y-%m-%dT%H:%M:%S%z")
-            
-                await ctx.send(embed=embed)
-            except IndexError:
-                message = await ctx.send(f"Looks like you don't have any recent plays in that mode")
-                await asyncio.sleep(10)
-                try:
-                    await message.delete()
-                except (discord.errors.NotFound, discord.errors.Forbidden):
-                    pass
+            embed = discord.Embed(
+                color=await self.bot.get_embed_color(ctx)
+            )
+            embed.set_author(
+                name=f"{artist} - {title} [{version}]",
+                url=beatmapurl,
+                icon_url=f"https://a.ppy.sh/{user_id}"
+            )
+            embed.set_image(
+                url=f"https://assets.ppy.sh/beatmaps/{beatmapsetid}/covers/cover.jpg"
+            )
+            embed.add_field(
+                name="Grade",
+                value=f"{emoji}{mods}",
+                inline=True
+            )
+            embed.add_field(
+                name="Score",
+                value=f"{score}",
+                inline=True
+            )
+            embed.add_field(
+                name="Acc",
+                value=f"{accuracy}",
+                inline=True
+            )
+            embed.add_field(
+                name="PP",
+                value=f"**{performance}pp**",
+                inline=True
+            )
+            embed.add_field(
+                name=comboratio,
+                value=combo,
+                inline=True
+            )
+            embed.add_field(
+                name="Hits",
+                value=hits,
+                inline=True
+            )
+            embed.add_field(
+                name="Map Info",
+                value=f"Mapper: [{creator}](https://osu.ppy.sh/users/{creator_id})\nStatus: {inline(mapstatus.capitalize())} | SR: {inline(str(starrating))}",
+                inline=False
+            )
+            embed.set_footer(
+                text=f"{username} | osu!{self.translatemode(beatmapmode).capitalize()} | Played"
+            )
+            embed.timestamp = datetime.strptime(played, "%Y-%m-%dT%H:%M:%S%z")
+        
+            await ctx.send(embed=embed)
+        else:
+            message = await ctx.send(f"Looks like you don't have any recent plays in that mode")
+            await asyncio.sleep(10)
+            try:
+                await message.delete()
+            except (discord.errors.NotFound, discord.errors.Forbidden):
+                pass
 
     async def top_embed(self, ctx, data, player_id, mode):
         if data:
@@ -651,6 +753,56 @@ class Osu(commands.Cog):
             
             await  menu(ctx, scores, DEFAULT_CONTROLS if ceil(len(data)) > 1 else {"\N{CROSS MARK}": close_menu})
 
+    async def rankings_embed(self, ctx, data, rtype, mode, country = None, variant = None):
+        if data:
+            page_num = 1
+            users = []
+
+            if mode == "osu":
+                mode = "standard"
+            elif mode == "fruits":
+                mode = "catch"
+            mode = mode.capitalize()
+
+            if variant:
+                variant = f"{variant} "
+            else:
+                variant = ""
+
+            base_embed = discord.Embed(
+                color=await self.bot.get_embed_color(ctx)
+            )
+
+            if country:
+                rtype = data["ranking"][0]["user"]["country"]["name"]
+                base_embed.set_thumbnail(
+                    url=f"https://osu.ppy.sh/images/flags/{country}.png"
+                )
+
+            base_embed.set_author(
+                name=f"{rtype.capitalize()} {variant}ranking | osu!{mode}",
+                icon_url="https://osu.ppy.sh/favicon-32x32.png"
+            )
+
+            while page_num <= 5:
+                i = (page_num - 1) * 10
+                user = ""
+                while i < (page_num * 10):
+                    user = self.fetch_rankings(data, i, user, country, rtype)
+                    i += 1
+                
+                embed = base_embed.copy()
+                embed.description = user
+                if rtype == "score":
+                    embed.set_footer(text=f"Page {page_num}/5 | Username ◈ Score ◈ Accuracy ◈ pp")
+                else:
+                    embed.set_footer(text=f"Page {page_num}/5 | Username ◈ pp ◈ Accuracy ◈ Play Count")
+
+                users.append(embed)
+                page_num += 1
+            
+            await  menu(ctx, users, DEFAULT_CONTROLS)
+
     async def news_embed(self, ctx, data):
         if data:
             news_posts = data["news_posts"]
@@ -669,8 +821,11 @@ class Osu(commands.Cog):
                 title = news_posts[i]["title"]
                 preview = news_posts[i]["preview"]
 
+                if post_image.startswith("/"):
+                    post_image = f"https://osu.ppy.sh/{post_image}"
+
                 embed = base_embed.copy()
-                embed.set_image(url=f"https://osu.ppy.sh/{post_image}")
+                embed.set_image(url=post_image)
                 embed.set_author(name=post_author, icon_url=f"https://osu.ppy.sh/favicon-32x32.png")
                 embed.url = f"https://osu.ppy.sh/home/news/{post_url}"
                 embed.timestamp = datetime.strptime(published_at, "%Y-%m-%dT%H:%M:%S%z")
@@ -681,6 +836,22 @@ class Osu(commands.Cog):
                 posts.append(embed)
             
             await  menu(ctx, posts, DEFAULT_CONTROLS if len(data) > 1 else {"\N{CROSS MARK}": close_menu})
+
+    def fetch_rankings(self, data, i, user, country, rtype):
+        country_code = data["ranking"][i]["user"]["country"]["code"]
+        username = data["ranking"][i]["user"]["username"]
+        performance = humanize_number(data["ranking"][i]["pp"])
+        accuracy = "{:.2f}".format(data["ranking"][i]["hit_accuracy"])
+        score = humanize_number(data["ranking"][i]["ranked_score"])
+        playcount = humanize_number(data["ranking"][i]["play_count"])
+        if country:
+            user = f"{user}\n**{i+1}.** | **{username}** ◈ {performance}pp ◈ {accuracy}% ◈ {playcount}\n"
+        elif rtype == "score":
+            user = f"{user}\n**{i+1}.** | :flag_{country_code.lower()}: **{username}** ◈ {score} ◈ {accuracy}% ◈ {performance}pp\n"
+        else:
+            user = f"{user}\n**{i+1}.** | :flag_{country_code.lower()}: **{username}** ◈ {performance}pp ◈ {accuracy}% ◈ {playcount}\n"
+
+        return user
 
     def fetch_top(self, data, i, maps):
         current_date = datetime.now()
