@@ -28,10 +28,15 @@ EMOJI_F = "<:F_Rank:794823687781613609>"
 
 class Osu(commands.Cog):
     """osu! commands.
+
+    Link your account with `[p]osulink <username>`
     
-    [p]<mode> Gets a profile
-    [p]recent<mode> Gets a players most recent play
-    [p]top<mode> Gets a players top plays
+    `[p]<mode>` Gets a players profile.
+    `[p]recent<mode>` Gets a players most recent play.
+    `[p]top<mode>` Gets a players top plays.
+
+    Most commands also have shortened aliases and
+    all modes can be shortened.
     """
 
     default_user_settings = {"username": None, "userid": None}
@@ -75,20 +80,7 @@ class Osu(commands.Cog):
         try:
             tokens.get("client_id")
         except KeyError:
-            message = (
-                "You need a client secret key if you want to use the osu API on this cog.\n"
-                "Acquire one from here: https://osu.ppy.sh/home/account/edit.\n"
-                "Then copy your client ID and your client secret into:\n"
-                "{command}"
-                "\n\n"
-                "Note: These tokens are sensitive and should only be used in a private channel "
-                "or in DM with the bot."
-            ).format(
-                command="`[p]set api osu client_id {} client_secret {}`".format(
-                    ("<your_client_id_here>"), ("<your_client_secret_here>")
-                )
-            )
-            await send_to_owners_with_prefix_replaced(self.bot, message)
+            pass
         async with aiohttp.ClientSession() as session:
             async with session.post(
                 "https://osu.ppy.sh/oauth/token",
@@ -131,107 +123,223 @@ class Osu(commands.Cog):
             if self.osu_bearer_cache["expires_at"] - datetime.now().timestamp() <= 60:
                 await self.get_osu_bearer_token()
 
+    @commands.command()
+    async def osulink(self, ctx, username: str):
+        """Link your account with an osu! user profile"""
+
+        data = await self.fetch_api(ctx, f"/users/{username}", username)
+
+        if data:
+            username = data["username"]
+            user_id = data["id"]
+            await self.osuconfig.user(ctx.author).username.set(username)
+            await self.osuconfig.user(ctx.author).userid.set(user_id)
+            await ctx.send(f"{username} is successfully linked to your account!")
+
     @commands.command(aliases=["standard", "std"])
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def osu(self, ctx, username: str = None):
-        """Get profile info of a player."""
+        """Get a players osu!Standard profile.
         
-        user_id = await self.osuconfig.user(ctx.author).userid()
-        if username is None and user_id is None:
-            await self.profilelinking(ctx)
-        else:
-            if username is None:
-                username = user_id
-
-            await self.maybe_renew_osu_bearer_token()
-
-            token = (await self.bot.get_shared_api_tokens("osu")).get("client_id")
-            endpoint = f"https://osu.ppy.sh/api/v2/users/{username}/osu"
-            bearer = self.osu_bearer_cache.get("access_token", None)
-
-            data = await self.fetch_api(ctx, bearer, token, endpoint)
-            await self.profile_embed(ctx, data, username, "Standard")
+        Works with any `[p]<mode>`
+        """
+        user = await self.check_context(ctx, username, True)
+            
+        if user:
+            data = await self.fetch_api(ctx, f"users/{user}/osu", user)
+            await self.profile_embed(ctx, data, user, "Standard")
 
     @commands.command(hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def taiko(self, ctx, username: str = None):
-        """Get profile info of a player."""
+        """Get a players osu!Taiko profile."""
         
-        user_id = await self.osuconfig.user(ctx.author).userid()
-        if username is None and user_id is None:
-            await self.profilelinking(ctx)
-        else:
-            if username is None:
-                username = user_id
-
-            await self.maybe_renew_osu_bearer_token()
-
-            token = (await self.bot.get_shared_api_tokens("osu")).get("client_id")
-            endpoint = f"https://osu.ppy.sh/api/v2/users/{username}/taiko"
-            bearer = self.osu_bearer_cache.get("access_token", None)
-
-            data = await self.fetch_api(ctx, bearer, token, endpoint)
-            await self.profile_embed(ctx, data, username, "Taiko")
+        user = await self.check_context(ctx, username, True)
+            
+        if user:
+            data = await self.fetch_api(ctx, f"users/{user}/taiko", user)
+            await self.profile_embed(ctx, data, user, "Taiko")
 
     @commands.command(aliases=["catch", "ctb"], hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def fruits(self, ctx, username: str = None):
-        """Get profile info of a player."""
+        """Get a players osu!Catch profile."""
         
-        user_id = await self.osuconfig.user(ctx.author).userid()
-        if username is None and user_id is None:
-            await self.profilelinking(ctx)
-        else:
-            if username is None:
-                username = user_id
-
-            await self.maybe_renew_osu_bearer_token()
-
-            token = (await self.bot.get_shared_api_tokens("osu")).get("client_id")
-            endpoint = f"https://osu.ppy.sh/api/v2/users/{username}/fruits"
-            bearer = self.osu_bearer_cache.get("access_token", None)
-
-            data = await self.fetch_api(ctx, bearer, token, endpoint)
-            await self.profile_embed(ctx, data, username, "Catch")
+        user = await self.check_context(ctx, username, True)
+            
+        if user:
+            data = await self.fetch_api(ctx, f"users/{user}/fruits", user)
+            await self.profile_embed(ctx, data, user, "Catch")
 
     @commands.command(hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def mania(self, ctx, username: str = None):
-        """Get profile info of a player."""
+        """Get a players osu!Mania profile."""
         
-        user_id = await self.osuconfig.user(ctx.author).userid()
-        if username is None and user_id is None:
-            await self.profilelinking(ctx)
+        user = await self.check_context(ctx, username, True)
+            
+        if user:
+            data = await self.fetch_api(ctx, f"users/{user}/mania", user)
+            await self.profile_embed(ctx, data, user, "Mania")
+
+    @commands.command(aliases=["rso","recentstandard"])
+    @commands.cooldown(1, 10, commands.BucketType.user)
+    async def recentosu(self, ctx, username: str = None):
+        """Get a players recent osu!Standard play.
+        
+        Works with any `[p]recent<mode>`
+        or shortened to `[p]rso`
+        """
+
+        user = await self.check_context(ctx, username)
+
+        if user:
+            params = {"include_fails": "1", "mode": "osu",}
+
+            data = await self.fetch_api(ctx, f"users/{user}/scores/recent", user, params)
+            await self.recent_embed(ctx, data, user)
+
+    @commands.command(aliases=["rst"], hidden=True)
+    @commands.cooldown(1, 10, commands.BucketType.user)
+    async def recenttaiko(self, ctx, username: str = None):
+        """Get a players recent osu!Taiko play."""
+
+        user = await self.check_context(ctx, username)
+
+        if user:
+            params = {"include_fails": "1", "mode": "taiko",}
+
+            data = await self.fetch_api(ctx, f"users/{user}/scores/recent", user, params)
+            await self.recent_embed(ctx, data, user)
+
+    @commands.command(aliases=["rsf","recentcatch","rsc"], hidden=True)
+    @commands.cooldown(1, 10, commands.BucketType.user)
+    async def recentfruits(self, ctx, username: str = None):
+        """Get a players recent osu!Catch play."""
+
+        user = await self.check_context(ctx, username)
+
+        if user:
+            params = {"include_fails": "1", "mode": "fruits",}
+
+            data = await self.fetch_api(ctx, f"users/{user}/scores/recent", user, params)
+            await self.recent_embed(ctx, data, user)
+
+    @commands.command(aliases=["rsm"], hidden=True)
+    @commands.cooldown(1, 10, commands.BucketType.user)
+    async def recentmania(self, ctx, username: str = None):
+        """Get a players recent osu!Mania play."""
+
+        user = await self.check_context(ctx, username)
+
+        if user:
+            params = {"include_fails": "1", "mode": "mania",}
+
+            data = await self.fetch_api(ctx, f"users/{user}/scores/recent", user, params)
+            await self.recent_embed(ctx, data, user)
+
+    @commands.command(aliases=["topo", "topstandard"])
+    @commands.cooldown(1, 10, commands.BucketType.user)
+    async def toposu(self, ctx, username: str = None):
+        """Get a players osu!Standard top plays.
+        
+        Works with any `[p]top<mode>`
+        or shortened to `[p]topo`
+        """
+
+        user = await self.check_context(ctx, username)
+
+        if user:
+            params = {"mode": "osu", "limit": "50",}
+
+            data = await self.fetch_api(ctx, f"users/{user}/scores/best", user, params)
+            await self.top_embed(ctx, data, user, "Standard")
+
+    @commands.command(aliases=["topt"], hidden=True)
+    @commands.cooldown(1, 10, commands.BucketType.user)
+    async def toptaiko(self, ctx, username: str = None):
+        """Get a players osu!Taiko top plays."""
+
+        user = await self.check_context(ctx, username)
+        
+        if user:
+            params = {"mode": "taiko", "limit": "50",}
+
+            data = await self.fetch_api(ctx, f"users/{user}/scores/best", user, params)
+            await self.top_embed(ctx, data, user, "Taiko")
+
+    @commands.command(aliases=["topf","topcatch", "topc"], hidden=True)
+    @commands.cooldown(1, 10, commands.BucketType.user)
+    async def topfruits(self, ctx, username: str = None):
+        """Get a players osu!Catch top plays."""
+
+        user = await self.check_context(ctx, username)
+        
+        if user:
+            params = {"mode": "fruits", "limit": "50",}
+
+            data = await self.fetch_api(ctx, f"users/{user}/scores/best", user, params)
+            await self.top_embed(ctx, data, user, "Catch")
+
+    @commands.command(aliases=["topm"], hidden=True)
+    @commands.cooldown(1, 10, commands.BucketType.user)
+    async def topmania(self, ctx, username: str = None):
+        """Get a players osu!Mania top plays."""
+
+        user = await self.check_context(ctx, username)
+        
+        if user:
+            params = {"mode": "mania", "limit": "50",}
+
+            data = await self.fetch_api(ctx, f"users/{user}/scores/best", user, params)
+            await self.top_embed(ctx, data, user, "Mania")
+
+    @commands.command()
+    @commands.cooldown(1, 10, commands.BucketType.user)
+    async def osunews(self, ctx):
+        """Show the news from the osu! front page."""
+
+        data = await self.fetch_api(ctx, f"news")
+        await self.news_embed(ctx, data)
+
+    @commands.command(hidden=True)
+    @commands.cooldown(10, 10, commands.BucketType.user)
+    async def et(self, ctx, user: discord.Member=None):
+        """Marcinho is ET"""
+
+        author = ctx.message.author
+        if not user:
+            message = f"{author.mention} thinks <@253588524652036096> is ET"
         else:
-            if username is None:
-                username = user_id
+            message = f"{author.mention} thinks {user.mention} is ET"
 
-            await self.maybe_renew_osu_bearer_token()
+        await ctx.send(message)
 
-            token = (await self.bot.get_shared_api_tokens("osu")).get("client_id")
-            endpoint = f"https://osu.ppy.sh/api/v2/users/{username}/mania"
-            bearer = self.osu_bearer_cache.get("access_token", None)
+    async def fetch_api(self, ctx, url, user = None, params = None):
+        await self.maybe_renew_osu_bearer_token()
 
-            data = await self.fetch_api(ctx, bearer, token, endpoint)
-            await self.profile_embed(ctx, data, username, "Mania")
-
-    async def fetch_api(self, ctx, bearer, token, endpoint, params = None):
+        endpoint = f"https://osu.ppy.sh/api/v2/{url}"
+        token = (await self.bot.get_shared_api_tokens("osu")).get("client_id")
+        bearer = self.osu_bearer_cache.get("access_token", None)
         header = {"client_id": str(token)}
         if bearer is not None:
             header = {**header, "Authorization": f"Bearer {bearer}"}
         
         async with aiohttp.ClientSession() as session:
             async with session.get(endpoint, headers=header, params=params) as r:
-                if r.status == 404:
-                    data = 404
+                if r.status == 404 and user is not None:
+                    message = await ctx.send(f"Could not find the user {user}")
+                    await asyncio.sleep(10)
+                    try:
+                        await message.delete()
+                    except (discord.errors.NotFound, discord.errors.Forbidden):
+                        pass
                 else:
                     data = await r.json(encoding="utf-8")
             return data
 
     async def profile_embed(self, ctx, data, player_id, mode):
-        if data == 404:
-            await self.no_user(ctx, player_id)
-        else:
+        if data:
             statistics = data["statistics"]
             rank = statistics["rank"]
             user_id = data["id"]
@@ -349,19 +457,6 @@ class Osu(commands.Cog):
                 
             await ctx.send(embed=embed)
 
-    @commands.command(hidden=True)
-    @commands.cooldown(10, 10, commands.BucketType.user)
-    async def et(self, ctx, user: discord.Member=None):
-        """Marcinho is ET"""
-
-        author = ctx.message.author
-        if not user:
-            message = f"{author.mention} thinks <@253588524652036096> is ET"
-        else:
-            message = f"{author.mention} thinks {user.mention} is ET"
-
-        await ctx.send(message)
-
     async def profilelinking(self, ctx):
         prefix = ctx.clean_prefix
         message = await ctx.maybe_send_embed(f"Looks like you haven't linked an account.\nYou can do so using `{prefix}osulink <username>`"
@@ -372,123 +467,6 @@ class Osu(commands.Cog):
         except (discord.errors.NotFound, discord.errors.Forbidden):
             pass
 
-    @commands.command()
-    async def osulink(self, ctx, username: str):
-        """Link your account with an osu! user"""
-
-        await self.maybe_renew_osu_bearer_token()
-
-        token = (await self.bot.get_shared_api_tokens("osu")).get("client_id")
-        endpoint = f"https://osu.ppy.sh/api/v2/users/{username}"
-        bearer = self.osu_bearer_cache.get("access_token", None)
-
-        data = await self.fetch_api(ctx, bearer, token, endpoint)
-
-        if data == 404:
-            await self.no_user(ctx, username)
-        else:
-            username = data["username"]
-            user_id = data["id"]
-            await self.osuconfig.user(ctx.author).username.set(username)
-            await self.osuconfig.user(ctx.author).userid.set(user_id)
-            await ctx.send(f"{username} is successfully linked to your account!")
-
-    @commands.command(aliases=["rso","recentstandard"])
-    @commands.cooldown(1, 10, commands.BucketType.user)
-    async def recentosu(self, ctx, username: str = None):
-        """Get a users most recent plays"""
-
-        user_id = await self.osuconfig.user(ctx.author).userid()
-        if username is None and user_id is None:
-            await self.profilelinking(ctx)
-        else:
-            username = await self.check_context(ctx, username, user_id)
-
-            await self.maybe_renew_osu_bearer_token()
-
-            token = (await self.bot.get_shared_api_tokens("osu")).get("client_id")
-            endpoint = f"https://osu.ppy.sh/api/v2/users/{username}/scores/recent"
-            bearer = self.osu_bearer_cache.get("access_token", None)
-            params = {
-                "include_fails": "1",
-                "mode": "osu",
-            }
-
-            data = await self.fetch_api(ctx, bearer, token, endpoint, params)
-            await self.recent_embed(ctx, data, username)
-
-    @commands.command(aliases=["rst"])
-    @commands.cooldown(1, 10, commands.BucketType.user)
-    async def recenttaiko(self, ctx, username: str = None):
-        """Get a users most recent plays"""
-
-        user_id = await self.osuconfig.user(ctx.author).userid()
-        if username is None and user_id is None:
-            await self.profilelinking(ctx)
-        else:
-            username = await self.check_context(ctx, username, user_id)
-
-            await self.maybe_renew_osu_bearer_token()
-
-            token = (await self.bot.get_shared_api_tokens("osu")).get("client_id")
-            endpoint = f"https://osu.ppy.sh/api/v2/users/{username}/scores/recent"
-            bearer = self.osu_bearer_cache.get("access_token", None)
-            params = {
-                "include_fails": "1",
-                "mode": "taiko",
-            }
-
-            data = await self.fetch_api(ctx, bearer, token, endpoint, params)
-            await self.recent_embed(ctx, data, username)
-
-    @commands.command(aliases=["rsf","recentcatch","rsc"])
-    @commands.cooldown(1, 10, commands.BucketType.user)
-    async def recentfruits(self, ctx, username: str = None):
-        """Get a users most recent plays"""
-
-        user_id = await self.osuconfig.user(ctx.author).userid()
-        if username is None and user_id is None:
-            await self.profilelinking(ctx)
-        else:
-            username = await self.check_context(ctx, username, user_id)
-
-            await self.maybe_renew_osu_bearer_token()
-
-            token = (await self.bot.get_shared_api_tokens("osu")).get("client_id")
-            endpoint = f"https://osu.ppy.sh/api/v2/users/{username}/scores/recent"
-            bearer = self.osu_bearer_cache.get("access_token", None)
-            params = {
-                "include_fails": "1",
-                "mode": "fruits",
-            }
-
-            data = await self.fetch_api(ctx, bearer, token, endpoint, params)
-            await self.recent_embed(ctx, data, username)
-
-    @commands.command(aliases=["rsm"])
-    @commands.cooldown(1, 10, commands.BucketType.user)
-    async def recentmania(self, ctx, username: str = None):
-        """Get a users most recent plays"""
-
-        user_id = await self.osuconfig.user(ctx.author).userid()
-        if username is None and user_id is None:
-            await self.profilelinking(ctx)
-        else:
-            username = await self.check_context(ctx, username, user_id)
-
-            await self.maybe_renew_osu_bearer_token()
-
-            token = (await self.bot.get_shared_api_tokens("osu")).get("client_id")
-            endpoint = f"https://osu.ppy.sh/api/v2/users/{username}/scores/recent"
-            bearer = self.osu_bearer_cache.get("access_token", None)
-            params = {
-                "include_fails": "1",
-                "mode": "mania",
-            }
-
-            data = await self.fetch_api(ctx, bearer, token, endpoint, params)
-            await self.recent_embed(ctx, data, username)
-
     def translatemode(self, mode):
         if mode == 0:
             mode = "standard"
@@ -498,7 +476,6 @@ class Osu(commands.Cog):
             mode = "fruits"
         elif mode == 3:
             mode = "mania"
-
         return mode
 
     def translateemote(self, grade):
@@ -523,9 +500,7 @@ class Osu(commands.Cog):
         return emote
 
     async def recent_embed(self, ctx, data, player_id):
-        if data == 404:
-            await self.no_user(ctx, player_id)
-        else:
+        if data:
             index = 0
             try:
                 beatmapset = data[index]["beatmapset"]
@@ -545,11 +520,10 @@ class Osu(commands.Cog):
                 beatmapsetid = beatmapset["id"]
                 title = beatmapset["title"]
                 beatmap = data[index]["beatmap"]
-                versionraw = beatmap["version"]
+                version = beatmap["version"]
                 beatmapmode = beatmap["mode_int"]
                 starrating = beatmap["difficulty_rating"]
                 comboraw = data[index]["max_combo"]
-                version = f"[{versionraw}]"
                 beatmapurl = beatmap["url"]
                 user_id = data[index]["user_id"]
                 score = humanize_number(data[index]["score"])
@@ -560,7 +534,7 @@ class Osu(commands.Cog):
 
                 if beatmapmode == 3:
                     comboratio = "Combo / Ratio"
-                    versionraw = re.sub(r"^\S*\s", "", versionraw)
+                    version = re.sub(r"^\S*\s", "", beatmap["version"])
                     ratio = round(count_geki / count_300,2)
                     combo = f"**{comboraw:,}x** / {ratio}"
                     hits = f"{humanize_number(count_geki)}/{humanize_number(count_300)}/{count_katu}/{count_100}/{count_50}/{count_miss}"
@@ -584,7 +558,7 @@ class Osu(commands.Cog):
                     color=await self.bot.get_embed_color(ctx)
                 )
                 embed.set_author(
-                    name=f"{artist} - {title} {version}",
+                    name=f"{artist} - {title} [{version}]",
                     url=beatmapurl,
                     icon_url=f"https://a.ppy.sh/{user_id}"
                 )
@@ -640,106 +614,8 @@ class Osu(commands.Cog):
                 except (discord.errors.NotFound, discord.errors.Forbidden):
                     pass
 
-    @commands.command(aliases=["topo","topstandard"])
-    @commands.cooldown(1, 10, commands.BucketType.user)
-    async def toposu(self, ctx, username: str = None):
-        """Get a users most recent plays"""
-
-        user_id = await self.osuconfig.user(ctx.author).userid()
-        if username is None and user_id is None:
-            await self.profilelinking(ctx)
-        else:
-            username = await self.check_context(ctx, username, user_id)
-
-            await self.maybe_renew_osu_bearer_token()
-
-            token = (await self.bot.get_shared_api_tokens("osu")).get("client_id")
-            endpoint = f"https://osu.ppy.sh/api/v2/users/{username}/scores/best"
-            bearer = self.osu_bearer_cache.get("access_token", None)
-            params = {
-                "mode": "osu",
-                "limit": "50",
-            }
-
-            data = await self.fetch_api(ctx, bearer, token, endpoint, params)
-            await self.top_embed(ctx, data, username, 0)
-
-    @commands.command(aliases=["topt"])
-    @commands.cooldown(1, 10, commands.BucketType.user)
-    async def toptaiko(self, ctx, username: str = None):
-        """Get a users most recent plays"""
-
-        user_id = await self.osuconfig.user(ctx.author).userid()
-        if username is None and user_id is None:
-            await self.profilelinking(ctx)
-        else:
-            username = await self.check_context(ctx, username, user_id)
-
-            await self.maybe_renew_osu_bearer_token()
-
-            token = (await self.bot.get_shared_api_tokens("osu")).get("client_id")
-            endpoint = f"https://osu.ppy.sh/api/v2/users/{username}/scores/best"
-            bearer = self.osu_bearer_cache.get("access_token", None)
-            params = {
-                "mode": "taiko",
-                "limit": "50",
-            }
-
-            data = await self.fetch_api(ctx, bearer, token, endpoint, params)
-            await self.top_embed(ctx, data, username, 1)
-
-    @commands.command(aliases=["topf","topcatch"])
-    @commands.cooldown(1, 10, commands.BucketType.user)
-    async def topfruits(self, ctx, username: str = None):
-        """Get a users most recent plays"""
-
-        user_id = await self.osuconfig.user(ctx.author).userid()
-        if username is None and user_id is None:
-            await self.profilelinking(ctx)
-        else:
-            username = await self.check_context(ctx, username, user_id)
-
-            await self.maybe_renew_osu_bearer_token()
-
-            token = (await self.bot.get_shared_api_tokens("osu")).get("client_id")
-            endpoint = f"https://osu.ppy.sh/api/v2/users/{username}/scores/best"
-            bearer = self.osu_bearer_cache.get("access_token", None)
-            params = {
-                "mode": "fruits",
-                "limit": "50",
-            }
-
-            data = await self.fetch_api(ctx, bearer, token, endpoint, params)
-            await self.top_embed(ctx, data, username, 2)
-
-    @commands.command(aliases=["topm"])
-    @commands.cooldown(1, 10, commands.BucketType.user)
-    async def topmania(self, ctx, username: str = None):
-        """Get a users most recent plays"""
-
-        user_id = await self.osuconfig.user(ctx.author).userid()
-        if username is None and user_id is None:
-            await self.profilelinking(ctx)
-        else:
-            username = await self.check_context(ctx, username, user_id)
-
-            await self.maybe_renew_osu_bearer_token()
-
-            token = (await self.bot.get_shared_api_tokens("osu")).get("client_id")
-            endpoint = f"https://osu.ppy.sh/api/v2/users/{username}/scores/best"
-            bearer = self.osu_bearer_cache.get("access_token", None)
-            params = {
-                "mode": "mania",
-                "limit": "50",
-            }
-
-            data = await self.fetch_api(ctx, bearer, token, endpoint, params)
-            await self.top_embed(ctx, data, username, 3)
-
     async def top_embed(self, ctx, data, player_id, mode):
-        if data == 404:
-            await self.no_user(ctx, player_id)
-        else:
+        if data:
             user = data[0]["user"]
             username = user["username"]
             user_id = user["id"]
@@ -747,12 +623,11 @@ class Osu(commands.Cog):
             page_num = 1
             scores = []
 
-            # try:
             base_embed = discord.Embed(
                 color=await self.bot.get_embed_color(ctx)
             )
             base_embed.set_author(
-                name=f"Top plays for {username} | osu!{self.translatemode(mode).capitalize()}",
+                name=f"Top plays for {username} | osu!{mode}",
                 url=f"https://osu.ppy.sh/users/{user_id}",
                 icon_url=f"https://osu.ppy.sh/images/flags/{country_code}.png"
             )
@@ -776,13 +651,36 @@ class Osu(commands.Cog):
             
             await  menu(ctx, scores, DEFAULT_CONTROLS if ceil(len(data)) > 1 else {"\N{CROSS MARK}": close_menu})
 
-            # except IndexError:
-            #     message = await ctx.send(f"Looks like you don't have any top plays in that mode")
-            #     await asyncio.sleep(10)
-            #     try:
-            #         await message.delete()
-            #     except (discord.errors.NotFound, discord.errors.Forbidden):
-            #         pass
+    async def news_embed(self, ctx, data):
+        if data:
+            news_posts = data["news_posts"]
+            post_count = len(news_posts)
+            posts = []
+
+            base_embed = discord.Embed(
+                color=await self.bot.get_embed_color(ctx)
+            )
+
+            for i in range(post_count):
+                post_image = news_posts[i]["first_image"]
+                post_author = news_posts[i]["author"]
+                post_url = news_posts[i]["slug"]
+                published_at = news_posts[i]["published_at"]
+                title = news_posts[i]["title"]
+                preview = news_posts[i]["preview"]
+
+                embed = base_embed.copy()
+                embed.set_image(url=f"https://osu.ppy.sh/{post_image}")
+                embed.set_author(name=post_author, icon_url=f"https://osu.ppy.sh/favicon-32x32.png")
+                embed.url = f"https://osu.ppy.sh/home/news/{post_url}"
+                embed.timestamp = datetime.strptime(published_at, "%Y-%m-%dT%H:%M:%S%z")
+                embed.title = title
+                embed.description = preview
+                embed.set_footer(text=f"Post # {i + 1}/{len(news_posts)}")
+
+                posts.append(embed)
+            
+            await  menu(ctx, posts, DEFAULT_CONTROLS if len(data) > 1 else {"\N{CROSS MARK}": close_menu})
 
     def fetch_top(self, data, i, maps):
         current_date = datetime.now()
@@ -837,16 +735,23 @@ class Osu(commands.Cog):
         except (discord.errors.NotFound, discord.errors.Forbidden):
             pass
 
-    async def check_context(self, ctx, username, user_id):
+    async def check_context(self, ctx, username, no_id = False):
         if username is None:
-            username = user_id
-        elif not username.isnumeric():
-            data = await self.fetch_api(
-                ctx,
-                self.osu_bearer_cache.get("access_token", None),
-                (await self.bot.get_shared_api_tokens("osu")).get("client_id"),
-                f"https://osu.ppy.sh/api/v2/users/{username}"
-            )
-            username = data["id"]
+            user_id = await self.osuconfig.user(ctx.author).userid()
+            if user_id is None:
+                await self.profilelinking(ctx)
+            else:
+                username = user_id
+        elif "@" in username:
+            try:
+                member = await commands.MemberConverter().convert(ctx, username)
+                username = await self.osuconfig.user(member).userid()
+            except:
+                pass
+
+        if username is not None:
+            if str(username).isnumeric() == False and no_id == False:
+                data = await self.fetch_api(ctx, f"users/{username}/osu", username)
+                username = data["id"]
 
         return username
