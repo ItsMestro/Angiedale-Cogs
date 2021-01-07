@@ -4,13 +4,14 @@ import json
 import aiohttp
 import asyncio
 import re
+import operator
 from math import ceil
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, List, Dict
 
 from redbot.core import checks, commands, Config
 from redbot.core.utils.chat_formatting import inline, humanize_timedelta, humanize_number
-from redbot.core.utils.menus import close_menu, menu, DEFAULT_CONTROLS
+from redbot.core.utils.menus import close_menu, next_page, menu, DEFAULT_CONTROLS
 
 from redbot.core.bot import Red
 
@@ -127,7 +128,7 @@ class Osu(commands.Cog):
     async def osulink(self, ctx, username: str):
         """Link your account with an osu! user profile"""
 
-        data = await self.fetch_api(ctx, f"/users/{username}", username)
+        data = await self.fetch_api(ctx, f"users/{username}", username)
 
         if data:
             username = data["username"]
@@ -138,161 +139,162 @@ class Osu(commands.Cog):
 
     @commands.command(aliases=["standard", "std"])
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def osu(self, ctx, username: str = None):
+    async def osu(self, ctx, *username):
         """Get a players osu!Standard profile.
         
         Works with any `[p]<mode>`
         """
-        user = await self.check_context(ctx, username, True)
+        url, *extra = await self.check_context(ctx, username, "profile")
             
-        if user:
-            data = await self.fetch_api(ctx, f"users/{user}/osu", user)
-            await self.profile_embed(ctx, data, user, "Standard")
+        if url:
+            data = await self.fetch_api(ctx, f"{url}/osu", extra[1])
+            await self.profile_embed(ctx, data, extra[1], "Standard")
 
     @commands.command(hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def taiko(self, ctx, username: str = None):
+    async def taiko(self, ctx, *username):
         """Get a players osu!Taiko profile."""
-        
-        user = await self.check_context(ctx, username, True)
+        url, *extra = await self.check_context(ctx, username, "profile")
             
-        if user:
-            data = await self.fetch_api(ctx, f"users/{user}/taiko", user)
-            await self.profile_embed(ctx, data, user, "Taiko")
+        if url:
+            data = await self.fetch_api(ctx, f"{url}/taiko", extra[1])
+            await self.profile_embed(ctx, data, extra[1], "Taiko")
 
     @commands.command(aliases=["catch", "ctb"], hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def fruits(self, ctx, username: str = None):
+    async def fruits(self, ctx, *username):
         """Get a players osu!Catch profile."""
-        
-        user = await self.check_context(ctx, username, True)
+        url, *extra = await self.check_context(ctx, username, "profile")
             
-        if user:
-            data = await self.fetch_api(ctx, f"users/{user}/fruits", user)
-            await self.profile_embed(ctx, data, user, "Catch")
+        if url:
+            data = await self.fetch_api(ctx, f"{url}/fruits", extra[1])
+            await self.profile_embed(ctx, data, extra[1], "Catch")
 
     @commands.command(hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def mania(self, ctx, username: str = None):
+    async def mania(self, ctx, *username):
         """Get a players osu!Mania profile."""
-        
-        user = await self.check_context(ctx, username, True)
+        url, *extra = await self.check_context(ctx, username, "profile")
             
-        if user:
-            data = await self.fetch_api(ctx, f"users/{user}/mania", user)
-            await self.profile_embed(ctx, data, user, "Mania")
+        if url:
+            data = await self.fetch_api(ctx, f"{url}/mania", extra[1])
+            await self.profile_embed(ctx, data, extra[1], "Mania")
 
     @commands.command(aliases=["rso","recentstandard"])
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def recentosu(self, ctx, username: str = None):
+    async def recentosu(self, ctx, *username):
         """Get a players recent osu!Standard play.
         
         Works with any `[p]recent<mode>`
         or shortened to `[p]rso`
         """
+        url, *extra = await self.check_context(ctx, username, "recent")
 
-        user = await self.check_context(ctx, username)
+        if url:
+            params = {"include_fails": "1", "mode": "osu"}
 
-        if user:
-            params = {"include_fails": "1", "mode": "osu",}
-
-            data = await self.fetch_api(ctx, f"users/{user}/scores/recent", user, params)
-            await self.recent_embed(ctx, data, user)
+            data = await self.fetch_api(ctx, url, extra[1], params)
+            await self.recent_embed(ctx, data, extra[1])
 
     @commands.command(aliases=["rst"], hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def recenttaiko(self, ctx, username: str = None):
+    async def recenttaiko(self, ctx, *username):
         """Get a players recent osu!Taiko play."""
+        url, *extra = await self.check_context(ctx, username, "recent")
 
-        user = await self.check_context(ctx, username)
+        if url:
+            params = {"include_fails": "1", "mode": "taiko"}
 
-        if user:
-            params = {"include_fails": "1", "mode": "taiko",}
-
-            data = await self.fetch_api(ctx, f"users/{user}/scores/recent", user, params)
-            await self.recent_embed(ctx, data, user)
+            data = await self.fetch_api(ctx, url, extra[1], params)
+            await self.recent_embed(ctx, data, extra[1])
 
     @commands.command(aliases=["rsf","recentcatch","rsc"], hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def recentfruits(self, ctx, username: str = None):
+    async def recentfruits(self, ctx, *username):
         """Get a players recent osu!Catch play."""
+        url, *extra = await self.check_context(ctx, username, "recent")
 
-        user = await self.check_context(ctx, username)
+        if url:
+            params = {"include_fails": "1", "mode": "fruits"}
 
-        if user:
-            params = {"include_fails": "1", "mode": "fruits",}
-
-            data = await self.fetch_api(ctx, f"users/{user}/scores/recent", user, params)
-            await self.recent_embed(ctx, data, user)
+            data = await self.fetch_api(ctx, url, extra[1], params)
+            await self.recent_embed(ctx, data, extra[1])
 
     @commands.command(aliases=["rsm"], hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def recentmania(self, ctx, username: str = None):
+    async def recentmania(self, ctx, *username):
         """Get a players recent osu!Mania play."""
+        url, *extra = await self.check_context(ctx, username, "recent")
 
-        user = await self.check_context(ctx, username)
+        if url:
+            params = {"include_fails": "1", "mode": "mania"}
 
-        if user:
-            params = {"include_fails": "1", "mode": "mania",}
-
-            data = await self.fetch_api(ctx, f"users/{user}/scores/recent", user, params)
-            await self.recent_embed(ctx, data, user)
+            data = await self.fetch_api(ctx, url, extra[1], params)
+            await self.recent_embed(ctx, data, extra[1])
 
     @commands.command(aliases=["topo", "topstandard"])
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def toposu(self, ctx, username: str = None):
+    async def toposu(self, ctx, *username):
         """Get a players osu!Standard top plays.
         
         Works with any `[p]top<mode>`
         or shortened to `[p]topo`
         """
+        url, *extra = await self.check_context(ctx, username, "top")
 
-        user = await self.check_context(ctx, username)
+        if url:
+            params = {"mode": "osu", "limit": "50"}
 
-        if user:
-            params = {"mode": "osu", "limit": "50",}
-
-            data = await self.fetch_api(ctx, f"users/{user}/scores/best", user, params)
-            await self.top_embed(ctx, data, user, "Standard")
+            data1 = await self.fetch_api(ctx, url, extra[1], params)
+            params["offset"] =  "50"
+            data2 = await self.fetch_api(ctx, url, extra[1], params)
+            data = data1 + data2
+            await self.top_embed(ctx, data, extra[1], "Standard", extra[2])
 
     @commands.command(aliases=["topt"], hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def toptaiko(self, ctx, username: str = None):
+    async def toptaiko(self, ctx, *username):
         """Get a players osu!Taiko top plays."""
+        url, *extra = await self.check_context(ctx, username, "top")
 
-        user = await self.check_context(ctx, username)
-        
-        if user:
-            params = {"mode": "taiko", "limit": "50",}
+        if url:
+            params = {"mode": "taiko", "limit": "50"}
 
-            data = await self.fetch_api(ctx, f"users/{user}/scores/best", user, params)
-            await self.top_embed(ctx, data, user, "Taiko")
+            data1 = await self.fetch_api(ctx, url, extra[1], params)
+            params["offset"] =  "50"
+            data2 = await self.fetch_api(ctx, url, extra[1], params)
+            data = data1 + data2
+            await self.top_embed(ctx, data, extra[1], "Taiko", extra[2])
 
     @commands.command(aliases=["topf","topcatch", "topc"], hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def topfruits(self, ctx, username: str = None):
+    async def topfruits(self, ctx, *username):
         """Get a players osu!Catch top plays."""
+        url, *extra = await self.check_context(ctx, username, "top")
 
-        user = await self.check_context(ctx, username)
-        
-        if user:
-            params = {"mode": "fruits", "limit": "50",}
+        if url:
+            params = {"mode": "fruits", "limit": "50"}
 
-            data = await self.fetch_api(ctx, f"users/{user}/scores/best", user, params)
-            await self.top_embed(ctx, data, user, "Catch")
+            data1 = await self.fetch_api(ctx, url, extra[1], params)
+            params["offset"] =  "50"
+            data2 = await self.fetch_api(ctx, url, extra[1], params)
+            data = data1 + data2
+            await self.top_embed(ctx, data, extra[1], "Catch", extra[2])
 
     @commands.command(aliases=["topm"], hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def topmania(self, ctx, username: str = None):
+    async def topmania(self, ctx, *username):
         """Get a players osu!Mania top plays."""
+        url, *extra = await self.check_context(ctx, username, "top")
 
-        user = await self.check_context(ctx, username)
-        
-        if user:
-            params = {"mode": "mania", "limit": "50",}
+        if url:
+            params = {"mode": "mania", "limit": "50"}
 
-            data = await self.fetch_api(ctx, f"users/{user}/scores/best", user, params)
-            await self.top_embed(ctx, data, user, "Mania")
+            data1 = await self.fetch_api(ctx, url, extra[1], params)
+            params["offset"] =  "50"
+            data2 = await self.fetch_api(ctx, url, extra[1], params)
+            data = data1 + data2
+            await self.top_embed(ctx, data, extra[1], "Mania", extra[2])
 
     @commands.command()
     @commands.cooldown(1, 10, commands.BucketType.user)
@@ -304,7 +306,7 @@ class Osu(commands.Cog):
 
     @commands.command(aliases=["osur"])
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def osurankings(self, ctx, *params):
+    async def osurankings(self, ctx, *arguments):
         """Show the top players from each leaderboard.
 
         Examples:
@@ -318,81 +320,9 @@ class Osu(commands.Cog):
         - `<country>` a 2 digit ISO country code to get that countries leaderboard. Does not work with `<type>`.
         - `<variant>` either 4k or 7k when `<mode>` is mania. Leave blank for global. Does not work with `<type>`.
         """
-        params = [(x.lower()) for x in params]
-        params = list(dict.fromkeys(params))
-        variant = None
-        country = None
-        mode = "osu"
-        if "osu" in params or "standard" in params:
-            await ctx.send(params)
-            mode = "osu"
-            try:
-                params.remove("osu")
-            except:
-                params.remove("standard")
-        elif "taiko" in params:
-            mode = "taiko"
-            params.remove("taiko")
-        elif "catch" in params or "fruits" in params:
-            mode = "fruits"
-            try:
-                params.remove("catch")
-            except:
-                params.remove("fruits")
-        elif "mania" in params:
-            mode = "mania"
-            params.remove("mania")
-            if "4k" in params:
-                variant = "4k"
-                params.remove("4k")
-            elif "7k" in params:
-                variant = "7k"
-                params.remove("7k")
-        if "score" in params and variant:
-            message = await ctx.send(f"Can not keymodes with score rankings")
-            await asyncio.sleep(10)
-            try:
-                await message.delete()
-            except (discord.errors.NotFound, discord.errors.Forbidden):
-                pass
-        elif "score" in params and len(params) > 1:
-            message = await ctx.send(f"Score can not be used for country rankings")
-            await asyncio.sleep(10)
-            try:
-                await message.delete()
-            except (discord.errors.NotFound, discord.errors.Forbidden):
-                pass
-        elif "score" in params:
-            rtype = "score"
-            params.remove("score")
-        else:
-            rtype = "performance"
-        if len(params) > 0 and len(params) < 2:
-            countrylen = params[0]
-            if len(countrylen) > 2:
-                message = await ctx.send(f"Please use the 2 letter ISO code for countries")
-                await asyncio.sleep(10)
-                try:
-                    await message.delete()
-                except (discord.errors.NotFound, discord.errors.Forbidden):
-                    pass
-            else:
-                country = countrylen.upper()
-        elif len(params) >= 2:
-            message = await ctx.send(f"There seems to be too many arguments or something went wrong")
-            await asyncio.sleep(10)
-            try:
-                await message.delete()
-            except (discord.errors.NotFound, discord.errors.Forbidden):
-                pass
+        params, rtype, mode, country, variant = await self.check_context(ctx, arguments, "rankings")
         
         if rtype:
-            params = {}
-            if country:
-                params["country"] = country
-            if variant:
-                params["variant"] = variant
-
             data = await self.fetch_api(ctx, f"rankings/{mode}/{rtype}", params=params)
             await self.rankings_embed(ctx, data, rtype, mode, country, variant)
 
@@ -422,54 +352,70 @@ class Osu(commands.Cog):
         async with aiohttp.ClientSession() as session:
             async with session.get(endpoint, headers=header, params=params) as r:
                 if r.status == 404 and user is not None:
-                    message = await ctx.send(f"Could not find the user {user}")
-                    await asyncio.sleep(10)
-                    try:
-                        await message.delete()
-                    except (discord.errors.NotFound, discord.errors.Forbidden):
-                        pass
+                    await self.del_message(ctx, f"Could not find the user {user}")
                 elif r.status == 404:
-                    message = await ctx.send(f"Something went wrong with the api")
-                    await asyncio.sleep(10)
-                    try:
-                        await message.delete()
-                    except (discord.errors.NotFound, discord.errors.Forbidden):
-                        pass
+                    await self.del_message(ctx, f"Something went wrong with the api")
                 else:
                     data = await r.json(encoding="utf-8")
-            return data
+                    return data
 
     async def profile_embed(self, ctx, data, player_id, mode):
         if data:
-            statistics = data["statistics"]
-            rank = statistics["rank"]
             user_id = data["id"]
             country = data["country_code"]
             username = data["username"]
-            ranking = humanize_number(rank["global"])
-            country_ranking = humanize_number(rank["country"])
-            accuracy = round(float(statistics["hit_accuracy"]),2)
-            playcount = humanize_number(statistics["play_count"])
+            try:
+                ranking = humanize_number(data["statistics"]["rank"]["global"])
+                country_ranking = humanize_number(data["statistics"]["rank"]["country"])
+            except:
+                ranking = 0
+                country_ranking = 0
+            accuracy = round(float(data["statistics"]["hit_accuracy"]),2)
+            playcount = humanize_number(data["statistics"]["play_count"])
             last_online = data["last_visit"]
-            max_combo = humanize_number(statistics["maximum_combo"])
-            level = statistics["level"]
-            level_current = level["current"]
-            level_progress = level["progress"]
-            performance = humanize_number(statistics["pp"])
-            grades = statistics["grade_counts"]
-            grade_ss = humanize_number(grades["ss"])
-            grade_ssh = humanize_number(grades["ssh"])
-            grade_s = humanize_number(grades["s"])
-            grade_sh = humanize_number(grades["sh"])
-            grade_a = humanize_number(grades["a"])
+            max_combo = humanize_number(data["statistics"]["maximum_combo"])
+            level_current = data["statistics"]["level"]["current"]
+            level_progress = data["statistics"]["level"]["progress"]
+            performance = humanize_number(data["statistics"]["pp"])
+            grade_ss = humanize_number(data["statistics"]["grade_counts"]["ss"])
+            grade_ssh = humanize_number(data["statistics"]["grade_counts"]["ssh"])
+            grade_s = humanize_number(data["statistics"]["grade_counts"]["s"])
+            grade_sh = humanize_number(data["statistics"]["grade_counts"]["sh"])
+            grade_a = humanize_number(data["statistics"]["grade_counts"]["a"])
+            ranked_score = humanize_number(data["statistics"]["ranked_score"])
+            total_score = humanize_number(data["statistics"]["total_score"])
+            mapping_follower_count = data["mapping_follower_count"]
+            scores_first_count = data["scores_first_count"]
+            kudosu_total = data["kudosu"]["total"]
+            graveyard_beatmapset_count = data["graveyard_beatmapset_count"]
+            replays_watched_by_others = data["statistics"]["replays_watched_by_others"]
+            play_time = re.split(r",\s", humanize_timedelta(timedelta=timedelta(seconds=data["statistics"]["play_time"])))
+            try:
+                play_time = f"{play_time[0]}, {play_time[1]}, {play_time[2]}"
+            except IndexError:
+                try:
+                    play_time = f"{play_time[0]}, {play_time[1]}"
+                except IndexError:
+                    try:
+                        play_time = f"{play_time[0]}"
+                    except IndexError:
+                        play_time = "0"
+            total_hits = humanize_number(data["statistics"]["total_hits"])
+            user_achievements = len(data["user_achievements"])
+            follower_count = data["follower_count"]
+            join_date = datetime.strptime(data["join_date"], "%Y-%m-%dT%H:%M:%S%z")
+            join_date = join_date.strftime("%B %-d, %Y")
+            ranked_and_approved_beatmapset_count = data["ranked_and_approved_beatmapset_count"]
+            loved_beatmapset_count = data["loved_beatmapset_count"]
+            unranked_beatmapset_count = data["unranked_beatmapset_count"]
+            favourite_beatmapset_count = data["favourite_beatmapset_count"]
             if mode == "Mania":
-                variant = statistics["variants"]
-                performance_4k = variant[0]["pp"]
-                performance_7k = variant[1]["pp"]
-                ranking_4k = variant[0]["global_rank"]
-                ranking_7k = variant[1]["global_rank"]
-                country_ranking_4k = variant[0]["country_rank"]
-                country_ranking_7k = variant[1]["country_rank"]
+                performance_4k = data["statistics"]["variants"][0]["pp"]
+                performance_7k = data["statistics"]["variants"][1]["pp"]
+                ranking_4k = data["statistics"]["variants"][0]["global_rank"]
+                ranking_7k = data["statistics"]["variants"][1]["global_rank"]
+                country_ranking_4k = data["statistics"]["variants"][0]["country_rank"]
+                country_ranking_7k = data["statistics"]["variants"][1]["country_rank"]
 
                 if performance_4k == 0 and performance_7k == 0:
                     performancevalue = f"{performance}pp"
@@ -500,70 +446,220 @@ class Osu(commands.Cog):
                 performancevalue = f"{performance}pp"
                 rankingvalue = f"#{ranking} ({country} #{country_ranking})"
 
-            embed = discord.Embed(
+            try:
+                rank_history = list(map(int, data["rank_history"]["data"]))
+                rank_history = ( f'``` Delta |   Rank   | Date\n'
+                f'-----------------------\n'
+                f'   -   |{"{0:^10}".format(humanize_number(rank_history[0]))}| -90d\n'
+                f'{"{0:^7}".format(humanize_number(rank_history[0] - rank_history[14]))}|{"{0:^10}".format(humanize_number(rank_history[14]))}| -75d\n'
+                f'{"{0:^7}".format(humanize_number(rank_history[14] - rank_history[29]))}|{"{0:^10}".format(humanize_number(rank_history[29]))}| -60d\n'
+                f'{"{0:^7}".format(humanize_number(rank_history[29] - rank_history[44]))}|{"{0:^10}".format(humanize_number(rank_history[44]))}| -45d\n'
+                f'{"{0:^7}".format(humanize_number(rank_history[44] - rank_history[59]))}|{"{0:^10}".format(humanize_number(rank_history[59]))}| -30d\n'
+                f'{"{0:^7}".format(humanize_number(rank_history[59] - rank_history[74]))}|{"{0:^10}".format(humanize_number(rank_history[74]))}| -15d\n'
+                f'{"{0:^7}".format(humanize_number(rank_history[74] - rank_history[89]))}|{"{0:^10}".format(humanize_number(rank_history[89]))}|  Now```' )
+            except TypeError:
+                rank_history = "This user doesn't have any rank history"
+
+            profiles = []
+
+            base_embed = discord.Embed(
                 color=await self.bot.get_embed_color(ctx)
             )
-            embed.set_author(
+            base_embed.set_author(
                 name=f"{username} | osu!{mode}",
                 url=f"https://osu.ppy.sh/users/{user_id}",
                 icon_url=f"https://osu.ppy.sh/images/flags/{country}.png"
             )
-            embed.set_thumbnail(
+            base_embed.set_thumbnail(
                 url=f"https://a.ppy.sh/{user_id}"
             )
-            embed.add_field(
+            base_embed.add_field(
                 name="Ranking",
                 value=rankingvalue,
                 inline=True
             )
-            embed.add_field(
+            base_embed.add_field(
                 name="Performance",
                 value=performancevalue,
                 inline=True
             )
-            embed.add_field(
+            base_embed.add_field(
                 name="Accuracy",
                 value=f"{accuracy}%",
                 inline=True
             )
-            embed.add_field(
+            base_embed.add_field(
                 name="Level",
                 value=f"{level_current} ({level_progress}%)",
                 inline=True
             )
-            embed.add_field(
+            base_embed.add_field(
                 name="Max Combo",
                 value=max_combo,
                 inline=True
             )
-            embed.add_field(
+            base_embed.add_field(
                 name="Playcount",
                 value=playcount,
                 inline=True
             )
-            embed.add_field(
+            base_embed.add_field(
                 name="Grades",
                 value=f"{EMOJI_SSH} {grade_ssh} {EMOJI_SS} {grade_ss} {EMOJI_SH} {grade_sh} {EMOJI_S} {grade_s} {EMOJI_A} {grade_a}",
                 inline=False
             )
             if data["is_online"] == True:
-                embed.set_footer(
+                base_embed.set_footer(
                     text="Currently Online"
                 )
             elif not last_online:
-                embed.set_footer(text="Last Online | Unknown")
+                base_embed.set_footer(text="Last Online | Unknown")
             else:
-                embed.set_footer(
+                base_embed.set_footer(
                     text="Last Online"
                 )
-                embed.timestamp = datetime.strptime(last_online, "%Y-%m-%dT%H:%M:%S%z")
+                base_embed.timestamp = datetime.strptime(last_online, "%Y-%m-%dT%H:%M:%S%z")
+
+            detailed_embed = discord.Embed(
+                color=await self.bot.get_embed_color(ctx)
+            )
+            detailed_embed.set_author(
+                name=f"{username} | osu!{mode}",
+                url=f"https://osu.ppy.sh/users/{user_id}",
+                icon_url=f"https://osu.ppy.sh/images/flags/{country}.png"
+            )
+            detailed_embed.set_thumbnail(
+                url=f"https://a.ppy.sh/{user_id}"
+            )
+            detailed_embed.add_field(
+                name="Ranking",
+                value=rankingvalue,
+                inline=True
+            )
+            detailed_embed.add_field(
+                name="Performance",
+                value=performancevalue,
+                inline=True
+            )
+            detailed_embed.add_field(
+                name="Accuracy",
+                value=f"{accuracy}%",
+                inline=True
+            )
+            detailed_embed.add_field(
+                name="Level",
+                value=f"{level_current} ({level_progress}%)",
+                inline=True
+            )
+            detailed_embed.add_field(
+                name="Max Combo",
+                value=max_combo,
+                inline=True
+            )
+            detailed_embed.add_field(
+                name="Playcount",
+                value=playcount,
+                inline=True
+            )
+            detailed_embed.add_field(
+                name="Grades",
+                value=f"{EMOJI_SSH} {grade_ssh} {EMOJI_SS} {grade_ss} {EMOJI_SH} {grade_sh} {EMOJI_S} {grade_s} {EMOJI_A} {grade_a}",
+                inline=False
+            )
+            if data["is_online"] == True:
+                detailed_embed.set_footer(
+                    text="Currently Online"
+                )
+            elif not last_online:
+                detailed_embed.set_footer(text="Last Online | Unknown")
+            else:
+                detailed_embed.set_footer(
+                    text="Last Online"
+                )
+                detailed_embed.timestamp = datetime.strptime(last_online, "%Y-%m-%dT%H:%M:%S%z")
+            detailed_embed.add_field(
+                name="Ranked Score",
+                value=ranked_score,
+                inline=True
+            )
+            detailed_embed.add_field(
+                name="#1 Scores",
+                value=scores_first_count,
+                inline=True
+            )
+            detailed_embed.add_field(
+                name="Play Time",
+                value=play_time,
+                inline=True
+            )
+            detailed_embed.add_field(
+                name="Total Score",
+                value=total_score,
+                inline=True
+            )
+            detailed_embed.add_field(
+                name="Replays Watched",
+                value=replays_watched_by_others,
+                inline=True
+            )
+            detailed_embed.add_field(
+                name="Joined osu!",
+                value=join_date,
+                inline=True
+            )
+            detailed_embed.add_field(
+                name="Rank Change",
+                value=rank_history,
+                inline=False
+            )
+            detailed_embed.add_field(
+                name="Total Hits",
+                value=total_hits,
+                inline=True
+            )
+            detailed_embed.add_field(
+                name="Medals",
+                value=user_achievements,
+                inline=True
+            )
+            detailed_embed.add_field(
+                name="Favorite Beatmaps",
+                value=favourite_beatmapset_count,
+                inline=True
+            )
+            detailed_embed.add_field(
+                name="Followers",
+                value=follower_count,
+                inline=True
+            )
+            detailed_embed.add_field(
+                name="Mapping Followers",
+                value=mapping_follower_count,
+                inline=True
+            )
+            detailed_embed.add_field(
+                name="Kudoso Total",
+                value=kudosu_total,
+                inline=True
+            )
+            detailed_embed.add_field(
+                name="Uploaded Beatmaps",
+                value=f"Ranked: **{ranked_and_approved_beatmapset_count}** ◈ Loved: **{loved_beatmapset_count}** ◈ Unranked: **{unranked_beatmapset_count}** ◈ Graveyarded: **{graveyard_beatmapset_count}**",
+                inline=False
+            )
+
+            profiles.append(base_embed)
+            profiles.append(detailed_embed)
                 
-            await ctx.send(embed=embed)
+            await  menu(ctx, profiles, {self.bot.get_emoji(755808377959088159): next_page, "\N{CROSS MARK}": close_menu})
 
     async def profilelinking(self, ctx):
         prefix = ctx.clean_prefix
-        message = await ctx.maybe_send_embed(f"Looks like you haven't linked an account.\nYou can do so using `{prefix}osulink <username>`"
+        await self.del_message(ctx, f"Looks like you haven't linked an account.\nYou can do so using `{prefix}osulink <username>`"
             "\n\nAlternatively you can use the command\nwith a username or id after it")
+
+    async def del_message(self, ctx, message_text):
+        message = await ctx.maybe_send_embed(message_text)
         await asyncio.sleep(10)
         try:
             await message.delete()
@@ -709,27 +805,32 @@ class Osu(commands.Cog):
         
             await ctx.send(embed=embed)
         else:
-            message = await ctx.send(f"Looks like you don't have any recent plays in that mode")
-            await asyncio.sleep(10)
-            try:
-                await message.delete()
-            except (discord.errors.NotFound, discord.errors.Forbidden):
-                pass
+            await self.del_message(ctx, f"Looks like you don't have any recent plays in that mode")
 
-    async def top_embed(self, ctx, data, player_id, mode):
+    async def top_embed(self, ctx, data, player_id, mode, bonus):
         if data:
+            for i, scores in enumerate(data):
+                data[i]["index"] = i
+            recent_text = "Top"
+            if bonus["sort_recent"] == True:
+                data = sorted(data, key=operator.itemgetter("created_at"), reverse=True)
+                recent_text = "Most recent top"
+
             user = data[0]["user"]
             username = user["username"]
             user_id = user["id"]
             country_code = user["country_code"]
             page_num = 1
             scores = []
+            author_text = "plays"
+            if bonus["score_num"] >= 1:
+                author_text = "#" + str(bonus["score_num"])
 
             base_embed = discord.Embed(
                 color=await self.bot.get_embed_color(ctx)
             )
             base_embed.set_author(
-                name=f"Top plays for {username} | osu!{mode}",
+                name=f"{recent_text} {author_text} for {username} | osu!{mode}",
                 url=f"https://osu.ppy.sh/users/{user_id}",
                 icon_url=f"https://osu.ppy.sh/images/flags/{country_code}.png"
             )
@@ -737,21 +838,33 @@ class Osu(commands.Cog):
                 url=f"https://a.ppy.sh/{user_id}"
             )
 
-            while page_num <= ceil(len(data) / 5):
-                i = (page_num - 1) * 5
+            if bonus["score_num"] >= 1:
                 maps = ""
-                while i < (page_num * 5):
-                    maps = self.fetch_top(data, i, maps)
-                    i += 1
-                
+                maps = self.fetch_top(data, bonus["score_num"] - 1, maps, True)
+
                 embed = base_embed.copy()
                 embed.description = maps
-                embed.set_footer(text=f"Page {page_num}/{ceil(len(data) / 5)}")
+                percent = "{:.2f}".format(data[bonus["score_num"] - 1]["weight"]["percentage"])
+                pp = round(data[bonus["score_num"] - 1]["weight"]["pp"],1)
+                embed.set_footer(text=f"Weighted pp | {pp}pp ({percent}%)")
 
                 scores.append(embed)
-                page_num += 1
+            else:
+                while page_num <= ceil(len(data) / 5):
+                    i = (page_num - 1) * 5
+                    maps = ""
+                    while i < (page_num * 5):
+                        maps = self.fetch_top(data, i, maps)
+                        i += 1
+                    
+                    embed = base_embed.copy()
+                    embed.description = maps
+                    embed.set_footer(text=f"Page {page_num}/{ceil(len(data) / 5)}")
+
+                    scores.append(embed)
+                    page_num += 1
             
-            await  menu(ctx, scores, DEFAULT_CONTROLS if ceil(len(data)) > 1 else {"\N{CROSS MARK}": close_menu})
+            await  menu(ctx, scores, DEFAULT_CONTROLS if page_num > 1 else {"\N{CROSS MARK}": close_menu})
 
     async def rankings_embed(self, ctx, data, rtype, mode, country = None, variant = None):
         if data:
@@ -853,7 +966,7 @@ class Osu(commands.Cog):
 
         return user
 
-    def fetch_top(self, data, i, maps):
+    def fetch_top(self, data, i, maps, specific_score = False):
         current_date = datetime.now()
         beatmap = data[i]["beatmap"]
         beatmapset = data[i]["beatmapset"]
@@ -894,35 +1007,126 @@ class Osu(commands.Cog):
             mods = mods.join(data[i]["mods"])
             mods = f" +{mods}"
 
-        maps = f"{maps}\n**{i+1}. [{title} - [{version}]]({beatmapurl}){mods}** [{starrating}★]\n{emoji} **{performance}pp** ◈ ({accuracy}) ◈ {score}\n**{combo}x** ◈ [{hits}] ◈ {time} ago\n"
+        if specific_score == True:
+            index = ""
+        else:
+            index = str(int(data[i]["index"]) + 1) + ". "
+
+        maps = f"{maps}\n**{index}[{title} - [{version}]]({beatmapurl}){mods}** [{starrating}★]\n{emoji} **{performance}pp** ◈ ({accuracy}) ◈ {score}\n**{combo}x** ◈ [{hits}] ◈ {time} ago\n"
 
         return maps
 
     async def no_user(self, ctx, player_id):
-        message = await ctx.send(f"Could not find the user {player_id}")
-        await asyncio.sleep(10)
-        try:
-            await message.delete()
-        except (discord.errors.NotFound, discord.errors.Forbidden):
-            pass
+        await self.del_message(ctx, f"Could not find the user {player_id}")
 
-    async def check_context(self, ctx, username, no_id = False):
-        if username is None:
-            user_id = await self.osuconfig.user(ctx.author).userid()
-            if user_id is None:
-                await self.profilelinking(ctx)
+    async def check_context(self, ctx, args, isfrom = None):
+        args = [(x.lower()) for x in args]
+        args = list(dict.fromkeys(args))
+        params = None
+        user = None
+        url = None
+        bonus = {"sort_recent": False, "score_num": 0}
+        
+        if isfrom == "rankings":
+            variant = None
+            country = None
+            mode = "osu"
+            if "osu" in args or "standard" in args:
+                await ctx.send(args)
+                mode = "osu"
+                try:
+                    args.remove("osu")
+                except:
+                    args.remove("standard")
+            elif "taiko" in args:
+                mode = "taiko"
+                args.remove("taiko")
+            elif "catch" in args or "fruits" in args:
+                mode = "fruits"
+                try:
+                    args.remove("catch")
+                except:
+                    args.remove("fruits")
+            elif "mania" in args:
+                mode = "mania"
+                args.remove("mania")
+                if "4k" in args:
+                    variant = "4k"
+                    args.remove("4k")
+                elif "7k" in args:
+                    variant = "7k"
+                    args.remove("7k")
+            if "score" in args and variant:
+                await self.del_message(ctx, f"Can not keymodes with score rankings")
+            elif "score" in args and len(args) > 1:
+                await self.del_message(ctx, f"Score can not be used for country rankings")
+            elif "score" in args:
+                rtype = "score"
+                args.remove("score")
             else:
-                username = user_id
-        elif "@" in username:
-            try:
-                member = await commands.MemberConverter().convert(ctx, username)
-                username = await self.osuconfig.user(member).userid()
-            except:
-                pass
+                rtype = "performance"
+            if len(args) > 0 and len(args) < 2:
+                countrylen = args[0]
+                if len(countrylen) > 2:
+                    await self.del_message(ctx, f"Please use the 2 letter ISO code for countries")
+                else:
+                    country = countrylen.upper()
+            elif len(args) >= 2:
+                await self.del_message(ctx, f"There seems to be too many arguments or something went wrong")
+            params = {}
+            if country:
+                params["country"] = country
+            if variant:
+                params["variant"] = variant
+            return params, rtype, mode, country, variant
+        else:
+            if "-r" in args:
+                if "-p" in args:
+                    await self.del_message(ctx, "You can't use `-r` and `-p` at the same time")
+                    return
+                else:
+                    bonus["sort_recent"] = True
+                    args.remove("-r")
+            elif "-p" in args:
+                loc = args.index("-p")
+                if not args[loc + 1].isdigit():
+                    await self.del_message(ctx, "Please provide a number for `-p`")
+                    return
+                elif int(args[loc + 1]) <= 0 or int(args[loc + 1]) > 100:
+                    await self.del_message(ctx, "Please use a number between 1-100 for `-p`")
+                    return
+                else:
+                    bonus["score_num"] = int(args[loc + 1])
+                    args.pop(loc + 1)
+                    args.pop(loc)
 
-        if username is not None:
-            if str(username).isnumeric() == False and no_id == False:
-                data = await self.fetch_api(ctx, f"users/{username}/osu", username)
-                username = data["id"]
+            if len(args) < 1:
+                user_id = await self.osuconfig.user(ctx.author).userid()
+                if user_id is None:
+                    await self.profilelinking(ctx)
+                else:
+                    user = user_id
+            elif "@" in args[0]:
+                try:
+                    member = await commands.MemberConverter().convert(ctx, args[0])
+                    user = await self.osuconfig.user(member).userid()
+                except:
+                    pass
+            else:
+                user = args[0]
 
-        return username
+            if user is not None and len(args) > 0:
+                if str(user).isnumeric() == False and isfrom != "profile":
+                    data = await self.fetch_api(ctx, f"users/{user}/osu", user)
+                    user = data["id"]
+
+            if isfrom == "profile" and user:
+                url = f"users/{user}"
+            elif isfrom == "recent" and user:
+                url = f"users/{user}/scores/recent"
+            elif isfrom == "top" and user:
+                url = f"users/{user}/scores/best"
+            elif not user:
+                await self.del_message(ctx, f"{args[0]} does not have an account linked")
+
+            return url, params, user, bonus
