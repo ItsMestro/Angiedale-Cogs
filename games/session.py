@@ -201,9 +201,9 @@ class TriviaSession:
                 self.stop()
                 return False
             if self.settings["reveal_answer"]:
-                reply = T(random.choice(_REVEAL_MESSAGES)).format(answer=answers[0])
+                reply = (random.choice(_REVEAL_MESSAGES)).format(answer=answers[0])
             else:
-                reply = T(random.choice(_FAIL_MESSAGES))
+                reply = (random.choice(_FAIL_MESSAGES))
             if self.settings["bot_plays"]:
                 reply += (" **+1** for me!")
                 self.scores[self.ctx.guild.me] += 1
