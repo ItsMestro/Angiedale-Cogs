@@ -7,6 +7,7 @@ import re
 import operator
 from math import ceil
 from datetime import datetime, timedelta
+import time
 from typing import Optional, List, Dict
 
 from redbot.core import checks, commands, Config
@@ -163,7 +164,11 @@ class Osu(commands.Cog):
     @commands.command(aliases=["catch", "ctb"], hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def fruits(self, ctx, *username):
-        """Get a players osu!Catch profile."""
+        """Get a players osu!Catch profile.
+        
+        Aliases:
+        - `catch`
+        - `ctb`"""
         url, *extra = await self.check_context(ctx, username, "profile")
             
         if url:
@@ -194,43 +199,55 @@ class Osu(commands.Cog):
             params = {"include_fails": "1", "mode": "osu"}
 
             data = await self.fetch_api(ctx, url, extra[1], params)
-            await self.recent_embed(ctx, data, extra[1])
+            await self.recent_embed(ctx, data, extra[2]["user_name"])
 
     @commands.command(aliases=["rst"], hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def recenttaiko(self, ctx, *username):
-        """Get a players recent osu!Taiko play."""
+        """Get a players recent osu!Taiko play.
+        
+        Aliases:
+        - `rst`"""
         url, *extra = await self.check_context(ctx, username, "recent")
 
         if url:
             params = {"include_fails": "1", "mode": "taiko"}
 
             data = await self.fetch_api(ctx, url, extra[1], params)
-            await self.recent_embed(ctx, data, extra[1])
+            await self.recent_embed(ctx, data, extra[2]["user_name"])
 
-    @commands.command(aliases=["rsf","recentcatch","rsc"], hidden=True)
+    @commands.command(aliases=["rsf","recentcatch","rsc", "rsctb"], hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def recentfruits(self, ctx, *username):
-        """Get a players recent osu!Catch play."""
+        """Get a players recent osu!Catch play.
+        
+        Aliases:
+        - `recentcatch`
+        - `rsctb`
+        - `rsf`
+        - `rsc`"""
         url, *extra = await self.check_context(ctx, username, "recent")
 
         if url:
             params = {"include_fails": "1", "mode": "fruits"}
 
             data = await self.fetch_api(ctx, url, extra[1], params)
-            await self.recent_embed(ctx, data, extra[1])
+            await self.recent_embed(ctx, data, extra[2]["user_name"])
 
     @commands.command(aliases=["rsm"], hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def recentmania(self, ctx, *username):
-        """Get a players recent osu!Mania play."""
+        """Get a players recent osu!Mania play.
+        
+        Aliases:
+        - `rsm`"""
         url, *extra = await self.check_context(ctx, username, "recent")
 
         if url:
             params = {"include_fails": "1", "mode": "mania"}
 
             data = await self.fetch_api(ctx, url, extra[1], params)
-            await self.recent_embed(ctx, data, extra[1])
+            await self.recent_embed(ctx, data, extra[2]["user_name"])
 
     @commands.command(aliases=["topo", "topstandard"])
     @commands.cooldown(1, 10, commands.BucketType.user)
@@ -254,7 +271,10 @@ class Osu(commands.Cog):
     @commands.command(aliases=["topt"], hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def toptaiko(self, ctx, *username):
-        """Get a players osu!Taiko top plays."""
+        """Get a players osu!Taiko top plays.
+        
+        Aliases:
+        - `topt`"""
         url, *extra = await self.check_context(ctx, username, "top")
 
         if url:
@@ -266,10 +286,16 @@ class Osu(commands.Cog):
             data = data1 + data2
             await self.top_embed(ctx, data, extra[1], "Taiko", extra[2])
 
-    @commands.command(aliases=["topf","topcatch", "topc"], hidden=True)
+    @commands.command(aliases=["topf","topcatch", "topc", "topctb"], hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def topfruits(self, ctx, *username):
-        """Get a players osu!Catch top plays."""
+        """Get a players osu!Catch top plays.
+        
+        Aliases:
+        - `topcatch`
+        - `topctb`
+        - `topc`
+        - `topf`"""
         url, *extra = await self.check_context(ctx, username, "top")
 
         if url:
@@ -284,7 +310,10 @@ class Osu(commands.Cog):
     @commands.command(aliases=["topm"], hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def topmania(self, ctx, *username):
-        """Get a players osu!Mania top plays."""
+        """Get a players osu!Mania top plays.
+        
+        Aliases:
+        - `topm`"""
         url, *extra = await self.check_context(ctx, username, "top")
 
         if url:
@@ -298,11 +327,40 @@ class Osu(commands.Cog):
 
     @commands.command()
     @commands.cooldown(1, 10, commands.BucketType.user)
+    async def map(self, ctx, beatmap):
+        """Get info about a map."""
+        url = await self.check_context(ctx, beatmap, "map")
+
+        if url:
+            data = await self.fetch_api(ctx, url, isfrom="map")
+            await self.map_embed(ctx, data)
+
+    @commands.command()
+    @commands.cooldown(1, 10, commands.BucketType.user)
     async def osunews(self, ctx):
         """Show the news from the osu! front page."""
 
         data = await self.fetch_api(ctx, f"news")
         await self.news_embed(ctx, data)
+
+    @commands.command(aliases=["osucl"])
+    @commands.cooldown(1, 10, commands.BucketType.user)
+    async def osuchangelog(self, ctx, release_stream = "stable"):
+        """Gets the changelog for the game.
+        
+        Supported Release Streams:
+        `stable`
+        `fallback`
+        `beta`
+        `cuttingedge`
+        `lazer`
+        `web`"""
+
+        url, params = await self.check_context(ctx, release_stream, "changelog")
+        
+        if url:
+            data = await self.fetch_api(ctx, url, params=params)
+            await self.changelog_embed(ctx, data)
 
     @commands.command(aliases=["osur"])
     @commands.cooldown(1, 10, commands.BucketType.user)
@@ -339,7 +397,7 @@ class Osu(commands.Cog):
 
         await ctx.send(message)
 
-    async def fetch_api(self, ctx, url, user = None, params = None):
+    async def fetch_api(self, ctx, url, user = None, params = None, isfrom = None):
         await self.maybe_renew_osu_bearer_token()
 
         endpoint = f"https://osu.ppy.sh/api/v2/{url}"
@@ -353,6 +411,8 @@ class Osu(commands.Cog):
             async with session.get(endpoint, headers=header, params=params) as r:
                 if r.status == 404 and user is not None:
                     await self.del_message(ctx, f"Could not find the user {user}")
+                elif r.status == 404 and isfrom == "map":
+                    await self.del_message(ctx, f"Could not find that map")
                 elif r.status == 404:
                     await self.del_message(ctx, f"Something went wrong with the api")
                 else:
@@ -651,7 +711,7 @@ class Osu(commands.Cog):
             profiles.append(base_embed)
             profiles.append(detailed_embed)
                 
-            await  menu(ctx, profiles, {self.bot.get_emoji(755808377959088159): next_page, "\N{CROSS MARK}": close_menu})
+            await menu(ctx, profiles, {self.bot.get_emoji(755808377959088159): next_page, "\N{CROSS MARK}": close_menu})
 
     async def profilelinking(self, ctx):
         prefix = ctx.clean_prefix
@@ -672,7 +732,7 @@ class Osu(commands.Cog):
         elif mode == 1:
             mode = "taiko"
         elif mode == 2:
-            mode = "fruits"
+            mode = "catch"
         elif mode == 3:
             mode = "mania"
         return mode
@@ -700,11 +760,10 @@ class Osu(commands.Cog):
 
     async def recent_embed(self, ctx, data, player_id):
         if data:
-            index = 0
-            beatmapset = data[index]["beatmapset"]
-            statistics = data[index]["statistics"]
-            user = data[index]["user"]
-            played = data[index]["created_at"]
+            beatmapset = data[0]["beatmapset"]
+            statistics = data[0]["statistics"]
+            user = data[0]["user"]
+            played = data[0]["created_at"]
             username = user["username"]
             count_miss = humanize_number(statistics["count_miss"])
             count_50 = humanize_number(statistics["count_50"])
@@ -712,23 +771,29 @@ class Osu(commands.Cog):
             count_300 = statistics["count_300"]
             count_geki = statistics["count_geki"]
             count_katu = humanize_number(statistics["count_katu"])
-            rank = data[index]["rank"]
+            rank = data[0]["rank"]
             emoji = self.translateemote(rank)
             artist = beatmapset["artist"]
             beatmapsetid = beatmapset["id"]
             title = beatmapset["title"]
-            beatmap = data[index]["beatmap"]
+            beatmap = data[0]["beatmap"]
             version = beatmap["version"]
             beatmapmode = beatmap["mode_int"]
             starrating = beatmap["difficulty_rating"]
-            comboraw = data[index]["max_combo"]
+            comboraw = data[0]["max_combo"]
             beatmapurl = beatmap["url"]
-            user_id = data[index]["user_id"]
-            score = humanize_number(data[index]["score"])
+            bpm = beatmap["bpm"]
+            bmaccuracy = beatmap["accuracy"]
+            drain = beatmap["drain"]
+            approach = beatmap["ar"]
+            circle_size = beatmap["cs"]
+            objects_count = beatmap["count_circles"] + beatmap["count_sliders"] + beatmap["count_spinners"]
+            user_id = data[0]["user_id"]
+            score = humanize_number(data[0]["score"])
             creator = beatmapset["creator"]
             creator_id = beatmapset["user_id"]
             mapstatus = beatmapset["status"]
-            accuracy = "{:.2%}".format(data[index]["accuracy"])
+            accuracy = "{:.2%}".format(data[0]["accuracy"])
 
             if beatmapmode == 3:
                 comboratio = "Combo / Ratio"
@@ -736,18 +801,20 @@ class Osu(commands.Cog):
                 ratio = round(count_geki / count_300,2)
                 combo = f"**{comboraw:,}x** / {ratio}"
                 hits = f"{humanize_number(count_geki)}/{humanize_number(count_300)}/{count_katu}/{count_100}/{count_50}/{count_miss}"
+                stats = f"OD: `{bmaccuracy}` | HP: `{drain}`"
             else:
                 comboratio = "Combo"
                 combo = f"**{comboraw}x**"
                 hits = f"{humanize_number(count_300)}/{count_100}/{count_50}/{count_miss}"
+                stats = f"CS: `{circle_size}` | AR: `{approach}` | OD: `{bmaccuracy}` | HP: `{drain}`"
 
             mods = ""
             if data[0]["mods"]:
-                mods = mods.join(data[index]["mods"])
+                mods = mods.join(data[0]["mods"])
                 mods = f" +{mods}"
 
             try:
-                performance = humanize_number(round(data[index]["pp"],2))
+                performance = humanize_number(round(data[0]["pp"],2))
             except TypeError:
                 performance = 0
 
@@ -756,7 +823,7 @@ class Osu(commands.Cog):
                 color=await self.bot.get_embed_color(ctx)
             )
             embed.set_author(
-                name=f"{artist} - {title} [{version}]",
+                name=f"{artist} - {title} [{version}] [{str(starrating)}★]",
                 url=beatmapurl,
                 icon_url=f"https://a.ppy.sh/{user_id}"
             )
@@ -795,7 +862,8 @@ class Osu(commands.Cog):
             )
             embed.add_field(
                 name="Map Info",
-                value=f"Mapper: [{creator}](https://osu.ppy.sh/users/{creator_id})\nStatus: {inline(mapstatus.capitalize())} | SR: {inline(str(starrating))}",
+                value=f"Mapper: [{creator}](https://osu.ppy.sh/users/{creator_id}) | BPM: `{bpm}` | Objects: `{objects_count}` \n"
+                f"Status: {inline(mapstatus.capitalize())} | {stats}",
                 inline=False
             )
             embed.set_footer(
@@ -805,7 +873,7 @@ class Osu(commands.Cog):
         
             await ctx.send(embed=embed)
         else:
-            await self.del_message(ctx, f"Looks like you don't have any recent plays in that mode")
+            await self.del_message(ctx, f"Looks like {player_id} don't have any recent plays in that mode")
 
     async def top_embed(self, ctx, data, player_id, mode, bonus):
         if data:
@@ -840,22 +908,23 @@ class Osu(commands.Cog):
 
             if bonus["score_num"] >= 1:
                 maps = ""
-                maps = self.fetch_top(data, bonus["score_num"] - 1, maps, True)
+                single_index = bonus["score_num"] - 1
+                maps = self.fetch_top(data[single_index], maps, True)
 
                 embed = base_embed.copy()
                 embed.description = maps
-                percent = "{:.2f}".format(data[bonus["score_num"] - 1]["weight"]["percentage"])
+                percent = "{:.2%}".format(data[bonus["score_num"] - 1]["weight"]["percentage"])
                 pp = round(data[bonus["score_num"] - 1]["weight"]["pp"],1)
-                embed.set_footer(text=f"Weighted pp | {pp}pp ({percent}%)")
+                embed.set_footer(text=f"Weighted pp | {pp}pp ({percent})")
 
                 scores.append(embed)
             else:
                 while page_num <= ceil(len(data) / 5):
-                    i = (page_num - 1) * 5
+                    start_index = (page_num - 1) * 5
+                    end_index = (page_num - 1 ) * 5 + 5
                     maps = ""
-                    while i < (page_num * 5):
-                        maps = self.fetch_top(data, i, maps)
-                        i += 1
+                    for s in data[start_index:end_index]:
+                        maps = self.fetch_top(s, maps)
                     
                     embed = base_embed.copy()
                     embed.description = maps
@@ -864,7 +933,9 @@ class Osu(commands.Cog):
                     scores.append(embed)
                     page_num += 1
             
-            await  menu(ctx, scores, DEFAULT_CONTROLS if page_num > 1 else {"\N{CROSS MARK}": close_menu})
+            await menu(ctx, scores, DEFAULT_CONTROLS if page_num > 1 else {"\N{CROSS MARK}": close_menu})
+        else:
+            await self.del_message(ctx, f"Looks like {player_id} doesn't have any top plays in that mode")
 
     async def rankings_embed(self, ctx, data, rtype, mode, country = None, variant = None):
         if data:
@@ -914,7 +985,141 @@ class Osu(commands.Cog):
                 users.append(embed)
                 page_num += 1
             
-            await  menu(ctx, users, DEFAULT_CONTROLS)
+            await menu(ctx, users, DEFAULT_CONTROLS)
+
+    async def changelog_embed(self, ctx, data):
+        if data:
+            base_embed = discord.Embed(
+                color=await self.bot.get_embed_color(ctx)
+            )
+            active_users = ""
+            if not data["builds"][0]["update_stream"]["name"] == "lazer" and not data["builds"][0]["update_stream"]["name"] == "web":
+                active_users = f' ◈ Active users on branch: {humanize_number(data["builds"][0]["users"])}'
+            base_embed.set_author(
+                name=f'Changelog | {data["builds"][0]["update_stream"]["display_name"]}{active_users}',
+                icon_url="https://osu.ppy.sh/favicon-32x32.png"
+            )
+
+            page_num = 1
+            changelogs = []
+
+            for build in data["builds"]:
+                embed = base_embed.copy()
+                embed.title = build["display_version"]
+                embed.set_footer(
+                    text=f'Page {page_num}/{len(data["builds"])}'
+                )
+                embed.timestamp = datetime.strptime(build["created_at"], "%Y-%m-%dT%H:%M:%S%z")
+
+                categories = {}
+                categories2 = {}
+                categories3 = {}
+
+                for entry in build["changelog_entries"]:
+                    github_link = ""
+                    dev = ""
+                    if entry["github_pull_request_id"]:
+                        github_link = f' ([{entry["repository"].replace("ppy/","")}#{entry["github_pull_request_id"]}]({entry["github_url"]}))'
+                    if entry["github_user"]["user_url"]:
+                        dev = f' [{entry["github_user"]["display_name"]}]({entry["github_user"]["user_url"]})'
+                    elif entry["github_user"]["github_url"]:
+                        dev = f' [{entry["github_user"]["display_name"]}]({entry["github_user"]["github_url"]})'
+                    if entry["major"] == True:
+                        the_title = f'**{entry["title"]}{github_link}{dev}**'
+                        the_title2 = f'**{entry["title"]}{dev}**'
+                        the_title3 = f'**{entry["title"]}**'
+                    else:
+                        the_title = f'{entry["title"]}{github_link}{dev}'
+                        the_title2 = f'{entry["title"]}{dev}'
+                        the_title3 = f'{entry["title"]}'
+
+                    if entry["category"] in categories:
+                        categories[entry["category"]].append(the_title)
+                    else:
+                        categories[entry["category"]] = [the_title]
+                    if entry["category"] in categories2:
+                        categories2[entry["category"]].append(the_title2)
+                    else:
+                        categories2[entry["category"]] = [the_title2]
+                    if entry["category"] in categories3:
+                        categories3[entry["category"]].append(the_title3)
+                    else:
+                        categories3[entry["category"]] = [the_title3]
+
+                for category in categories.items():
+                    entries = ""
+                    for item in category[1]:
+                        entries = entries + f"◈ {item}\n"
+                    if len(entries) >= 1024:
+                        entries = ""
+                        for item in categories2[category[0]]:
+                            entries = entries + f"◈ {item}\n"
+                        if len(entries) >= 1024:
+                            entries = ""
+                            for item in categories3[category[0]]:
+                                entries = entries + f"◈ {item}\n"
+                            if len(entries) >= 1024:
+                                entries = f'◈ Too big for embed. Category has: {len(category[1])} changes. [Read on the site](https://osu.ppy.sh/home/changelog/{data["builds"][0]["update_stream"]["name"]}/{build["version"]})'
+
+                    embed.add_field(
+                        name=category[0],
+                        value=entries,
+                        inline=False
+                        )
+                fields = [embed.title, embed.description, embed.footer.text, embed.author.name]
+
+                fields.extend([field.name for field in embed.fields])
+                fields.extend([field.value for field in embed.fields])
+
+                total = ""
+                for item in fields:
+                    total += str(item) if str(item) != 'Embed.Empty' else ''
+
+                if len(total) >= 6000:
+                    embed = base_embed.copy()
+                    embed.title = build["display_version"]
+                    embed.set_footer(
+                        text=f'Page {page_num}/{len(data["builds"])}'
+                    )
+                    embed.timestamp = datetime.strptime(build["created_at"], "%Y-%m-%dT%H:%M:%S%z")
+                    for category in categories2.items():
+                        entries = ""
+                        for item in category[1]:
+                            entries = entries + f"◈ {item}\n"
+                        if len(entries) >= 1024:
+                            entries = ""
+                            for item in categories3[category[0]]:
+                                entries = entries + f"◈ {item}\n"
+                            if len(entries) >= 1024:
+                                entries = f'◈ Too big for embed. Category has: {len(category[1])} changes. [Read on the site](https://osu.ppy.sh/home/changelog/{data["builds"][0]["update_stream"]["name"]}/{build["version"]})'
+
+                        embed.add_field(
+                        name=category[0],
+                        value=entries,
+                        inline=False
+                        )
+
+                    fields = [embed.title, embed.description, embed.footer.text, embed.author.name]
+
+                    fields.extend([field.name for field in embed.fields])
+                    fields.extend([field.value for field in embed.fields])
+
+                    total = ""
+                    for item in fields:
+                        total += str(item) if str(item) != 'Embed.Empty' else ''
+
+                    if len(total) >= 6000:
+                        embed = base_embed.copy()
+                        embed.title = build["display_version"]
+                        embed.description = f'Too big to display in discord. [Read on the site](https://osu.ppy.sh/home/changelog/{data["builds"][0]["update_stream"]["name"]}/{build["version"]})'
+                        embed.timestamp = datetime.strptime(build["created_at"], "%Y-%m-%dT%H:%M:%S%z")
+
+                changelogs.append(embed)
+                page_num += 1
+
+
+
+            await menu(ctx, changelogs, DEFAULT_CONTROLS)
 
     async def news_embed(self, ctx, data):
         if data:
@@ -948,13 +1153,176 @@ class Osu(commands.Cog):
 
                 posts.append(embed)
             
-            await  menu(ctx, posts, DEFAULT_CONTROLS if len(data) > 1 else {"\N{CROSS MARK}": close_menu})
+            await menu(ctx, posts, DEFAULT_CONTROLS if len(data) > 1 else {"\N{CROSS MARK}": close_menu})
+
+    async def map_embed(self, ctx, data):
+        if data:
+            mode_int = data["mode_int"]
+            creator = data["beatmapset"]["creator"]
+            creator_id = data["beatmapset"]["user_id"]
+            title = data["beatmapset"]["title"]
+            version = data["version"]
+            artist = data["beatmapset"]["artist"]
+            beatmapset_id = data["beatmapset"]["id"]
+            approach = data["ar"]
+            favorite_count = humanize_number(data["beatmapset"]["favourite_count"])
+            source = data["beatmapset"]["source"]
+            tags = data["beatmapset"]["tags"]
+            status = data["beatmapset"]["status"]
+            submitted_date = datetime.strptime(data["beatmapset"]["submitted_date"], "%Y-%m-%dT%H:%M:%S%z").strftime("%B %-d, %Y")
+            last_updated = datetime.strptime(data["beatmapset"]["last_updated"], "%Y-%m-%dT%H:%M:%S%z").strftime("%B %-d, %Y")
+            bpm = data["bpm"]
+            ratings = list(data["beatmapset"]["ratings"])
+            playcount = humanize_number(data["beatmapset"]["play_count"])
+            count_circles = data["count_circles"]
+            count_spinners = data["count_spinners"]
+            count_sliders = data["count_sliders"]
+            if not mode_int == 3:
+                max_combo = humanize_number(data["max_combo"])
+                max_combo_text = "Max Combo"
+                stats = f"Circles: `{humanize_number(count_circles)}` | Sliders: `{humanize_number(count_sliders)}` | Spinners: `{humanize_number(count_spinners)}`"
+                stats2 = f"CS: `{circle_size}` | AR: `{approach}` | OD: `{accuracy}` | HP: `{drain}`"
+            else:
+                max_combo = "{:.2%}".format(count_sliders / (count_sliders + count_circles))
+                max_combo_text = "LN Ratio"
+                stats = f"Notes: `{humanize_number(count_circles)}` | Long Notes: `{humanize_number(count_sliders)}`"
+                stats2 = f"OD: `{accuracy}` | HP: `{drain}`"
+            hit_length = time.gmtime(data["hit_length"])
+            if not time.strftime("%H", hit_length) == "00":
+                hit_length = time.strftime("%-H:%M:%S", hit_length)
+            else:
+                hit_length = time.strftime("%-M:%S", hit_length)
+            difficulty_rating = data["difficulty_rating"]
+            circle_size = data["cs"]
+            total_length = time.gmtime(data["total_length"])
+            if not time.strftime("%H", total_length) == "00":
+                total_length = time.strftime("%-H:%M:%S", total_length)
+            else:
+                total_length = time.strftime("%-M:%S", total_length)
+            accuracy = data["accuracy"]
+            drain = data["drain"]
+            url = data["url"]
+
+            if mode_int == 3:
+                version = re.sub(r"^\S*\s", "", data["version"])
+
+            maps = []
+            
+            embed = discord.Embed(
+                color=await self.bot.get_embed_color(ctx),
+                title=f'{artist} - {title} [{version}]',
+                url=url
+            )
+            embed.set_author(
+                name=f"Mapped by {creator} | osu!{self.translatemode(mode_int).capitalize()}",
+                url=f"https://osu.ppy.sh/users/{creator_id}",
+                icon_url=f"https://a.ppy.sh/{creator_id}"
+            )
+            if status == "ranked":
+                status = "Ranked on"
+                embed.timestamp = datetime.strptime(data["beatmapset"]["ranked_date"], "%Y-%m-%dT%H:%M:%S%z")
+            else:
+                status = status.capitalize()
+
+            embed.set_footer(
+                text=f'Status: {status}'
+            )
+            embed.set_image(
+                url=f"https://assets.ppy.sh/beatmaps/{beatmapset_id}/covers/cover.jpg"
+            )
+            embed.add_field(
+                name="Stats",
+                value=f"SR: `{difficulty_rating}★` | {stats2}\n"
+                f"{stats} | Total: `{count_circles+count_sliders+count_spinners}`",
+                inline=False
+            )
+            embed.add_field(
+                name="Length / Drain",
+                value=f'{total_length} / {hit_length}',
+                inline=True
+            )
+            embed.add_field(
+                name="BPM",
+                value=f"{bpm}",
+                inline=True
+            )
+            embed.add_field(
+                name=max_combo_text,
+                value=max_combo,
+                inline=True
+            )
+            embed.add_field(
+                name="Playcount",
+                value=playcount,
+                inline=True
+            )
+            embed.add_field(
+                name="Favorites",
+                value=favorite_count,
+                inline=True
+            )
+            embed.add_field(
+                name="Download",
+                value=f'[Link](https://osu.ppy.sh/beatmapsets/{beatmapset_id}/download) ([No Video](https://osu.ppy.sh/beatmapsets/{beatmapset_id}/download?noVideo=1))',
+                inline=True
+            )
+            if not sum(ratings) == 0:
+                rating = 0
+                p = 0
+                s = 0
+                star_emojis = ""
+
+                for i in ratings:
+                    rating = rating + p * i
+                    p += 1
+                final_rating = int(rating / sum(ratings))
+
+                while s < final_rating:
+                    star_emojis = star_emojis + ":star:"
+                    s += 1
+                embed.add_field(
+                    name="Rating",
+                    value=f"{star_emojis} {round(rating / sum(ratings), 1)} / 10",
+                    inline=False
+                )
+            embed.add_field(
+                name="Submitted",
+                value=submitted_date,
+                inline=True
+            )
+            embed.add_field(
+                name="Last Update",
+                value=last_updated,
+                inline=True
+            )
+            if source:
+                embed.add_field(
+                    name="Source",
+                    value=source,
+                    inline=True
+                )
+            else:
+                embed.add_field(
+                    name="Source",
+                    value="None",
+                    inline=True
+                )
+            if tags:
+                embed.add_field(
+                    name="Tags",
+                    value=f'`{tags.replace(" ", "` `")}`',
+                    inline=False
+                )
+
+            maps.append(embed)
+            
+            await menu(ctx, maps, {"\N{CROSS MARK}": close_menu})
 
     def fetch_rankings(self, data, i, user, country, rtype):
         country_code = data["ranking"][i]["user"]["country"]["code"]
         username = data["ranking"][i]["user"]["username"]
         performance = humanize_number(data["ranking"][i]["pp"])
-        accuracy = "{:.2f}".format(data["ranking"][i]["hit_accuracy"])
+        accuracy = "{:.2%}".format(data["ranking"][i]["hit_accuracy"])
         score = humanize_number(data["ranking"][i]["ranked_score"])
         playcount = humanize_number(data["ranking"][i]["play_count"])
         if country:
@@ -962,24 +1330,24 @@ class Osu(commands.Cog):
         elif rtype == "score":
             user = f"{user}\n**{i+1}.** | :flag_{country_code.lower()}: **{username}** ◈ {score} ◈ {accuracy}% ◈ {performance}pp\n"
         else:
-            user = f"{user}\n**{i+1}.** | :flag_{country_code.lower()}: **{username}** ◈ {performance}pp ◈ {accuracy}% ◈ {playcount}\n"
+            user = f"{user}\n**{i+1}.** | :flag_{country_code.lower()}: **{username}** ◈ {performance}pp ◈ {accuracy} ◈ {playcount}\n"
 
         return user
 
-    def fetch_top(self, data, i, maps, specific_score = False):
+    def fetch_top(self, data, maps, specific_score = False):
         current_date = datetime.now()
-        beatmap = data[i]["beatmap"]
-        beatmapset = data[i]["beatmapset"]
-        statistics = data[i]["statistics"]
+        beatmap = data["beatmap"]
+        beatmapset = data["beatmapset"]
+        statistics = data["statistics"]
         beatmapmode = beatmap["mode_int"]
         version = beatmap["version"]
         title = beatmapset["title"]
         beatmapurl = beatmap["url"]
         starrating = beatmap["difficulty_rating"]
-        performance = humanize_number(round(data[i]["pp"],2))
-        rank = data[i]["rank"]
-        score = humanize_number(data[i]["score"])
-        combo = humanize_number(data[i]["max_combo"])
+        performance = humanize_number(round(data["pp"],2))
+        rank = data["rank"]
+        score = humanize_number(data["score"])
+        combo = humanize_number(data["max_combo"])
         count_miss = humanize_number(statistics["count_miss"])
         count_50 = humanize_number(statistics["count_50"])
         count_100 = humanize_number(statistics["count_100"])
@@ -987,9 +1355,9 @@ class Osu(commands.Cog):
         count_geki = humanize_number(statistics["count_geki"])
         count_katu = humanize_number(statistics["count_katu"])
         emoji = self.translateemote(rank)
-        accuracy = "{:.2%}".format(data[i]["accuracy"])
+        accuracy = "{:.2%}".format(data["accuracy"])
         hits = f"{count_300}/{count_100}/{count_50}/{count_miss}"
-        played = data[i]["created_at"]
+        played = data["created_at"]
 
         date = current_date - datetime.strptime(played, "%Y-%m-%dT%H:%M:%S%z").replace(tzinfo=None)
         time = re.split(r",\s", humanize_timedelta(timedelta=date))
@@ -1003,14 +1371,14 @@ class Osu(commands.Cog):
             hits = f"{count_geki}/{count_300}/{count_katu}/{count_100}/{count_50}/{count_miss}"
 
         mods = ""
-        if data[i]["mods"]:
-            mods = mods.join(data[i]["mods"])
+        if data["mods"]:
+            mods = mods.join(data["mods"])
             mods = f" +{mods}"
 
         if specific_score == True:
             index = ""
         else:
-            index = str(int(data[i]["index"]) + 1) + ". "
+            index = str(int(data["index"]) + 1) + ". "
 
         maps = f"{maps}\n**{index}[{title} - [{version}]]({beatmapurl}){mods}** [{starrating}★]\n{emoji} **{performance}pp** ◈ ({accuracy}) ◈ {score}\n**{combo}x** ◈ [{hits}] ◈ {time} ago\n"
 
@@ -1020,12 +1388,13 @@ class Osu(commands.Cog):
         await self.del_message(ctx, f"Could not find the user {player_id}")
 
     async def check_context(self, ctx, args, isfrom = None):
-        args = [(x.lower()) for x in args]
-        args = list(dict.fromkeys(args))
+        if not isfrom == "map" and not isfrom == "changelog":
+            args = [(x.lower()) for x in args]
+            args = list(dict.fromkeys(args))
         params = None
         user = None
         url = None
-        bonus = {"sort_recent": False, "score_num": 0}
+        bonus = {"sort_recent": False, "score_num": 0, "user_name": None}
         
         if isfrom == "rankings":
             variant = None
@@ -1079,6 +1448,39 @@ class Osu(commands.Cog):
             if variant:
                 params["variant"] = variant
             return params, rtype, mode, country, variant
+        elif isfrom == "map":
+            if args.startswith("https://osu.ppy.sh/") or args.startswith("http://osu.ppy.sh/"):
+                map_id = args.rsplit('/', 1)[-1]
+                url = f"beatmaps/{map_id}"
+            elif args.isdigit():
+                map_id = args
+                url = f"beatmaps/{map_id}"
+            else:
+                await self.del_message(ctx, f"That doesn't seem to be a valid map")
+            return url
+        elif isfrom == "changelog":
+            params = {}
+            if args == "stable":
+                url = "changelog"
+                params["stream"] = "stable40"
+            elif args == "fallback":
+                url = "changelog"
+                params["stream"] = "stable"
+            elif args == "beta":
+                url = "changelog"
+                params["stream"] = "beta40"
+            elif args == "cuttingedge":
+                url = "changelog"
+                params["stream"] = "cuttingedge"
+            elif args == "lazer":
+                url = "changelog"
+                params["stream"] = "lazer"
+            elif args == "web":
+                url = "changelog"
+                params["stream"] = "web"
+            else:
+                await self.del_message(ctx, f"Please provide a valid release stream")
+            return url, params
         else:
             if "-r" in args:
                 if "-p" in args:
@@ -1102,6 +1504,7 @@ class Osu(commands.Cog):
 
             if len(args) < 1:
                 user_id = await self.osuconfig.user(ctx.author).userid()
+                bonus["user_name"] = await self.osuconfig.user(ctx.author).username()
                 if user_id is None:
                     await self.profilelinking(ctx)
                 else:
@@ -1110,10 +1513,12 @@ class Osu(commands.Cog):
                 try:
                     member = await commands.MemberConverter().convert(ctx, args[0])
                     user = await self.osuconfig.user(member).userid()
+                    bonus["user_name"] = await self.osuconfig.user(ctx.author).username()
                 except:
                     pass
             else:
                 user = args[0]
+                bonus["user_name"] = args[0]
 
             if user is not None and len(args) > 0:
                 if str(user).isnumeric() == False and isfrom != "profile":
@@ -1126,7 +1531,7 @@ class Osu(commands.Cog):
                 url = f"users/{user}/scores/recent"
             elif isfrom == "top" and user:
                 url = f"users/{user}/scores/best"
-            elif not user:
+            elif not user and args[0]:
                 await self.del_message(ctx, f"{args[0]} does not have an account linked")
 
             return url, params, user, bonus
