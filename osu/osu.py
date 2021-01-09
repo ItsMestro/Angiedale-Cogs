@@ -256,6 +256,10 @@ class Osu(commands.Cog):
         
         Works with any `[p]top<mode>`
         or shortened to `[p]topo`
+
+        **Arguments:**
+        `-r` Sorts your bests by date acquired.
+        `-p <index>` Gets a score by specific index.
         """
         url, *extra = await self.check_context(ctx, username, "top")
 
@@ -1531,7 +1535,10 @@ class Osu(commands.Cog):
                 url = f"users/{user}/scores/recent"
             elif isfrom == "top" and user:
                 url = f"users/{user}/scores/best"
-            elif not user and args[0]:
-                await self.del_message(ctx, f"{args[0]} does not have an account linked")
+            elif not user:
+                try:
+                    await self.del_message(ctx, f"{args[0]} does not have an account linked")
+                except:
+                    pass
 
             return url, params, user, bonus

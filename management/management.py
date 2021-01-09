@@ -1205,8 +1205,9 @@ class Management(commands.Cog):
         total_users = len(self.bot.users)
         servers = str(len(self.bot.guilds))
         helpaddon = f"{clean_prefix}help"
-        usersstatus = f"{total_users} users"
-        statuses = ["with you <3", "OwO", "UwU", "with things", "games", "smart", "with ink", "splatoon", "in the bot channel", "with my owner", usersstatus,]
+        usersstatus = f"with {total_users} users"
+        serversstatus = f"in {servers} servers"
+        statuses = ["with you <3", "OwO", "UwU", "with things", "games", "smart", "with ink", "splatoon", "in the bot channel", "with my owner", usersstatus, serversstatus,]
         new_status = self.random_status(guild, statuses)
         if (current_game != new_status) or (current_game is None):
             new_status = " | ".join((new_status, helpaddon))
