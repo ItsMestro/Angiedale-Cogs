@@ -52,10 +52,10 @@ guild_defaults = {
     "Memberships": {},
     "Settings": {
         "Global": False,
-        "Casino_Name": "Redjumpman's",
+        "Casino_Name": "Angiedale's Inkfest",
         "Casino_Open": True,
-        "Payout_Switch": False,
-        "Payout_Limit": 10000,
+        "Payout_Switch": True,
+        "Payout_Limit": 100000,
     },
     "Games": {
         "Allin": {
@@ -70,14 +70,14 @@ guild_defaults = {
             "Access": 0,
             "Cooldown": 5,
             "Min": 50,
-            "Max": 500,
+            "Max": 10000,
             "Multiplier": 2.0,
             "Open": True,
         },
         "Coin": {
             "Access": 0,
             "Cooldown": 5,
-            "Max": 10,
+            "Max": 50,
             "Min": 10,
             "Multiplier": 1.5,
             "Open": True,
@@ -85,7 +85,7 @@ guild_defaults = {
         "Craps": {
             "Access": 0,
             "Cooldown": 5,
-            "Max": 500,
+            "Max": 1000,
             "Min": 50,
             "Multiplier": 2.0,
             "Open": True,
@@ -110,7 +110,7 @@ guild_defaults = {
             "Access": 0,
             "Cooldown": 5,
             "Min": 25,
-            "Max": 75,
+            "Max": 200,
             "Multiplier": 1.7,
             "Open": True,
         },
@@ -118,11 +118,11 @@ guild_defaults = {
             "Access": 0,
             "Cooldown": 5,
             "Min": 10,
-            "Max": 250,
+            "Max": 500,
             "Multiplier": None,
             "Open": True,
         },
-        "War": {"Access": 0, "Cooldown": 5, "Min": 25, "Max": 75, "Multiplier": 1.5, "Open": True},
+        "War": {"Access": 0, "Cooldown": 5, "Min": 25, "Max": 100, "Multiplier": 1.5, "Open": True},
     },
 }
 
