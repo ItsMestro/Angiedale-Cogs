@@ -1227,9 +1227,7 @@ class Management(commands.Cog):
             return new_statuses[0]
         return current
 
-    async def say(
-        self, ctx: commands.Context, channel: Optional[discord.TextChannel], text: str, files: list
-    ):
+    async def say(self, ctx: commands.Context, channel: Optional[discord.TextChannel], text: str, files: list):
         if not channel:
             channel = ctx.channel
         if not text and not files:

@@ -340,5 +340,11 @@ class Interactions(commands.Cog):
         em = discord.Embed(
             title=title, description=result_text, color=discord.Color.red(), url=url
         )
-        em.set_image(url=f"https://www.lovecalculator.com/{result_image}")
         await ctx.send(embed=em)
+
+    @commands.command(aliases=["dogan"], hidden=True)
+    async def loganonrock(self, ctx):
+        embed = discord.Embed()
+        embed.description = f"Logan on rock"
+        embed.set_image(url="https://cdn.discordapp.com/attachments/792335838792253474/798211988613365800/dogan.jpg")
+        await ctx.send(embed=embed)
