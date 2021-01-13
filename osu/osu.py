@@ -18,14 +18,23 @@ from redbot.core.bot import Red
 
 log = logging.getLogger("red.angiedale.osu")
 
-EMOJI_SSH = "<:SSH_Rank:794823890873483305>"
-EMOJI_SS = "<:SS_Rank:794823687807172608>"
-EMOJI_SH = "<:SH_Rank:794823687311720450>"
-EMOJI_S = "<:S_Rank:794823687492337714>"
-EMOJI_A = "<:A_Rank:794823687470710815>"
-EMOJI_B = "<:B_Rank:794823687446593557>"
-EMOJI_C = "<:C_Rank:794823687488012308>"
-EMOJI_F = "<:F_Rank:794823687781613609>"
+EMOJI = {
+    "XH": "<:SSH_Rank:794823890873483305>",
+    "X": "<:SS_Rank:794823687807172608>",
+    "SH": "<:SH_Rank:794823687311720450>",
+    "S": "<:S_Rank:794823687492337714>",
+    "A": "<:A_Rank:794823687470710815>",
+    "B": "<:B_Rank:794823687446593557>",
+    "C": "<:C_Rank:794823687488012308>",
+    "F": "<:F_Rank:794823687781613609>"
+}
+
+MODE = {
+    0: "standard",
+    1: "taiko",
+    2: "catch",
+    3: "mania"
+}
 
 
 class Osu(commands.Cog):
@@ -388,6 +397,40 @@ class Osu(commands.Cog):
             data = await self.fetch_api(ctx, f"rankings/{mode}/{rtype}", params=params)
             await self.rankings_embed(ctx, data, rtype, mode, country, variant)
 
+    @commands.command(aliases=["osuc", "oc"])
+    @commands.cooldown(1, 10, commands.BucketType.user)
+    async def osucompare(self, ctx, *username):
+        """Compare your score with the last one sent in the channel
+        """
+        url, *extra = await self.check_context(ctx, username, "compare")
+
+        messages = []
+        map_id = None
+        async for m in ctx.channel.history(limit=50):
+            if m.author.id == self.bot.user.id and m.type:
+                try:
+                    messages.append(m.embeds[0])
+                except:
+                    pass
+        if messages:
+            for e in messages:
+                try:
+                    author_url = e.author.url
+                    title_url = e.url
+                    if "beatmaps" in author_url:
+                        map_id = author_url.rsplit('/', 1)[-1]
+                        break
+                    elif "beatmaps" in title_url:
+                        map_id = title_url.rsplit('/', 1)[-1]
+                        break
+                except:
+                    pass
+        else:
+            await self.del_message(ctx, "Could not find any recently displayed maps in this channel")
+
+        if map_id and extra[0]:
+            await self.legacycompare(ctx, url, extra[0], map_id)
+
     @commands.command(hidden=True)
     @commands.cooldown(10, 10, commands.BucketType.user)
     async def et(self, ctx, user: discord.Member=None):
@@ -569,7 +612,7 @@ class Osu(commands.Cog):
             )
             base_embed.add_field(
                 name="Grades",
-                value=f"{EMOJI_SSH} {grade_ssh} {EMOJI_SS} {grade_ss} {EMOJI_SH} {grade_sh} {EMOJI_S} {grade_s} {EMOJI_A} {grade_a}",
+                value=f'{EMOJI["XH"]} {grade_ssh} {EMOJI["X"]} {grade_ss} {EMOJI["SH"]} {grade_sh} {EMOJI["S"]} {grade_s} {EMOJI["A"]} {grade_a}',
                 inline=False
             )
             if data["is_online"] == True:
@@ -627,7 +670,7 @@ class Osu(commands.Cog):
             )
             detailed_embed.add_field(
                 name="Grades",
-                value=f"{EMOJI_SSH} {grade_ssh} {EMOJI_SS} {grade_ss} {EMOJI_SH} {grade_sh} {EMOJI_S} {grade_s} {EMOJI_A} {grade_a}",
+                value=f'{EMOJI["XH"]} {grade_ssh} {EMOJI["X"]} {grade_ss} {EMOJI["SH"]} {grade_sh} {EMOJI["S"]} {grade_s} {EMOJI["A"]} {grade_a}',
                 inline=False
             )
             if data["is_online"] == True:
@@ -730,38 +773,6 @@ class Osu(commands.Cog):
         except (discord.errors.NotFound, discord.errors.Forbidden):
             pass
 
-    def translatemode(self, mode):
-        if mode == 0:
-            mode = "standard"
-        elif mode == 1:
-            mode = "taiko"
-        elif mode == 2:
-            mode = "catch"
-        elif mode == 3:
-            mode = "mania"
-        return mode
-
-    def translateemote(self, grade):
-        if grade == "XH":
-            emote = EMOJI_SSH
-        elif grade == "X":
-            emote = EMOJI_SS
-        elif grade == "SH":
-            emote = EMOJI_SH
-        elif grade == "S":
-            emote = EMOJI_S
-        elif grade == "A":
-            emote = EMOJI_A
-        elif grade == "B":
-            emote = EMOJI_B
-        elif grade == "C":
-            emote = EMOJI_C
-        elif grade == "D":
-            emote = EMOJI_F
-        else:
-            emote = EMOJI_F
-        return emote
-
     async def recent_embed(self, ctx, data, player_id):
         if data:
             beatmapset = data[0]["beatmapset"]
@@ -776,7 +787,6 @@ class Osu(commands.Cog):
             count_geki = statistics["count_geki"]
             count_katu = humanize_number(statistics["count_katu"])
             rank = data[0]["rank"]
-            emoji = self.translateemote(rank)
             artist = beatmapset["artist"]
             beatmapsetid = beatmapset["id"]
             title = beatmapset["title"]
@@ -836,7 +846,7 @@ class Osu(commands.Cog):
             )
             embed.add_field(
                 name="Grade",
-                value=f"{emoji}{mods}",
+                value=f"{EMOJI[rank]}{mods}",
                 inline=True
             )
             embed.add_field(
@@ -871,7 +881,7 @@ class Osu(commands.Cog):
                 inline=False
             )
             embed.set_footer(
-                text=f"{username} | osu!{self.translatemode(beatmapmode).capitalize()} | Played"
+                text=f"{username} | osu!{MODE[beatmapmode].capitalize()} | Played"
             )
             embed.timestamp = datetime.strptime(played, "%Y-%m-%dT%H:%M:%S%z")
         
@@ -1181,6 +1191,8 @@ class Osu(commands.Cog):
             count_circles = data["count_circles"]
             count_spinners = data["count_spinners"]
             count_sliders = data["count_sliders"]
+            accuracy = data["accuracy"]
+            drain = data["drain"]
             if not mode_int == 3:
                 max_combo = humanize_number(data["max_combo"])
                 max_combo_text = "Max Combo"
@@ -1203,8 +1215,6 @@ class Osu(commands.Cog):
                 total_length = time.strftime("%-H:%M:%S", total_length)
             else:
                 total_length = time.strftime("%-M:%S", total_length)
-            accuracy = data["accuracy"]
-            drain = data["drain"]
             url = data["url"]
 
             if mode_int == 3:
@@ -1218,7 +1228,7 @@ class Osu(commands.Cog):
                 url=url
             )
             embed.set_author(
-                name=f"Mapped by {creator} | osu!{self.translatemode(mode_int).capitalize()}",
+                name=f"Mapped by {creator} | osu!{MODE[mode_int].capitalize()}",
                 url=f"https://osu.ppy.sh/users/{creator_id}",
                 icon_url=f"https://a.ppy.sh/{creator_id}"
             )
@@ -1358,7 +1368,6 @@ class Osu(commands.Cog):
         count_300 = humanize_number(statistics["count_300"])
         count_geki = humanize_number(statistics["count_geki"])
         count_katu = humanize_number(statistics["count_katu"])
-        emoji = self.translateemote(rank)
         accuracy = "{:.2%}".format(data["accuracy"])
         hits = f"{count_300}/{count_100}/{count_50}/{count_miss}"
         played = data["created_at"]
@@ -1369,6 +1378,8 @@ class Osu(commands.Cog):
             time = f"{time[0]} {time[1]}"
         except ValueError:
             pass
+        except IndexError:
+            time = time[0]
 
         if beatmapmode == 3:
             version = re.sub(r"^\S*\s", "", beatmap["version"])
@@ -1384,7 +1395,7 @@ class Osu(commands.Cog):
         else:
             index = str(int(data["index"]) + 1) + ". "
 
-        maps = f"{maps}\n**{index}[{title} - [{version}]]({beatmapurl}){mods}** [{starrating}★]\n{emoji} **{performance}pp** ◈ ({accuracy}) ◈ {score}\n**{combo}x** ◈ [{hits}] ◈ {time} ago\n"
+        maps = f"{maps}\n**{index}[{title} - [{version}]]({beatmapurl}){mods}** [{starrating}★]\n{EMOJI[rank]} **{performance}pp** ◈ ({accuracy}) ◈ {score}\n**{combo}x** ◈ [{hits}] ◈ {time} ago\n"
 
         return maps
 
@@ -1535,6 +1546,10 @@ class Osu(commands.Cog):
                 url = f"users/{user}/scores/recent"
             elif isfrom == "top" and user:
                 url = f"users/{user}/scores/best"
+            elif isfrom == "compare" and user:
+                url = f"get_scores"
+                params = {}
+                params["u"] = user
             elif not user:
                 try:
                     await self.del_message(ctx, f"{args[0]} does not have an account linked")
@@ -1542,3 +1557,123 @@ class Osu(commands.Cog):
                     pass
 
             return url, params, user, bonus
+
+    async def legacycompare(self, ctx, url, params, map_id):
+        token = (await self.bot.get_shared_api_tokens("legacyosu")).get("token")
+
+        data = None
+
+        if token:
+            data2 = await self.fetch_api(ctx, f"beatmaps/{map_id}")
+            mode_int = data2["mode_int"]
+            params["m"] = mode_int
+            params["b"] = map_id
+            params["type"] = "id"
+            params["k"] = token
+            endpoint = f"https://osu.ppy.sh/api/{url}"
+
+            async with aiohttp.ClientSession() as session:
+                async with session.get(endpoint, params=params) as r:
+                    if r.status == 404:
+                        await self.del_message(ctx, f"Looks like you don't have a score on that map")
+                    else:
+                        data = await r.json(encoding="utf-8")
+        else:
+            await self.del_message(ctx, "No api token")
+
+        if data:
+            rank = data[0]["rank"]
+            score = humanize_number(data[0]["score"])
+            performance = humanize_number(round(float(data[0]["pp"]),2))
+            comboraw = int(data[0]["maxcombo"])
+            count_miss = humanize_number(data[0]["countmiss"])
+            count_50 = humanize_number(data[0]["count50"])
+            count_100 = humanize_number(data[0]["count100"])
+            count_300 = int(data[0]["count300"])
+            count_geki = int(data[0]["countgeki"])
+            count_katu = humanize_number(data[0]["countkatu"])
+            username = data[0]["username"]
+            played = data[0]["date"]
+
+            artist = data2["beatmapset"]["artist"]
+            title = data2["beatmapset"]["title"]
+            version = data2["version"]
+            difficulty_rating = data2["difficulty_rating"]
+            beatmapurl = data2["url"]
+            beatmapset_id = data2["beatmapset"]["id"]
+            bmaccuracy = data2["accuracy"]
+            drain = data2["drain"]
+            circle_size = data2["cs"]
+            approach = data2["ar"]
+            creator = data2["beatmapset"]["creator"]
+            creator_id = data2["beatmapset"]["user_id"]
+            bpm = data2["bpm"]
+            objects_count = data2["count_circles"] + data2["count_sliders"] + data2["count_spinners"]
+            mapstatus = data2["beatmapset"]["status"]
+
+            if mode_int == 3:
+                version = re.sub(r"^\S*\s", "", data2["version"])
+                comboratio = "Combo / Ratio"
+                ratio = round(count_geki / count_300,2)
+                combo = f"**{comboraw:,}x** / {ratio}"
+                hits = f"{humanize_number(count_geki)}/{humanize_number(count_300)}/{count_katu}/{count_100}/{count_50}/{count_miss}"
+                stats = f"OD: `{bmaccuracy}` | HP: `{drain}`"
+            else:
+                comboratio = "Combo"
+                combo = f"**{comboraw}x**"
+                hits = f"{humanize_number(count_300)}/{count_100}/{count_50}/{count_miss}"
+                stats = f"CS: `{circle_size}` | AR: `{approach}` | OD: `{bmaccuracy}` | HP: `{drain}`"
+
+            embed = discord.Embed(
+                color=await self.bot.get_embed_color(ctx)
+            )
+            embed.set_author(
+                name=f"{artist} - {title} [{version}] [{str(difficulty_rating)}★]",
+                url=beatmapurl,
+                icon_url=f'https://a.ppy.sh/{data[0]["user_id"]}'
+            )
+            embed.set_image(
+                url=f"https://assets.ppy.sh/beatmaps/{beatmapset_id}/covers/cover.jpg"
+            )
+            embed.add_field(
+                name="Grade",
+                value=f"{EMOJI[rank]}",
+                inline=True
+            )
+            embed.add_field(
+                name="Score",
+                value=f"{score}",
+                inline=True
+            )
+            embed.add_field(
+                name="Acc",
+                value=f"N/A",
+                inline=True
+            )
+            embed.add_field(
+                name="PP",
+                value=f"**{performance}pp**",
+                inline=True
+            )
+            embed.add_field(
+                name=comboratio,
+                value=combo,
+                inline=True
+            )
+            embed.add_field(
+                name="Hits",
+                value=hits,
+                inline=True
+            )
+            embed.add_field(
+                name="Map Info",
+                value=f"Mapper: [{creator}](https://osu.ppy.sh/users/{creator_id}) | BPM: `{bpm}` | Objects: `{objects_count}` \n"
+                f"Status: {inline(mapstatus.capitalize())} | {stats}",
+                inline=False
+            )
+            embed.set_footer(
+                text=f"{username} | osu!{MODE[mode_int].capitalize()} | Played"
+            )
+            embed.timestamp = datetime.strptime(played, "%Y-%m-%d %H:%M:%S")
+
+            await ctx.send(embed=embed)
