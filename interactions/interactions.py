@@ -345,6 +345,6 @@ class Interactions(commands.Cog):
     @commands.command(aliases=["dogan"], hidden=True)
     async def loganonrock(self, ctx):
         embed = discord.Embed()
-        embed.description = f"Logan on rock"
-        embed.set_image(url="https://cdn.discordapp.com/attachments/792335838792253474/798211988613365800/dogan.jpg")
+        embed.description = f"Logan no longer on rock"
+        embed.set_image(url="https://image.freepik.com/free-photo/bored-dog-waiting-owner-rock-beside-river_37478-11.jpg")
         await ctx.send(embed=embed)

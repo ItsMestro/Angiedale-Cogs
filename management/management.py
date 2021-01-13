@@ -993,7 +993,7 @@ class Management(commands.Cog):
             is_cc = lambda name: name in command_names
         else:
             is_cc = lambda name: False
-        alias_cog = self.bot.get_cog("Alias")
+        alias_cog = self.bot.get_cog("Management")
         if alias_cog is not None:
             alias_names: Set[str] = set(
                 a.name for a in await alias_cog._aliases.get_global_aliases()
