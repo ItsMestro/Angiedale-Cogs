@@ -5,6 +5,7 @@ import re
 import aiohttp
 import discord
 import logging
+from random import choice
 from redbot.core.utils.menus import menu, commands, DEFAULT_CONTROLS
 from redbot.core.bot import Red
 
@@ -132,7 +133,8 @@ class API(commands.Cog):
     """Search the web for information"""
 
     def __init__(self, bot: Red):
-        self.url = "https://graphql.anilist.co"
+        self.bot = bot
+        super().__init__()
 
     def format_name(self, first_name, last_name):  # Combines first_name and last_name and/or shows either of the two
         if first_name and last_name:
@@ -183,7 +185,7 @@ class API(commands.Cog):
         headers = {"content-type": "application/json"}
 
         async with aiohttp.ClientSession() as session:
-            async with session.post(self.url, data=json.dumps(request_json), headers=headers) as response:
+            async with session.post("https://graphql.anilist.co", data=json.dumps(request_json), headers=headers) as response:
                 return await response.json()
 
     async def _search_anime_manga(self, ctx, cmd, entered_title):
@@ -491,3 +493,52 @@ class API(commands.Cog):
             await ctx.send(
                 ("No Urban Dictionary entries were found, or there was an error in the process.")
             )
+
+    @commands.command()
+    async def gif(self, ctx, *, search = None):
+        """Gets gifs from tenor."""
+        token = (await self.bot.get_shared_api_tokens("tenor")).get("token")
+
+        if token:
+            params = {"key": token, "locale": "en_US", "contentfilter": "medium", "limit": 20, "media_filter": "minimal"}
+
+            if search:
+                url = "https://api.tenor.com/v1/random"
+                params["q"] = str(search).lower()
+            else:
+                url = "https://api.tenor.com/v1/trending"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, params=params) as r:
+                    if r.status == 404:
+                        message = await ctx.maybe_send_embed("Unknown error")
+                        await asyncio.sleep(10)
+                        try:
+                            await message.delete()
+                        except (discord.errors.NotFound, discord.errors.Forbidden):
+                            pass
+                    else:
+                        data = await r.json(encoding="utf-8")
+                        try:
+                            result = choice(data["results"])
+                            embed = discord.Embed(
+                                color=await self.bot.get_embed_color(ctx)
+                            )
+                            embed.set_image(
+                                url=result["media"][0]["gif"]["url"]
+                            )
+                            await ctx.send(embed=embed)
+                        except:
+                            message = await ctx.maybe_send_embed("Could not find a gif for that search term")
+                            await asyncio.sleep(10)
+                            try:
+                                await message.delete()
+                            except (discord.errors.NotFound, discord.errors.Forbidden):
+                                pass
+        
+        else:
+            message = await ctx.maybe_send_embed("No api token")
+            await asyncio.sleep(10)
+            try:
+                await message.delete()
+            except (discord.errors.NotFound, discord.errors.Forbidden):
+                pass
