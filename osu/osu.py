@@ -1574,17 +1574,20 @@ class Osu(commands.Cog):
 
             async with aiohttp.ClientSession() as session:
                 async with session.get(endpoint, params=params) as r:
-                    if r.status == 404:
-                        await self.del_message(ctx, f"Looks like you don't have a score on that map")
-                    else:
+                    if not r.status == 404:
+                        log.error(r)
                         data = await r.json(encoding="utf-8")
+                        log.error(data)
         else:
             await self.del_message(ctx, "No api token")
 
         if data:
             rank = data[0]["rank"]
             score = humanize_number(data[0]["score"])
-            performance = humanize_number(round(float(data[0]["pp"]),2))
+            if data[0]["pp"]:
+                performance = humanize_number(round(float(data[0]["pp"]),2))
+            else:
+                performance = 0
             comboraw = int(data[0]["maxcombo"])
             count_miss = humanize_number(data[0]["countmiss"])
             count_50 = humanize_number(data[0]["count50"])
@@ -1677,3 +1680,5 @@ class Osu(commands.Cog):
             embed.timestamp = datetime.strptime(played, "%Y-%m-%d %H:%M:%S")
 
             await ctx.send(embed=embed)
+        else:
+            await self.del_message(ctx, f"Looks like you don't have a score on that map")
