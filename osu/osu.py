@@ -8,7 +8,7 @@ import operator
 from math import ceil
 from datetime import datetime, timedelta
 import time
-from typing import Optional, List, Dict
+from typing import Optional, Dict, TypedDict
 
 from redbot.core import checks, commands, Config
 from redbot.core.utils.chat_formatting import inline, humanize_timedelta, humanize_number
@@ -26,6 +26,7 @@ EMOJI = {
     "A": "<:A_Rank:794823687470710815>",
     "B": "<:B_Rank:794823687446593557>",
     "C": "<:C_Rank:794823687488012308>",
+    "D": "<:F_Rank:794823687781613609>",
     "F": "<:F_Rank:794823687781613609>"
 }
 
@@ -136,7 +137,7 @@ class Osu(commands.Cog):
 
     @commands.command()
     async def osulink(self, ctx, username: str):
-        """Link your account with an osu! user profile"""
+        """Link your account with an osu! user profile."""
 
         data = await self.fetch_api(ctx, f"users/{username}", username)
 
@@ -397,39 +398,111 @@ class Osu(commands.Cog):
             data = await self.fetch_api(ctx, f"rankings/{mode}/{rtype}", params=params)
             await self.rankings_embed(ctx, data, rtype, mode, country, variant)
 
+    @commands.command(aliases=["ppo", "pps", "ppstandard"])
+    @commands.cooldown(1, 10, commands.BucketType.user)
+    async def pposu(self, ctx, *arguments):
+        """Shows pp info for osu!Standard.
+        
+        **Arguments:**
+        
+        - `-pp <number>` will dsiplay how many scores you have above `<number>`"""
+        url, *extra = await self.check_context(ctx, arguments, "pp")
+
+        if url:
+            params = {"mode": "osu", "limit": "50"}
+
+            data1 = await self.fetch_api(ctx, url, extra[1], params, "pp")
+            params["offset"] =  "50"
+            data2 = await self.fetch_api(ctx, url, extra[1], params, "pp")
+            data = data1 + data2
+            await self.pp_embed(ctx, data, "Standard", extra[2]["pp"])
+
+    @commands.command(aliases=["ppt"], hidden=True)
+    @commands.cooldown(1, 10, commands.BucketType.user)
+    async def pptaiko(self, ctx, *arguments):
+        """Shows pp info for osu!Taiko.
+        """
+        url, *extra = await self.check_context(ctx, arguments, "pp")
+
+        if url:
+            params = {"mode": "taiko", "limit": "50"}
+
+            data1 = await self.fetch_api(ctx, url, extra[1], params, "pp")
+            params["offset"] =  "50"
+            data2 = await self.fetch_api(ctx, url, extra[1], params, "pp")
+            data = data1 + data2
+            await self.pp_embed(ctx, data, "Taiko", extra[2]["pp"])
+
+    @commands.command(aliases=["ppf", "ppc", "ppcatch", "ppctb"], hidden=True)
+    @commands.cooldown(1, 10, commands.BucketType.user)
+    async def ppfruits(self, ctx, *arguments):
+        """Shows pp info for osu!Catch.
+        """
+        url, *extra = await self.check_context(ctx, arguments, "pp")
+
+        if url:
+            params = {"mode": "fruits", "limit": "50"}
+
+            data1 = await self.fetch_api(ctx, url, extra[1], params, "pp")
+            params["offset"] =  "50"
+            data2 = await self.fetch_api(ctx, url, extra[1], params, "pp")
+            data = data1 + data2
+            await self.pp_embed(ctx, data, "Catch", extra[2]["pp"])
+
+    @commands.command(aliases=["ppm"], hidden=True)
+    @commands.cooldown(1, 10, commands.BucketType.user)
+    async def ppmania(self, ctx, *arguments):
+        """Shows pp info for osu!Mania.
+        """
+        url, *extra = await self.check_context(ctx, arguments, "pp")
+
+        if url:
+            params = {"mode": "mania", "limit": "50"}
+
+            data1 = await self.fetch_api(ctx, url, extra[1], params, "pp")
+            params["offset"] =  "50"
+            data2 = await self.fetch_api(ctx, url, extra[1], params, "pp")
+            data = data1 + data2
+            await self.pp_embed(ctx, data, "Mania", extra[2]["pp"])
+
     @commands.command(aliases=["osuc", "oc"])
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def osucompare(self, ctx, *username):
-        """Compare your score with the last one sent in the channel
+        """Compare your score with the last one sent in the channel.
         """
         url, *extra = await self.check_context(ctx, username, "compare")
 
-        messages = []
-        map_id = None
-        async for m in ctx.channel.history(limit=50):
-            if m.author.id == self.bot.user.id and m.type:
-                try:
-                    messages.append(m.embeds[0])
-                except:
-                    pass
-        if messages:
-            for e in messages:
-                try:
-                    author_url = e.author.url
-                    title_url = e.url
-                    if "beatmaps" in author_url:
-                        map_id = author_url.rsplit('/', 1)[-1]
-                        break
-                    elif "beatmaps" in title_url:
-                        map_id = title_url.rsplit('/', 1)[-1]
-                        break
-                except:
-                    pass
-        else:
-            await self.del_message(ctx, "Could not find any recently displayed maps in this channel")
+        if extra[0]:
+            messages = []
+            map_id = None
+            async for m in ctx.channel.history(limit=50):
+                if m.author.id == self.bot.user.id and m.type:
+                    try:
+                        messages.append(m.embeds[0])
+                    except:
+                        pass
+            if messages:
+                for e in messages:
+                        author_url = e.author.url
+                        title_url = e.url
+                        if e.description:
+                            description = re.search(r"beatmaps/(.*?)\)", e.description)
+                        if author_url:
+                            if "beatmaps" in author_url:
+                                map_id = author_url.rsplit('/', 1)[-1]
+                                break
+                        if title_url:
+                            if "beatmaps" in title_url:
+                                map_id = title_url.rsplit('/', 1)[-1]
+                                break
+                        if description:
+                            map_id = description.group(1)
+                            break
 
-        if map_id and extra[0]:
-            await self.legacycompare(ctx, url, extra[0], map_id)
+            if map_id:
+                await self.legacycompare(ctx, url, extra[0], map_id)
+            else:
+                await self.del_message(ctx, "Could not find any recently displayed maps in this channel.")
 
     @commands.command(hidden=True)
     @commands.cooldown(10, 10, commands.BucketType.user)
@@ -457,14 +530,70 @@ class Osu(commands.Cog):
         async with aiohttp.ClientSession() as session:
             async with session.get(endpoint, headers=header, params=params) as r:
                 if r.status == 404 and user is not None:
-                    await self.del_message(ctx, f"Could not find the user {user}")
+                    await self.del_message(ctx, f"Could not find the user {user}.")
                 elif r.status == 404 and isfrom == "map":
-                    await self.del_message(ctx, f"Could not find that map")
+                    await self.del_message(ctx, f"Could not find that map.")
                 elif r.status == 404:
-                    await self.del_message(ctx, f"Something went wrong with the api")
+                    await self.del_message(ctx, f"Something went wrong with the api.")
                 else:
                     data = await r.json(encoding="utf-8")
                     return data
+
+    async def pp_embed(self, ctx, data, mode, pp_id):
+        if data:
+            country = data[0]["user"]["country_code"]
+            username = data[0]["user"]["username"]
+            user_id = data[0]["user"]["id"]
+
+            if data[0]["pp"]:
+                pp_list = []
+                for score in data:
+                    pp_list.append(score["pp"])
+                pp_average = sum(pp_list) / len(pp_list)
+                pp_median = pp_list[round((len(pp_list) - 1) / 2)]
+
+                peepee = []
+
+                embed = discord.Embed(
+                    color=await self.bot.get_embed_color(ctx)
+                )
+                embed.set_author(
+                    name=f"{username} | osu!{mode}",
+                    url=f"https://osu.ppy.sh/users/{user_id}",
+                    icon_url=f"https://osu.ppy.sh/images/flags/{country}.png"
+                )
+                embed.set_thumbnail(
+                    url=f"https://a.ppy.sh/{user_id}"
+                )
+
+                if pp_id:
+                    pp_count = 0
+                    for score in data:
+                        if score["pp"] > pp_id:
+                            pp_count += 1
+                    embed.title = f"You have {pp_count} plays above {round(pp_id, 2)}pp"
+                
+                embed.add_field(
+                    name="Highest pp Play",
+                    value=humanize_number(round(data[0]["pp"],2)),
+                    inline=True
+                )
+                embed.add_field(
+                    name="Lowest pp Play",
+                    value=humanize_number(round(data[-1]["pp"],2)),
+                    inline=True
+                )
+                embed.add_field(
+                    name="Average / Median",
+                    value=f"{humanize_number(round(pp_average,2))} / {humanize_number(round(pp_median,2))}",
+                    inline=True
+                )
+
+                peepee.append(embed)
+
+                await menu(ctx, peepee, {"\N{CROSS MARK}": close_menu})
+            else:
+                await self.del_message(ctx, f"You seem to have insufficient data for this command.")
 
     async def profile_embed(self, ctx, data, player_id, mode):
         if data:
@@ -565,7 +694,7 @@ class Osu(commands.Cog):
                 f'{"{0:^7}".format(humanize_number(rank_history[59] - rank_history[74]))}|{"{0:^10}".format(humanize_number(rank_history[74]))}| -15d\n'
                 f'{"{0:^7}".format(humanize_number(rank_history[74] - rank_history[89]))}|{"{0:^10}".format(humanize_number(rank_history[89]))}|  Now```' )
             except TypeError:
-                rank_history = "This user doesn't have any rank history"
+                rank_history = "This user doesn't have any rank history."
 
             profiles = []
 
@@ -763,7 +892,7 @@ class Osu(commands.Cog):
     async def profilelinking(self, ctx):
         prefix = ctx.clean_prefix
         await self.del_message(ctx, f"Looks like you haven't linked an account.\nYou can do so using `{prefix}osulink <username>`"
-            "\n\nAlternatively you can use the command\nwith a username or id after it")
+            "\n\nAlternatively you can use the command\nwith a username or id after it.")
 
     async def del_message(self, ctx, message_text):
         message = await ctx.maybe_send_embed(message_text)
@@ -818,7 +947,7 @@ class Osu(commands.Cog):
                 stats = f"OD: `{bmaccuracy}` | HP: `{drain}`"
             else:
                 comboratio = "Combo"
-                combo = f"**{comboraw}x**"
+                combo = f"**{comboraw:,}x**"
                 hits = f"{humanize_number(count_300)}/{count_100}/{count_50}/{count_miss}"
                 stats = f"CS: `{circle_size}` | AR: `{approach}` | OD: `{bmaccuracy}` | HP: `{drain}`"
 
@@ -855,7 +984,7 @@ class Osu(commands.Cog):
                 inline=True
             )
             embed.add_field(
-                name="Acc",
+                name="Accuracy",
                 value=f"{accuracy}",
                 inline=True
             )
@@ -887,7 +1016,7 @@ class Osu(commands.Cog):
         
             await ctx.send(embed=embed)
         else:
-            await self.del_message(ctx, f"Looks like {player_id} don't have any recent plays in that mode")
+            await self.del_message(ctx, f"Looks like {player_id} don't have any recent plays in that mode.")
 
     async def top_embed(self, ctx, data, player_id, mode, bonus):
         if data:
@@ -949,7 +1078,7 @@ class Osu(commands.Cog):
             
             await menu(ctx, scores, DEFAULT_CONTROLS if page_num > 1 else {"\N{CROSS MARK}": close_menu})
         else:
-            await self.del_message(ctx, f"Looks like {player_id} doesn't have any top plays in that mode")
+            await self.del_message(ctx, f"Looks like {player_id} doesn't have any top plays in that mode.")
 
     async def rankings_embed(self, ctx, data, rtype, mode, country = None, variant = None):
         if data:
@@ -1193,6 +1322,8 @@ class Osu(commands.Cog):
             count_sliders = data["count_sliders"]
             accuracy = data["accuracy"]
             drain = data["drain"]
+            difficulty_rating = data["difficulty_rating"]
+            circle_size = data["cs"]
             if not mode_int == 3:
                 max_combo = humanize_number(data["max_combo"])
                 max_combo_text = "Max Combo"
@@ -1208,8 +1339,6 @@ class Osu(commands.Cog):
                 hit_length = time.strftime("%-H:%M:%S", hit_length)
             else:
                 hit_length = time.strftime("%-M:%S", hit_length)
-            difficulty_rating = data["difficulty_rating"]
-            circle_size = data["cs"]
             total_length = time.gmtime(data["total_length"])
             if not time.strftime("%H", total_length) == "00":
                 total_length = time.strftime("%-H:%M:%S", total_length)
@@ -1336,11 +1465,11 @@ class Osu(commands.Cog):
         country_code = data["ranking"][i]["user"]["country"]["code"]
         username = data["ranking"][i]["user"]["username"]
         performance = humanize_number(data["ranking"][i]["pp"])
-        accuracy = "{:.2%}".format(data["ranking"][i]["hit_accuracy"])
+        accuracy = f'{round(data["ranking"][i]["hit_accuracy"],2)}%'
         score = humanize_number(data["ranking"][i]["ranked_score"])
         playcount = humanize_number(data["ranking"][i]["play_count"])
         if country:
-            user = f"{user}\n**{i+1}.** | **{username}** ◈ {performance}pp ◈ {accuracy}% ◈ {playcount}\n"
+            user = f"{user}\n**{i+1}.** | **{username}** ◈ {performance}pp ◈ {accuracy} ◈ {playcount}\n"
         elif rtype == "score":
             user = f"{user}\n**{i+1}.** | :flag_{country_code.lower()}: **{username}** ◈ {score} ◈ {accuracy}% ◈ {performance}pp\n"
         else:
@@ -1409,7 +1538,7 @@ class Osu(commands.Cog):
         params = None
         user = None
         url = None
-        bonus = {"sort_recent": False, "score_num": 0, "user_name": None}
+        bonus = {"sort_recent": False, "score_num": 0, "user_name": None, "pp": None}
         
         if isfrom == "rankings":
             variant = None
@@ -1441,9 +1570,9 @@ class Osu(commands.Cog):
                     variant = "7k"
                     args.remove("7k")
             if "score" in args and variant:
-                await self.del_message(ctx, f"Can not keymodes with score rankings")
+                await self.del_message(ctx, f"Can not use keymodes with score rankings.")
             elif "score" in args and len(args) > 1:
-                await self.del_message(ctx, f"Score can not be used for country rankings")
+                await self.del_message(ctx, f"Score can not be used for country rankings.")
             elif "score" in args:
                 rtype = "score"
                 args.remove("score")
@@ -1452,11 +1581,11 @@ class Osu(commands.Cog):
             if len(args) > 0 and len(args) < 2:
                 countrylen = args[0]
                 if len(countrylen) > 2:
-                    await self.del_message(ctx, f"Please use the 2 letter ISO code for countries")
+                    await self.del_message(ctx, f"Please use the 2 letter ISO code for countries.")
                 else:
                     country = countrylen.upper()
             elif len(args) >= 2:
-                await self.del_message(ctx, f"There seems to be too many arguments or something went wrong")
+                await self.del_message(ctx, f"There seems to be too many arguments or something unexpected went wrong.")
             params = {}
             if country:
                 params["country"] = country
@@ -1471,7 +1600,7 @@ class Osu(commands.Cog):
                 map_id = args
                 url = f"beatmaps/{map_id}"
             else:
-                await self.del_message(ctx, f"That doesn't seem to be a valid map")
+                await self.del_message(ctx, f"That doesn't seem to be a valid map.")
             return url
         elif isfrom == "changelog":
             params = {}
@@ -1494,13 +1623,23 @@ class Osu(commands.Cog):
                 url = "changelog"
                 params["stream"] = "web"
             else:
-                await self.del_message(ctx, f"Please provide a valid release stream")
+                await self.del_message(ctx, f"Please provide a valid release stream.")
             return url, params
         else:
+            if "-pp" in args:
+                loc = args.index("-pp")
+                num = args[loc + 1].replace(",", ".")
+                try:
+                    bonus["pp"] = float(num)
+                    args.pop(loc + 1)
+                    args.pop(loc)
+                except:
+                    await self.del_message(ctx, "Please provide a number for `-pp`")
+                    return None, None
             if "-r" in args:
                 if "-p" in args:
-                    await self.del_message(ctx, "You can't use `-r` and `-p` at the same time")
-                    return
+                    await self.del_message(ctx, "You can't use `-r` and `-p` at the same time.")
+                    return None, None
                 else:
                     bonus["sort_recent"] = True
                     args.remove("-r")
@@ -1508,10 +1647,10 @@ class Osu(commands.Cog):
                 loc = args.index("-p")
                 if not args[loc + 1].isdigit():
                     await self.del_message(ctx, "Please provide a number for `-p`")
-                    return
+                    return None, None
                 elif int(args[loc + 1]) <= 0 or int(args[loc + 1]) > 100:
                     await self.del_message(ctx, "Please use a number between 1-100 for `-p`")
-                    return
+                    return None, None
                 else:
                     bonus["score_num"] = int(args[loc + 1])
                     args.pop(loc + 1)
@@ -1546,13 +1685,15 @@ class Osu(commands.Cog):
                 url = f"users/{user}/scores/recent"
             elif isfrom == "top" and user:
                 url = f"users/{user}/scores/best"
+            elif isfrom == "pp" and user:
+                url = f"users/{user}/scores/best"
             elif isfrom == "compare" and user:
                 url = f"get_scores"
                 params = {}
                 params["u"] = user
             elif not user:
                 try:
-                    await self.del_message(ctx, f"{args[0]} does not have an account linked")
+                    await self.del_message(ctx, f"{args[0]} does not have an account linked.")
                 except:
                     pass
 
@@ -1575,29 +1716,11 @@ class Osu(commands.Cog):
             async with aiohttp.ClientSession() as session:
                 async with session.get(endpoint, params=params) as r:
                     if not r.status == 404:
-                        log.error(r)
                         data = await r.json(encoding="utf-8")
-                        log.error(data)
         else:
             await self.del_message(ctx, "No api token")
 
         if data:
-            rank = data[0]["rank"]
-            score = humanize_number(data[0]["score"])
-            if data[0]["pp"]:
-                performance = humanize_number(round(float(data[0]["pp"]),2))
-            else:
-                performance = 0
-            comboraw = int(data[0]["maxcombo"])
-            count_miss = humanize_number(data[0]["countmiss"])
-            count_50 = humanize_number(data[0]["count50"])
-            count_100 = humanize_number(data[0]["count100"])
-            count_300 = int(data[0]["count300"])
-            count_geki = int(data[0]["countgeki"])
-            count_katu = humanize_number(data[0]["countkatu"])
-            username = data[0]["username"]
-            played = data[0]["date"]
-
             artist = data2["beatmapset"]["artist"]
             title = data2["beatmapset"]["title"]
             version = data2["version"]
@@ -1615,70 +1738,141 @@ class Osu(commands.Cog):
             mapstatus = data2["beatmapset"]["status"]
 
             if mode_int == 3:
-                version = re.sub(r"^\S*\s", "", data2["version"])
-                comboratio = "Combo / Ratio"
-                ratio = round(count_geki / count_300,2)
-                combo = f"**{comboraw:,}x** / {ratio}"
-                hits = f"{humanize_number(count_geki)}/{humanize_number(count_300)}/{count_katu}/{count_100}/{count_50}/{count_miss}"
-                stats = f"OD: `{bmaccuracy}` | HP: `{drain}`"
-            else:
-                comboratio = "Combo"
-                combo = f"**{comboraw}x**"
-                hits = f"{humanize_number(count_300)}/{count_100}/{count_50}/{count_miss}"
-                stats = f"CS: `{circle_size}` | AR: `{approach}` | OD: `{bmaccuracy}` | HP: `{drain}`"
+                version = re.sub(r"^\S*\s", "", version)
 
-            embed = discord.Embed(
+            scores = []
+
+            base_embed = discord.Embed(
                 color=await self.bot.get_embed_color(ctx)
             )
-            embed.set_author(
+            base_embed.set_author(
                 name=f"{artist} - {title} [{version}] [{str(difficulty_rating)}★]",
                 url=beatmapurl,
                 icon_url=f'https://a.ppy.sh/{data[0]["user_id"]}'
             )
-            embed.set_image(
+            base_embed.set_image(
                 url=f"https://assets.ppy.sh/beatmaps/{beatmapset_id}/covers/cover.jpg"
             )
-            embed.add_field(
-                name="Grade",
-                value=f"{EMOJI[rank]}",
-                inline=True
-            )
-            embed.add_field(
-                name="Score",
-                value=f"{score}",
-                inline=True
-            )
-            embed.add_field(
-                name="Acc",
-                value=f"N/A",
-                inline=True
-            )
-            embed.add_field(
-                name="PP",
-                value=f"**{performance}pp**",
-                inline=True
-            )
-            embed.add_field(
-                name=comboratio,
-                value=combo,
-                inline=True
-            )
-            embed.add_field(
-                name="Hits",
-                value=hits,
-                inline=True
-            )
-            embed.add_field(
-                name="Map Info",
-                value=f"Mapper: [{creator}](https://osu.ppy.sh/users/{creator_id}) | BPM: `{bpm}` | Objects: `{objects_count}` \n"
-                f"Status: {inline(mapstatus.capitalize())} | {stats}",
-                inline=False
-            )
-            embed.set_footer(
-                text=f"{username} | osu!{MODE[mode_int].capitalize()} | Played"
-            )
-            embed.timestamp = datetime.strptime(played, "%Y-%m-%d %H:%M:%S")
+            for data in data:
+                rank = data["rank"]
+                score = humanize_number(data["score"])
+                if data["pp"]:
+                    performance = humanize_number(round(float(data["pp"]),2))
+                else:
+                    performance = 0
+                comboraw = int(data["maxcombo"])
+                count_miss = int(data["countmiss"])
+                count_50 = int(data["count50"])
+                count_100 = int(data["count100"])
+                count_300 = int(data["count300"])
+                count_geki = int(data["countgeki"])
+                count_katu = int(data["countkatu"])
+                username = data["username"]
+                played = data["date"]
+                mod_bit = int(data["enabled_mods"])
+                if mod_bit > 0:
+                    mods = self.get_mod(mod_bit)
+                    mods = f' +{mods}'
+                else:
+                    mods = ""
 
-            await ctx.send(embed=embed)
+                if mode_int == 3:
+                    comboratio = "Combo / Ratio"
+                    ratio = round(count_geki / count_300,2)
+                    combo = f"**{comboraw:,}x** / {ratio}"
+                    hits = f"{humanize_number(count_geki)}/{humanize_number(count_300)}/{humanize_number(count_katu)}/{humanize_number(count_100)}/{humanize_number(count_50)}/{humanize_number(count_miss)}"
+                    stats = f"OD: `{bmaccuracy}` | HP: `{drain}`"
+                    accuracy = (50*count_50 + 100*count_100 + 200*count_katu + 300*(count_300 + count_geki)) / (300*(count_miss + count_50 + count_100 + count_katu + count_300 + count_geki))
+                else:
+                    comboratio = "Combo"
+                    combo = f"**{comboraw:,}x**"
+                    hits = f"{humanize_number(count_300)}/{humanize_number(count_100)}/{humanize_number(count_50)}/{humanize_number(count_miss)}"
+                    stats = f"CS: `{circle_size}` | AR: `{approach}` | OD: `{bmaccuracy}` | HP: `{drain}`"
+
+                if mode_int == 2:
+                    accuracy = (count_50 + count_100 + count_300) / (count_miss + count_50 + count_100 + count_katu + count_300 + count_geki)
+                elif mode_int == 1:
+                    accuracy = (0.5*count_100 + count_300) / (count_miss + count_100 + count_300)
+                elif mode_int == 0:
+                    accuracy = (50*count_50 + 100*count_100 + 300*count_300) / (300*(count_miss + count_50 + count_100 + count_300))
+
+                embed = base_embed.copy()
+                embed.add_field(
+                    name="Grade",
+                    value=f"{EMOJI[rank]}{mods}",
+                    inline=True
+                )
+                embed.add_field(
+                    name="Score",
+                    value=f"{score}",
+                    inline=True
+                )
+                embed.add_field(
+                    name="Accuracy",
+                    value="{:.2%}".format(accuracy),
+                    inline=True
+                )
+                embed.add_field(
+                    name="PP",
+                    value=f"**{performance}pp**",
+                    inline=True
+                )
+                embed.add_field(
+                    name=comboratio,
+                    value=combo,
+                    inline=True
+                )
+                embed.add_field(
+                    name="Hits",
+                    value=hits,
+                    inline=True
+                )
+                embed.add_field(
+                    name="Map Info",
+                    value=f"Mapper: [{creator}](https://osu.ppy.sh/users/{creator_id}) | BPM: `{bpm}` | Objects: `{objects_count}` \n"
+                    f"Status: {inline(mapstatus.capitalize())} | {stats}",
+                    inline=False
+                )
+                embed.set_footer(
+                    text=f"{username} | osu!{MODE[mode_int].capitalize()} | Played"
+                )
+                embed.timestamp = datetime.strptime(played, "%Y-%m-%d %H:%M:%S")
+
+                scores.append(embed)
+
+            await menu(ctx, scores, DEFAULT_CONTROLS if len(scores) > 1 else {"\N{CROSS MARK}": close_menu})
         else:
-            await self.del_message(ctx, f"Looks like you don't have a score on that map")
+            await self.del_message(ctx, f"Looks like you don't have a score on that map.")
+
+    def get_mod(self, number):
+        mods = []
+
+        if number & 1<<0:   mods.append('NF')
+        if number & 1<<1:   mods.append('EZ')
+        if number & 1<<2:   mods.append('TD')
+        if number & 1<<3:   mods.append('HD')
+        if number & 1<<4:   mods.append('HR')
+        if number & 1<<5:   mods.append('SD')
+        if number & 1<<9:   mods.append('NC')
+        elif number & 1<<6: mods.append('DT')
+        if number & 1<<7:   mods.append('RX')
+        if number & 1<<8:   mods.append('HT')
+        if number & 1<<10:  mods.append('FL')
+        if number & 1<<12:  mods.append('SO')
+        if number & 1<<14:  mods.append('PF')
+        if number & 1<<15:  mods.append('4K')
+        if number & 1<<16:  mods.append('5K')
+        if number & 1<<17:  mods.append('6K')
+        if number & 1<<18:  mods.append('7K')
+        if number & 1<<19:  mods.append('8K')
+        if number & 1<<20:  mods.append('FI')
+        if number & 1<<24:  mods.append('9K')
+        if number & 1<<25:  mods.append('10K')
+        if number & 1<<26:  mods.append('1K')
+        if number & 1<<27:  mods.append('3K')
+        if number & 1<<28:  mods.append('2K')
+        if number & 1<<29:  mods.append('MR')
+
+        mods = "".join(sorted(mods))
+
+        return mods

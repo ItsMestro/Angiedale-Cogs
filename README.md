@@ -18,4 +18,5 @@ beautifultable
 tabulate
 beautifulsoup4
 pylint
+matplotlib
 ```
