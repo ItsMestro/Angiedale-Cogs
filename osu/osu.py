@@ -277,10 +277,11 @@ class Osu(commands.Cog):
             params = {"mode": "osu", "limit": "50"}
 
             data1 = await self.fetch_api(ctx, url, extra[1], params)
-            params["offset"] =  "50"
-            data2 = await self.fetch_api(ctx, url, extra[1], params)
-            data = data1 + data2
-            await self.top_embed(ctx, data, extra[1], "Standard", extra[2])
+            if data1:
+                params["offset"] =  "50"
+                data2 = await self.fetch_api(ctx, url, extra[1], params)
+                data = data1 + data2
+                await self.top_embed(ctx, data, extra[1], "Standard", extra[2])
 
     @commands.command(aliases=["topt"], hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
@@ -295,10 +296,11 @@ class Osu(commands.Cog):
             params = {"mode": "taiko", "limit": "50"}
 
             data1 = await self.fetch_api(ctx, url, extra[1], params)
-            params["offset"] =  "50"
-            data2 = await self.fetch_api(ctx, url, extra[1], params)
-            data = data1 + data2
-            await self.top_embed(ctx, data, extra[1], "Taiko", extra[2])
+            if data1:
+                params["offset"] =  "50"
+                data2 = await self.fetch_api(ctx, url, extra[1], params)
+                data = data1 + data2
+                await self.top_embed(ctx, data, extra[1], "Taiko", extra[2])
 
     @commands.command(aliases=["topf","topcatch", "topc", "topctb"], hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
@@ -316,10 +318,11 @@ class Osu(commands.Cog):
             params = {"mode": "fruits", "limit": "50"}
 
             data1 = await self.fetch_api(ctx, url, extra[1], params)
-            params["offset"] =  "50"
-            data2 = await self.fetch_api(ctx, url, extra[1], params)
-            data = data1 + data2
-            await self.top_embed(ctx, data, extra[1], "Catch", extra[2])
+            if data1:
+                params["offset"] =  "50"
+                data2 = await self.fetch_api(ctx, url, extra[1], params)
+                data = data1 + data2
+                await self.top_embed(ctx, data, extra[1], "Catch", extra[2])
 
     @commands.command(aliases=["topm"], hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
@@ -334,10 +337,11 @@ class Osu(commands.Cog):
             params = {"mode": "mania", "limit": "50"}
 
             data1 = await self.fetch_api(ctx, url, extra[1], params)
-            params["offset"] =  "50"
-            data2 = await self.fetch_api(ctx, url, extra[1], params)
-            data = data1 + data2
-            await self.top_embed(ctx, data, extra[1], "Mania", extra[2])
+            if data1:
+                params["offset"] =  "50"
+                data2 = await self.fetch_api(ctx, url, extra[1], params)
+                data = data1 + data2
+                await self.top_embed(ctx, data, extra[1], "Mania", extra[2])
 
     @commands.command()
     @commands.cooldown(1, 10, commands.BucketType.user)
@@ -412,10 +416,11 @@ class Osu(commands.Cog):
             params = {"mode": "osu", "limit": "50"}
 
             data1 = await self.fetch_api(ctx, url, extra[1], params, "pp")
-            params["offset"] =  "50"
-            data2 = await self.fetch_api(ctx, url, extra[1], params, "pp")
-            data = data1 + data2
-            await self.pp_embed(ctx, data, "Standard", extra[2]["pp"])
+            if data1:
+                params["offset"] =  "50"
+                data2 = await self.fetch_api(ctx, url, extra[1], params, "pp")
+                data = data1 + data2
+                await self.pp_embed(ctx, data, "Standard", extra[2]["pp"])
 
     @commands.command(aliases=["ppt"], hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
@@ -428,10 +433,11 @@ class Osu(commands.Cog):
             params = {"mode": "taiko", "limit": "50"}
 
             data1 = await self.fetch_api(ctx, url, extra[1], params, "pp")
-            params["offset"] =  "50"
-            data2 = await self.fetch_api(ctx, url, extra[1], params, "pp")
-            data = data1 + data2
-            await self.pp_embed(ctx, data, "Taiko", extra[2]["pp"])
+            if data1:
+                params["offset"] =  "50"
+                data2 = await self.fetch_api(ctx, url, extra[1], params, "pp")
+                data = data1 + data2
+                await self.pp_embed(ctx, data, "Taiko", extra[2]["pp"])
 
     @commands.command(aliases=["ppf", "ppc", "ppcatch", "ppctb"], hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
@@ -444,10 +450,11 @@ class Osu(commands.Cog):
             params = {"mode": "fruits", "limit": "50"}
 
             data1 = await self.fetch_api(ctx, url, extra[1], params, "pp")
-            params["offset"] =  "50"
-            data2 = await self.fetch_api(ctx, url, extra[1], params, "pp")
-            data = data1 + data2
-            await self.pp_embed(ctx, data, "Catch", extra[2]["pp"])
+            if data1:
+                params["offset"] =  "50"
+                data2 = await self.fetch_api(ctx, url, extra[1], params, "pp")
+                data = data1 + data2
+                await self.pp_embed(ctx, data, "Catch", extra[2]["pp"])
 
     @commands.command(aliases=["ppm"], hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
@@ -460,10 +467,11 @@ class Osu(commands.Cog):
             params = {"mode": "mania", "limit": "50"}
 
             data1 = await self.fetch_api(ctx, url, extra[1], params, "pp")
-            params["offset"] =  "50"
-            data2 = await self.fetch_api(ctx, url, extra[1], params, "pp")
-            data = data1 + data2
-            await self.pp_embed(ctx, data, "Mania", extra[2]["pp"])
+            if data1:
+                params["offset"] =  "50"
+                data2 = await self.fetch_api(ctx, url, extra[1], params, "pp")
+                data = data1 + data2
+                await self.pp_embed(ctx, data, "Mania", extra[2]["pp"])
 
     @commands.command(aliases=["osuc", "oc"])
     @commands.cooldown(1, 10, commands.BucketType.user)
@@ -511,7 +519,10 @@ class Osu(commands.Cog):
 
         author = ctx.message.author
         if not user:
-            message = f"{author.mention} thinks <@253588524652036096> is ET"
+            if ctx.guild.id == 571000112688660501:
+                message = f"{author.mention} thinks <@243350573850558464> is ET"
+            else:
+                message = f"{author.mention} thinks <@253588524652036096> is ET"
         else:
             message = f"{author.mention} thinks {user.mention} is ET"
 
@@ -1871,7 +1882,7 @@ class Osu(commands.Cog):
         if number & 1<<26:  mods.append('1K')
         if number & 1<<27:  mods.append('3K')
         if number & 1<<28:  mods.append('2K')
-        if number & 1<<29:  mods.append('MR')
+        if number & 1<<30:  mods.append('MR')
 
         mods = "".join(sorted(mods))
 
