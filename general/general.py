@@ -1,5 +1,6 @@
 import datetime
 import time
+from dateutil.relativedelta import relativedelta
 import random
 from enum import Enum
 from random import randint, choice
@@ -31,6 +32,66 @@ class General(commands.Cog):
     KAOMOJI_EMBARRASSED = [" (⁄ ⁄>⁄ ▽ ⁄<⁄ ⁄)..", " (*^.^*)..,", "..,", ",,,", "... ", ".. ", " mmm..", "O.o"]
     KAOMOJI_CONFUSE = [" (o_O)?", " (°ロ°) !?", " (ーー;)?", " owo?"]
     KAOMOJI_SPARKLES = [" *:･ﾟ✧*:･ﾟ✧ ", " ☆*:・ﾟ ", "〜☆ ", " uguu.., ", "-.-"]
+
+    fur = {
+            "ahh": "*murr*",
+            "love": "wuv",
+            "loves": "wuvs",
+            "awesome": "pawsome",
+            "awful": "pawful",
+            "bite": "nom",
+            "bites": "noms",
+            "butthole": "tailhole",
+            "buttholes": "tailholes",
+            "bulge": "bulgy-wulgy",
+            "bye": "bai",
+            "celebrity": "popufur",
+            "celebrities": "popufurs",
+            "cheese": "sergal",
+            "child": "cub",
+            "children": "cubs",
+            "computer": "protogen",
+            "computers": "protogens",
+            "disease": "pathOwOgen",
+            "dog": "good boy",
+            "dogs": "good boys",
+            "dragon": "derg",
+            "dragons": "dergs",
+            "eat": "vore",
+            "foot": "footpaw",
+            "feet": "footpaws",
+            "for": "fur",
+            "hand": "paw",
+            "hands": "paws",
+            "hi": "hai",
+            "hyena": "yeen",
+            "hyenas": "yeens",
+            "kiss": "lick",
+            "kisses": "licks",
+            "lmao": "hehe~",
+            "mouth": "maw",
+            "naughty": "knotty",
+            "not": "knot",
+            "perfect": "purfect",
+            "persona": "fursona",
+            "personas": "fursonas",
+            "pervert": "furvert",
+            "perverts": "furverts",
+            "porn": "yiff",
+            "roar": "rawr",
+            "shout": "awoo",
+            "source": "sauce",
+            "tale": "tail",
+            "the": "teh",
+            "this": "dis",
+            "what": "wat",
+            "with": "wif",
+            "you": "chu",
+            ":)": ":3",
+            ":o": "OwO",
+            ":D": "UwU",
+            "XD": "X3",
+        }
 
     def __init__(self, bot: Red):
         super().__init__()
@@ -377,8 +438,15 @@ class General(commands.Cog):
             url = user.avatar_url_as(format="gif")
         if not user.is_avatar_animated():
             url = user.avatar_url_as(static_format="png")
+        embed = discord.Embed(
+            color=await self.bot.get_embed_color(ctx),
+            title=f"{user.name}'s Avatar"
+        )
+        embed.set_image(
+            url=url
+        )
 
-        await ctx.send("{}'s Avatar URL : {}".format(user.name, url))
+        await ctx.send(embed=embed)
 
     @commands.command(aliases=["owo"])
     async def uwu(self, ctx: commands.Context, *, text: str = None):
@@ -429,6 +497,10 @@ class General(commands.Cog):
         if final_punctuation and not random.randint(0, 4):
             final_punctuation = random.choice(self.KAOMOJI_SPARKLES)
 
+        # Full Words Extra
+        uwu = uwu.replace("love", "wuv")
+        uwu = uwu.replace("source", "sauce")
+
         # L -> W and R -> W
         protected = ""
         if (
@@ -458,6 +530,8 @@ class General(commands.Cog):
         uwu = uwu.replace("asshole", "b-butthole")
         uwu = uwu.replace("dick", "peenie")
         uwu = uwu.replace("penis", "peenie")
+        uwu = uwu.replace("bye", "bai")
+        uwu = uwu.replace("hi", "hai")
         uwu = "cummies" if uwu in ("cum", "semen") else uwu
         uwu = "boi pussy" if uwu == "ass" else uwu
         uwu = "daddy" if uwu in ("dad", "father") else uwu
@@ -475,3 +549,253 @@ class General(commands.Cog):
             uwu = f"{uwu[0]}-{uwu}"
 
         return uwu
+
+    @commands.command()
+    async def fuwwy(self, ctx: commands.Context, *, text: str = None):
+        """Fuwwyize the pwevious message, ow youw own text."""
+        if not text:
+            text = (await ctx.channel.history(limit=2).flatten())[
+                1
+            ].content or "I can't translate that!"
+        await ctx.send(self.fuwwyize_string(text))
+
+    def fuwwyize_string(self, string: str):
+        """Uwuize and wetuwn a stwing."""
+        converted = ""
+        current_word = ""
+        for letter in string:
+            if letter.isprintable() and not letter.isspace():
+                current_word += letter
+            elif current_word:
+                converted += self.fuwwyize_word(current_word) + letter
+                current_word = ""
+            else:
+                converted += letter
+        if current_word:
+            converted += self.fuwwyize_word(current_word)
+        return converted
+
+    def fuwwyize_word(self, word: str):
+        """Uwuize and wetuwn a wowd.
+
+        Thank you to the following for inspiration:
+        https://github.com/senguyen1011/UwUinator
+        """
+        word = word.lower()
+        uwu = word.rstrip(".?!,")
+        punctuations = word[len(uwu) :]
+        final_punctuation = punctuations[-1] if punctuations else ""
+        extra_punctuation = punctuations[:-1] if punctuations else ""
+
+        # Process punctuation
+        if final_punctuation == "." and not random.randint(0, 3):
+            final_punctuation = random.choice(self.KAOMOJI_JOY)
+        if final_punctuation == "?" and not random.randint(0, 2):
+            final_punctuation = random.choice(self.KAOMOJI_CONFUSE)
+        if final_punctuation == "!" and not random.randint(0, 2):
+            final_punctuation = random.choice(self.KAOMOJI_JOY)
+        if final_punctuation == "," and not random.randint(0, 3):
+            final_punctuation = random.choice(self.KAOMOJI_EMBARRASSED)
+        if final_punctuation and not random.randint(0, 4):
+            final_punctuation = random.choice(self.KAOMOJI_SPARKLES)
+
+        # Full Words Extra
+        if uwu == "ahh": uwu = self.fur["ahh"]
+        if uwu == "love": uwu = self.fur["love"]
+        if uwu == "awesome": uwu = self.fur["awesome"]
+        if uwu == "awful": uwu = self.fur["awful"]
+        if uwu == "bite": uwu = self.fur["bite"]
+        if uwu == "bites": uwu = self.fur["bites"]
+        if uwu == "butthole": uwu = self.fur["butthole"]
+        if uwu == "buttholes": uwu = self.fur["buttholes"]
+        if uwu == "bulge": uwu = self.fur["bulge"]
+        if uwu == "bye": uwu = self.fur["bye"]
+        if uwu == "celebrity": uwu = self.fur["celebrity"]
+        if uwu == "celebrities": uwu = self.fur["celebrities"]
+        if uwu == "cheese": uwu = self.fur["cheese"]
+        if uwu == "child" or uwu == "kid" or uwu == "infant": uwu = self.fur["child"]
+        if uwu == "children" or uwu == "kids" or uwu == "infants": uwu = self.fur["children"]
+        if uwu == "robot" or uwu == "cyborg" or uwu == "computer": uwu = self.fur["computer"]
+        if uwu == "robots" or uwu == "cyborgs" or uwu == "computers": uwu = self.fur["computers"]
+        if uwu == "disease": uwu = self.fur["disease"]
+        if uwu == "dog": uwu = self.fur["dog"]
+        if uwu == "dogs": uwu = self.fur["dogs"]
+        if uwu == "dragon": uwu = self.fur["dragon"]
+        if uwu == "dragons": uwu = self.fur["dragons"]
+        if uwu == "eat": uwu = self.fur["eat"]
+        if uwu == "foot": uwu = self.fur["foot"]
+        if uwu == "feet": uwu = self.fur["feet"]
+        if uwu == "for": uwu = self.fur["for"]
+        if uwu == "hand": uwu = self.fur["hand"]
+        if uwu == "hands": uwu = self.fur["hands"]
+        if uwu == "hi": uwu = self.fur["hi"]
+        if uwu == "hyena": uwu = self.fur["hyena"]
+        if uwu == "hyenas": uwu = self.fur["hyenas"]
+        if uwu == "kiss": uwu = self.fur["kiss"]
+        if uwu == "kisses": uwu = self.fur["kisses"]
+        if uwu == "lmao": uwu = self.fur["lmao"]
+        if uwu == "mouth": uwu = self.fur["mouth"]
+        if uwu == "naughty": uwu = self.fur["naughty"]
+        if uwu == "not": uwu = self.fur["not"]
+        if uwu == "perfect": uwu = self.fur["perfect"]
+        if uwu == "persona": uwu = self.fur["persona"]
+        if uwu == "personas": uwu = self.fur["personas"]
+        if uwu == "pervert": uwu = self.fur["pervert"]
+        if uwu == "perverts": uwu = self.fur["perverts"]
+        if uwu == "porn": uwu = self.fur["porn"]
+        if uwu == "roar": uwu = self.fur["roar"]
+        if uwu == "shout": uwu = self.fur["shout"]
+        if uwu == "source": uwu = self.fur["source"]
+        if uwu == "tale": uwu = self.fur["tale"]
+        if uwu == "the": uwu = self.fur["the"]
+        if uwu == "this": uwu = self.fur["this"]
+        if uwu == "what": uwu = self.fur["what"]
+        if uwu == "with": uwu = self.fur["with"]
+        if uwu == "you": uwu = self.fur["you"]
+        if uwu == ":)": uwu = self.fur[":)"]
+        if uwu == ":o" or uwu == ":O": uwu = self.fur[":o"]
+        if uwu == ":D": uwu = self.fur[":D"]
+        if uwu == "XD" or uwu == "xD" or uwu == "xd": uwu = self.fur["XD"]
+
+        # L -> W and R -> W
+        if not uwu in self.fur.values():
+            protected = ""
+            if (
+                uwu.endswith("le")
+                or uwu.endswith("ll")
+                or uwu.endswith("er")
+                or uwu.endswith("re")
+            ):
+                protected = uwu[-2:]
+                uwu = uwu[:-2]
+            elif (
+                uwu.endswith("les")
+                or uwu.endswith("lls")
+                or uwu.endswith("ers")
+                or uwu.endswith("res")
+            ):
+                protected = uwu[-3:]
+                uwu = uwu[:-3]
+            uwu = uwu.replace("l", "w").replace("r", "w") + protected
+
+        # Full words
+        uwu = uwu.replace("you're", "ur")
+        uwu = uwu.replace("youre", "ur")
+        uwu = uwu.replace("fuck", "fwickk")
+        uwu = uwu.replace("shit", "poopoo")
+        uwu = uwu.replace("bitch", "meanie")
+        uwu = uwu.replace("asshole", "b-butthole")
+        uwu = uwu.replace("dick", "peenie")
+        uwu = uwu.replace("penis", "peenie")
+        uwu = "cummies" if uwu in ("cum", "semen") else uwu
+        uwu = "boi pussy" if uwu == "ass" else uwu
+        uwu = "daddy" if uwu in ("dad", "father") else uwu
+
+        # Add back punctuations
+        uwu += extra_punctuation + final_punctuation
+
+        # Add occasional stutter
+        if (
+            len(uwu) > 2
+            and uwu[0].isalpha()
+            and "-" not in uwu
+            and not random.randint(0, 6)
+        ):
+            uwu = f"{uwu[0]}-{uwu}"
+
+        return uwu
+
+    @commands.command()
+    async def utc(self, ctx, time_or_offset = None):
+        """Shows the current UTC time and can convert to local.
+        
+        **Examples:**
+        - `[p]utc` will show the current time at UTC+0
+        - `[p]utc 20:00` shows how long until UTC+0 is `20:00`
+        - `[p]utc -3` shows the local time at UTC-3
+        - `[p]utc +8` shows the local time at UTC+8
+        """
+        current_time = datetime.datetime.utcnow()
+
+        embed = discord.Embed(
+            color=await self.bot.get_embed_color(ctx),
+        )
+        embed.set_author(
+            name="Find your UTC offset here",
+            url="https://www.timeanddate.com/time/map/"
+        )
+
+        try:
+            if time_or_offset:
+                if "+" in time_or_offset or "-" in time_or_offset:
+                    if "+" in time_or_offset:
+                        cleanoffset = time_or_offset.replace("+", "")
+                    else:
+                        cleanoffset = time_or_offset
+                    if ":" in cleanoffset:
+                        time = cleanoffset.split(":")
+                        if int(time[1]) >= 60 or int(time[1]) < 0:
+                            await self.del_message(ctx, "Please only use minutes between 0 and 59")
+                            return
+                        elif int(time[0]) > 14 or int(time[0]) < -12:
+                            await self.del_message(ctx, "Please only use hours between -12 and +14")
+                            return
+                        else:
+                            newtime = current_time + datetime.timedelta(hours=int(time[0]), minutes=int(time[1]))
+                    else:
+                        if int(cleanoffset) > 14 or int(cleanoffset) < -12:
+                            await self.del_message(ctx, "Please only use hours between -12 and +14")
+                            return
+                        else:
+                            newtime = current_time + datetime.timedelta(hours=int(cleanoffset))
+                    embedtitle = f'{newtime.strftime("%H:%M")}'
+                    embeddescription = f'The local time at UTC{time_or_offset} is {newtime.strftime("%H:%M")}'
+                    
+                elif ":" in time_or_offset:
+                    time = time_or_offset.split(":")
+                    if int(time[0]) >= 24 or int(time[0]) < 0:
+                        await self.del_message(ctx, "Please only use hours between 0 and 23")
+                        return
+                    else:
+                        if int(time[1]) >= 60 or int(time[1]) < 0:
+                            await self.del_message(ctx, "Please only use minutes between 0 and 59")
+                            return
+                        else:
+                            newtime = current_time.replace(hour=int(time[0]), minute=int(time[1]))
+                            if newtime < current_time:
+                                newtime = newtime + datetime.timedelta(hours=24)
+                            timeanswer = relativedelta(newtime, current_time)
+                            if timeanswer.hours:
+                                embedtitle = f"{timeanswer.hours} hours and {timeanswer.minutes} minutes"
+                                embeddescription = f"In {timeanswer.hours} hours and {timeanswer.minutes} minutes the clock will be {time[0]}:{time[1]} in UTC+0"
+                            elif timeanswer.minutes:
+                                embedtitle = f"{timeanswer.minutes} minutes"
+                                embeddescription = f"In {timeanswer.minutes} minutes the clock will be {time[0]}:{time[1]} in UTC+0"
+                            else:
+                                embedtitle = f"{time[0]}:{time[1]} is the current time!"
+                                embeddescription = ""
+
+
+                embed.set_footer(
+                    text=f'Current UTC+0 Time ◈ {current_time.strftime("%H:%M")}'
+                )
+                embed.title = embedtitle
+                embed.description = embeddescription
+                await ctx.send(embed=embed)
+            else:
+                embed.add_field(
+                    name="Current UTC+0 Time",
+                    value=current_time.strftime("%H:%M"),
+                    inline=False
+                )
+                await ctx.send(embed=embed)
+        except:
+            await self.del_message(ctx, "I couldn't understand your time format. Do `-help utc` for examples on using the command.")
+
+    async def del_message(self, ctx, message_text):
+        message = await ctx.maybe_send_embed(message_text)
+        await asyncio.sleep(10)
+        try:
+            await message.delete()
+        except (discord.errors.NotFound, discord.errors.Forbidden):
+            pass
