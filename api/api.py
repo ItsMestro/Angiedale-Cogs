@@ -500,7 +500,9 @@ class API(commands.Cog):
         token = (await self.bot.get_shared_api_tokens("tenor")).get("token")
 
         if token:
-            params = {"key": token, "locale": "en_US", "contentfilter": "medium", "limit": 20, "media_filter": "minimal"}
+            params = {"key": token, "contentfilter": "low", "limit": 20, "media_filter": "minimal"}
+            if ctx.channel.is_nsfw() == True:
+                params["contentfilter"] = "off"
 
             if search:
                 url = "https://api.tenor.com/v1/random"
@@ -521,14 +523,26 @@ class API(commands.Cog):
                         try:
                             result = choice(data["results"])
                             embed = discord.Embed(
-                                color=await self.bot.get_embed_color(ctx)
+                                color=await self.bot.get_embed_color(ctx),
+                                title=result["title"]
                             )
+                            if search:
+                                embed.author(
+                                    text=f"Random result for {search}"
+                                )
+                            else:
+                                embed.author(
+                                    text=f"Trending image on tenor"
+                                )
                             embed.set_image(
                                 url=result["media"][0]["gif"]["url"]
                             )
+                            embed.set_footer(
+                                text="Powered by tenor"
+                            )
                             await ctx.send(embed=embed)
                         except:
-                            message = await ctx.maybe_send_embed("Could not find a gif for that search term")
+                            message = await ctx.maybe_send_embed("Could not find a gif for that search term.")
                             await asyncio.sleep(10)
                             try:
                                 await message.delete()
