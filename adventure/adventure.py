@@ -370,8 +370,8 @@ class Adventure(commands.Cog):
 
         default_guild = {
             "cart_channels": [],
-            "god_name": "",
-            "cart_name": "",
+            "god_name": "Kanna Kamui",
+            "cart_name": "Angiedale's Supplies",
             "embed": True,
             "cooldown": 0,
             "cartroom": None,
@@ -392,11 +392,11 @@ class Adventure(commands.Cog):
             "schema_version": 1,
             "rebirth_cost": 100.0,
             "themes": {},
-            "daily_bonus": {"1": 0, "2": 0, "3": 0.5, "4": 0, "5": 0.5, "6": 1.0, "7": 1.0},
+            "daily_bonus": {"1": 0, "2": 0.25, "3": 0, "4": 0.25, "5": 0.5, "6": 1.0, "7": 1.0},
             "tax_brackets": {},
             "separate_economy": False,
-            "to_conversion_rate": 10,
-            "from_conversion_rate": 11,
+            "to_conversion_rate": 5,
+            "from_conversion_rate": 10,
             "max_allowed_withdraw": 50000,
             "disallow_withdraw": False,
             "easy_mode": False,
@@ -8145,7 +8145,7 @@ class Adventure(commands.Cog):
         """Get some free gold."""
         author = ctx.author
         adventure_credits_name = await bank.get_currency_name(ctx.guild)
-        amount = 500  # Make Customizable?
+        amount = 333  # Make Customizable?
         try:
             await bank.deposit_credits(author, amount)
         except BalanceTooHigh as exc:

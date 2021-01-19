@@ -904,5 +904,21 @@
     "zephyr unicorn": {"name": "zephyr unicorn", "bonus": 1.34, "cha": 345, "bonuses": {"always": false, "crit": 30}},
     "zephyr viper": {"name": "zephyr viper", "bonus": 1.08, "cha": 8, "bonuses": {"always": false, "crit": 1}},
     "zephyr wolf": {"name": "zephyr wolf", "bonus": 1.17, "cha": 49, "bonuses": {"always": false, "crit": 13}},
-    "zephyr wraith": {"name": "zephyr wraith", "bonus": 1.22, "cha": 224, "bonuses": {"always": false, "crit": 21}}
+    "zephyr wraith": {"name": "zephyr wraith", "bonus": 1.22, "cha": 224, "bonuses": {"always": false, "crit": 21}},
+    "Green Squid": {"name": "Green Squid", "bonus": 1.34, "cha": 29, "bonuses": {"always": false, "crit": 26}},
+    "Orange Squid": {"name": "Orange Squid", "bonus": 1.35, "cha": 30, "bonuses": {"always": false, "crit": 16}},
+    "Blue Squid": {"name": "Blue Squid", "bonus": 1.35, "cha": 63, "bonuses": {"always": true, "crit": 12}},
+    "Purple Squid": {"name": "Purple Squid", "bonus": 1.4, "cha": 85, "bonuses": {"always": false, "crit": 27}},
+    "Pink Squid": {"name": "Pink Squid", "bonus": 1.45, "cha": 99, "bonuses": {"always": true, "crit": 8}},
+    "Mestro": {"name": "Mestro", "bonus": 1.45, "cha": 166, "bonuses": {"always": false, "crit": 20}},
+    "Octostomp": {"name": "Octostomp", "bonus": 1.54, "cha": 167, "bonuses": {"always": false, "crit": 22}},
+    "Octonozzle": {"name": "Octonozzle", "bonus": 1.64, "cha": 183, "bonuses": {"always": true, "crit": 17}},
+    "Octowhirl": {"name": "Octowhirl", "bonus": 1.65, "cha": 201, "bonuses": {"always": true, "crit": 9}},
+    "Octomaw": {"name": "Octomaw", "bonus": 1.68, "cha": 213, "bonuses": {"always": false, "crit": 25}},
+    "Octobot King": {"name": "Octobot King", "bonus": 1.78, "cha": 222, "bonuses": {"always": false, "crit": 28}},
+    "Nanolight": {"name": "Nanolight", "bonus": 1.79, "cha": 225, "bonuses": {"always": false, "crit": 6}},
+    "Agent 8": {"name": "Agent 8", "bonus": 1.82, "cha": 233, "bonuses": {"always": true, "crit": 1}},
+    "Agent 4": {"name": "Agent 4", "bonus": 1.84, "cha": 234, "bonuses": {"always": false, "crit": 21}},
+    "Agent 3": {"name": "Agent 3", "bonus": 1.99, "cha": 261, "bonuses": {"always": true, "crit": 17}},
+    "Angiedale": {"name": "Angiedale", "bonus": 1.99, "cha": 278, "bonuses": {"always": false, "crit": 23}}
 }
