@@ -376,7 +376,7 @@ class Adventure(commands.Cog):
             "cooldown": 0,
             "cartroom": None,
             "cart_timeout": 10800,
-            "cooldown_timer_manual": 120,
+            "cooldown_timer_manual": 180,
             "rebirth_cost": 100.0,
             "disallow_withdraw": True,
             "max_allowed_withdraw": 50000,
@@ -1153,8 +1153,8 @@ class Adventure(commands.Cog):
                 log.exception("Error with the new character sheet", exc_info=exc)
                 return
             equiplevel = equip_level(c, equip_item)
-            if self.is_dev(ctx.author):  # FIXME:
-                equiplevel = 0
+            # if self.is_dev(ctx.author):  # FIXME:
+            #     equiplevel = 0
 
             if not can_equip(c, equip_item):
                 return await smart_embed(
@@ -1184,7 +1184,8 @@ class Adventure(commands.Cog):
                         lang="css",
                     )
                 await ctx.send(equip_msg)
-                c = await c.equip_item(equip, True, self.is_dev(ctx.author))  # FIXME:
+                # c = await c.equip_item(equip, True, self.is_dev(ctx.author))  # FIXME:
+                c = await c.equip_item(equip, True, False)  # FIXME:
                 await self.config.user(ctx.author).set(await c.to_json(self.config))
 
     @_backpack.command(name="eset", cooldown_after_parsing=True)
@@ -1628,7 +1629,8 @@ class Adventure(commands.Cog):
             log.exception("Error with the new character sheet", exc_info=exc)
             return
 
-        if buy_user.is_backpack_full(is_dev=self.is_dev(buyer)):
+        # if buy_user.is_backpack_full(is_dev=self.is_dev(buyer)):
+        if buy_user.is_backpack_full(is_dev=False):
             await ctx.send(
                 _("**{author}**'s backpack is currently full.").format(author=self.escape(buyer.display_name))
             )
@@ -3773,6 +3775,8 @@ class Adventure(commands.Cog):
                                 self.escape(ctx.author.display_name)
                             ),
                         )
+            else:
+                ctx.command.reset_cooldown(ctx)
 
     @staticmethod
     def check_running_adventure(ctx):
@@ -3826,7 +3830,8 @@ class Adventure(commands.Cog):
                         lang="css",
                     )
                 )
-            if c.is_backpack_full(is_dev=self.is_dev(ctx.author)):
+            # if c.is_backpack_full(is_dev=self.is_dev(ctx.author)):
+            if c.is_backpack_full(is_dev=False):
                 await ctx.send(
                     _("**{author}**, your backpack is currently full.").format(
                         author=self.escape(ctx.author.display_name)
@@ -3967,13 +3972,13 @@ class Adventure(commands.Cog):
             offering = int(bal)
         admin_roll = -1
         nega_set = False
-        if (roll >= 0 or nega) and await self.bot.is_owner(ctx.author):
-            if not self.is_dev(ctx.author):
-                if not await no_dev_prompt(ctx):
-                    ctx.command.reset_cooldown(ctx)
-                    return
-            nega_set = True
-            admin_roll = roll
+        # if (roll >= 0 or nega) and await self.bot.is_owner(ctx.author):
+        #     if not self.is_dev(ctx.author):
+        #         if not await no_dev_prompt(ctx):
+        #             ctx.command.reset_cooldown(ctx)
+        #             return
+        #     nega_set = True
+        #     admin_roll = roll
         offering_value = 0
         winning_state = False
         loss_state = False
@@ -4270,7 +4275,7 @@ class Adventure(commands.Cog):
                     await self.config.user(ctx.author).set(await character.to_json(self.config))
 
     @commands.group(autohelp=False)
-    @commands.cooldown(rate=1, per=5, type=commands.BucketType.user)
+    @commands.cooldown(rate=1, per=20, type=commands.BucketType.user)
     async def pet(self, ctx: commands.Context):
         """[Ranger Class Only]
 
@@ -4367,7 +4372,7 @@ class Adventure(commands.Cog):
                         if force_catch:
                             roll = 0
                         else:
-                            roll = random.randint(0, (2 if roll in [50, 25] else 5))
+                            roll = random.randint(0, (2 if roll in [50, 25] or self.is_dev(ctx.author) else 5))
                         if roll == 0:
                             if force_catch and any(x in c.sets for x in ["The Supreme One", "Ainz Ooal Gown"]):
                                 msg = random.choice(
@@ -4423,7 +4428,8 @@ class Adventure(commands.Cog):
                 return await smart_embed(
                     ctx, _("**{}**, you need to have a pet to do this.").format(self.escape(ctx.author.display_name)),
                 )
-            if c.is_backpack_full(is_dev=self.is_dev(ctx.author)):
+            # if c.is_backpack_full(is_dev=self.is_dev(ctx.author)):
+            if c.is_backpack_full(is_dev=False):
                 await ctx.send(
                     _("**{author}**, Your backpack is currently full.").format(
                         author=self.escape(ctx.author.display_name)
@@ -5645,7 +5651,7 @@ class Adventure(commands.Cog):
                 self.bot.dispatch("adventure_possessed", ctx)
         else:
             timer = 60 * 3
-            no_monster = random.randint(0, 100) == 25
+            no_monster = random.randint(0, 150) == 25
         self._sessions[ctx.guild.id] = GameSession(
             challenge=new_challenge if not no_monster else None,
             attribute=attribute if not no_monster else None,
@@ -5978,7 +5984,8 @@ class Adventure(commands.Cog):
                 except Exception as exc:
                     log.exception("Error with the new character sheet", exc_info=exc)
                     return
-                if c.is_backpack_full(is_dev=self.is_dev(user)):
+                # if c.is_backpack_full(is_dev=self.is_dev(user)):
+                if c.is_backpack_full(is_dev=False):
                     with contextlib.suppress(discord.HTTPException):
                         await to_delete.delete()
                         await msg.delete()
@@ -6076,15 +6083,15 @@ class Adventure(commands.Cog):
         )
         if session.no_monster:
             avaliable_loot = [
-                [0, 0, 1, 5, 2, 1],
-                [0, 0, 0, 0, 1, 2],
-                [0, 0, 1, 5, 1, 1],
-                [0, 0, 1, 3, 0, 1],
-                [0, 0, 1, 1, 1, 1],
-                [0, 0, 0, 0, 0, 1],
-                [0, 0, 3, 1, 0, 0],
-                [0, 0, 1, 2, 1, 0],
-                [0, 0, 0, 3, 2, 0],
+                [0, 2, 0, 0, 1, 1],
+                [0, 0, 1, 0, 1, 1],
+                [0, 0, 0, 1, 0, 1],
+                [2, 0, 1, 0, 0, 1],
+                [1, 0, 0, 1, 1, 0],
+                [0, 1, 2, 1, 0, 0],
+                [1, 0, 0, 1, 0, 0],
+                [1, 2, 1, 0, 0, 0],
+                [0, 1, 0, 0, 0, 0],
             ]
             treasure = random.choice(avaliable_loot)
 
@@ -6188,39 +6195,39 @@ class Adventure(commands.Cog):
         treasure = [0, 0, 0, 0, 0, 0]
         if (slain or persuaded) and not failed:
             success = True
-            roll = random.randint(1, 10)
+            roll = random.randint(1, 24)
             monster_amount = hp + dipl if slain and persuaded else hp if slain else dipl
             if session.transcended:
                 if session.boss and "Trancended" in session.challenge:
                     avaliable_loot = [
-                        [0, 0, 1, 5, 2, 1],
-                        [0, 0, 0, 0, 1, 2],
+                        [0, 0, 1, 1, 1, 1],
+                        [0, 0, 1, 0, 1, 2],
                     ]
                 else:
                     avaliable_loot = [
-                        [0, 0, 1, 5, 1, 1],
-                        [0, 0, 1, 3, 0, 1],
-                        [0, 0, 1, 1, 1, 1],
+                        [0, 0, 0, 2, 1, 1],
+                        [0, 0, 0, 1, 0, 1],
+                        [0, 0, 0, 0, 1, 1],
                         [0, 0, 0, 0, 0, 1],
                     ]
                 treasure = random.choice(avaliable_loot)
             elif session.boss:  # rewards 60:30:10 Epic Legendary Gear Set items
-                avaliable_loot = [[0, 0, 3, 1, 0, 0], [0, 0, 1, 2, 1, 0], [0, 0, 0, 3, 2, 0]]
+                avaliable_loot = [[0, 1, 1, 1, 0, 0], [0, 0, 1, 1, 1, 0], [0, 0, 1, 2, 1, 0]]
                 treasure = random.choice(avaliable_loot)
             elif session.miniboss:  # rewards 50:50 rare:normal chest for killing something like the basilisk
                 treasure = random.choice(
-                    [[1, 1, 1, 0, 0, 0], [0, 0, 1, 1, 1, 0], [0, 0, 2, 2, 0, 0], [0, 1, 0, 2, 1, 0]]
+                    [[1, 1, 1, 0, 0, 0], [0, 1, 1, 1, 0, 0], [0, 0, 1, 2, 0, 0], [0, 1, 0, 2, 1, 0]]
                 )
-            elif monster_amount >= 700:  # super hard stuff
-                if roll <= 7:
+            elif monster_amount >= 800:  # super hard stuff
+                if roll <= 8:
                     treasure = random.choice([[0, 0, 1, 0, 0, 0], [0, 1, 0, 0, 0, 0], [0, 0, 0, 1, 1, 0]])
-            elif monster_amount >= 500:  # rewards 50:50 rare:epic chest for killing hard stuff.
+            elif monster_amount >= 560:  # rewards 50:50 rare:epic chest for killing hard stuff.
                 if roll <= 5:
                     treasure = random.choice([[0, 0, 1, 0, 0, 0], [0, 1, 0, 0, 0, 0], [0, 1, 1, 0, 0, 0]])
-            elif monster_amount >= 300:  # rewards 50:50 rare:normal chest for killing hardish stuff
+            elif monster_amount >= 320:  # rewards 50:50 rare:normal chest for killing hardish stuff
                 if roll <= 2:
                     treasure = random.choice([[1, 0, 0, 0, 0, 0], [0, 1, 0, 0, 0, 0], [1, 1, 0, 0, 0, 0]])
-            elif monster_amount >= 80:  # small chance of a normal chest on killing stuff that's not terribly weak
+            elif monster_amount >= 100:  # small chance of a normal chest on killing stuff that's not terribly weak
                 if roll == 1:
                     treasure = [1, 0, 0, 0, 0, 0]
 
@@ -7519,8 +7526,8 @@ class Adventure(commands.Cog):
             await self.config.user(ctx.author).set(await character.to_json(self.config))
         elif self._treasure_controls[react.emoji] == "equip":
             equiplevel = equip_level(character, item)
-            if self.is_dev(ctx.author):
-                equiplevel = 0
+            # if self.is_dev(ctx.author):
+            #     equiplevel = 0
             if not can_equip(character, item):
                 await character.add_to_backpack(item)
                 await self.config.user(ctx.author).set(await character.to_json(self.config))
@@ -7547,7 +7554,8 @@ class Adventure(commands.Cog):
                     lang="css",
                 )
             await open_msg.edit(content=equip_msg)
-            character = await character.equip_item(item, False, self.is_dev(ctx.author))
+            # character = await character.equip_item(item, False, self.is_dev(ctx.author))
+            character = await character.equip_item(item, False, False)
             await self.config.user(ctx.author).set(await character.to_json(self.config))
         else:
             await character.add_to_backpack(item)
@@ -8140,7 +8148,7 @@ class Adventure(commands.Cog):
 
     @commands.command(name="apayday", cooldown_after_parsing=True)
     @has_separated_economy()
-    @commands.cooldown(rate=1, per=600, type=commands.BucketType.user)
+    @commands.cooldown(rate=1, per=21600, type=commands.BucketType.user)
     async def commands_apayday(self, ctx: commands.Context):
         """Get some free gold."""
         author = ctx.author

@@ -33,7 +33,7 @@ log = logging.getLogger("red.angiedale.adventure.charsheet")
 _ = Translator("Adventure", __file__)
 
 
-DEV_LIST = [208903205982044161, 154497072148643840, 218773382617890828]
+DEV_LIST = [208903205982044161, 154497072148643840, 218773382617890828, 128853022200561665]
 
 ORDER = [
     "head",
@@ -2121,8 +2121,8 @@ def equip_level(char, item, rebirths=None):
 
 
 def can_equip(char: Character, item: Item):
-    if char.user.id in DEV_LIST:
-        return True
+    # if char.user.id in DEV_LIST:
+    #     return True
     return char.lvl >= equip_level(char, item)
 
 
