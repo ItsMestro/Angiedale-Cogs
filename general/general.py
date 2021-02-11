@@ -1,25 +1,22 @@
 import datetime
 import time
+from typing import Union, Optional
 from dateutil.relativedelta import relativedelta
 import random
-from enum import Enum
-from random import randint, choice
-from typing import Final
 import urllib.parse
-import aiohttp
 import discord
 import asyncio
 import logging
-from redbot.core import commands
+from redbot.core import commands, Config
 from redbot.core.bot import Red
-from redbot.core.utils.menus import menu, DEFAULT_CONTROLS
-from redbot.core.utils.common_filters import filter_mass_mentions
+from redbot.core.utils.common_filters import filter_invites, filter_mass_mentions, escape_spoilers_and_mass_mentions
+from redbot.core.utils.menus import close_menu, menu
 from redbot.core.utils.chat_formatting import (
     bold,
     escape,
-    italics,
     humanize_number,
     humanize_timedelta,
+    escape,
 )
 
 log = logging.getLogger("red.angiedale.general")
@@ -52,23 +49,33 @@ class General(commands.Cog):
             "children": "cubs",
             "computer": "protogen",
             "computers": "protogens",
+            "confuse": "confuzzle",
+            "confused": "confuzzled",
             "disease": "pathOwOgen",
             "dog": "good boy",
             "dogs": "good boys",
             "dragon": "derg",
             "dragons": "dergs",
             "eat": "vore",
+            "everyone": "everyfur",
             "foot": "footpaw",
             "feet": "footpaws",
             "for": "fur",
+            "fuck": "yiff",
+            "fucking": "yiffing",
+            "fucked": "yiffed",
             "hand": "paw",
             "hands": "paws",
             "hi": "hai",
+            "human": "hyooman",
+            "humans": "hyoomans",
             "hyena": "yeen",
             "hyenas": "yeens",
+            "innocent": "furocent",
             "kiss": "lick",
             "kisses": "licks",
             "lmao": "hehe~",
+            "masturbate": "paw off",
             "mouth": "maw",
             "naughty": "knotty",
             "not": "knot",
@@ -80,7 +87,9 @@ class General(commands.Cog):
             "porn": "yiff",
             "roar": "rawr",
             "shout": "awoo",
+            "someone": "somefur",
             "source": "sauce",
+            "sexy": "yiffy",
             "tale": "tail",
             "the": "teh",
             "this": "dis",
@@ -98,6 +107,7 @@ class General(commands.Cog):
         self.stopwatches = {}
         self.bot = bot
         self.channels = {}
+        self.FromModconfig = Config.get_conf(self, 4961522000, cog_name="Mod")
 
     @commands.command()
     async def choose(self, ctx, *choices):
@@ -110,7 +120,7 @@ class General(commands.Cog):
         if len(choices) < 2:
             await ctx.send(("Not enough options to pick from."))
         else:
-            await ctx.send(choice(choices))
+            await ctx.send(random.choice(choices))
 
     @commands.command(aliases=["sw"])
     async def stopwatch(self, ctx):
@@ -395,7 +405,7 @@ class General(commands.Cog):
             answer = respecc.content[:1900]
 
         message = await ctx.send(
-            f"Everyone, let's pay respects to **{filter_mass_mentions(answer)}**! Press the f reaction on the this message to pay respects."
+            f"Everyone, let's pay respects to **{filter_mass_mentions(answer)}**! Press the f reaction on this message to pay respects."
         )
         await message.add_reaction("\U0001f1eb")
         self.channels[str(ctx.channel.id)] = {"msg_id": message.id, "reacted": []}
@@ -448,108 +458,6 @@ class General(commands.Cog):
 
         await ctx.send(embed=embed)
 
-    @commands.command(aliases=["owo"])
-    async def uwu(self, ctx: commands.Context, *, text: str = None):
-        """Uwuize the pwevious message, ow youw own text."""
-        if not text:
-            text = (await ctx.channel.history(limit=2).flatten())[
-                1
-            ].content or "I can't translate that!"
-        await ctx.send(self.uwuize_string(text))
-
-    def uwuize_string(self, string: str):
-        """Uwuize and wetuwn a stwing."""
-        converted = ""
-        current_word = ""
-        for letter in string:
-            if letter.isprintable() and not letter.isspace():
-                current_word += letter
-            elif current_word:
-                converted += self.uwuize_word(current_word) + letter
-                current_word = ""
-            else:
-                converted += letter
-        if current_word:
-            converted += self.uwuize_word(current_word)
-        return converted
-
-    def uwuize_word(self, word: str):
-        """Uwuize and wetuwn a wowd.
-
-        Thank you to the following for inspiration:
-        https://github.com/senguyen1011/UwUinator
-        """
-        word = word.lower()
-        uwu = word.rstrip(".?!,")
-        punctuations = word[len(uwu) :]
-        final_punctuation = punctuations[-1] if punctuations else ""
-        extra_punctuation = punctuations[:-1] if punctuations else ""
-
-        # Process punctuation
-        if final_punctuation == "." and not random.randint(0, 3):
-            final_punctuation = random.choice(self.KAOMOJI_JOY)
-        if final_punctuation == "?" and not random.randint(0, 2):
-            final_punctuation = random.choice(self.KAOMOJI_CONFUSE)
-        if final_punctuation == "!" and not random.randint(0, 2):
-            final_punctuation = random.choice(self.KAOMOJI_JOY)
-        if final_punctuation == "," and not random.randint(0, 3):
-            final_punctuation = random.choice(self.KAOMOJI_EMBARRASSED)
-        if final_punctuation and not random.randint(0, 4):
-            final_punctuation = random.choice(self.KAOMOJI_SPARKLES)
-
-        # Full Words Extra
-        uwu = uwu.replace("love", "wuv")
-        uwu = uwu.replace("source", "sauce")
-
-        # L -> W and R -> W
-        protected = ""
-        if (
-            uwu.endswith("le")
-            or uwu.endswith("ll")
-            or uwu.endswith("er")
-            or uwu.endswith("re")
-        ):
-            protected = uwu[-2:]
-            uwu = uwu[:-2]
-        elif (
-            uwu.endswith("les")
-            or uwu.endswith("lls")
-            or uwu.endswith("ers")
-            or uwu.endswith("res")
-        ):
-            protected = uwu[-3:]
-            uwu = uwu[:-3]
-        uwu = uwu.replace("l", "w").replace("r", "w") + protected
-
-        # Full words
-        uwu = uwu.replace("you're", "ur")
-        uwu = uwu.replace("youre", "ur")
-        uwu = uwu.replace("fuck", "fwickk")
-        uwu = uwu.replace("shit", "poopoo")
-        uwu = uwu.replace("bitch", "meanie")
-        uwu = uwu.replace("asshole", "b-butthole")
-        uwu = uwu.replace("dick", "peenie")
-        uwu = uwu.replace("penis", "peenie")
-        uwu = uwu.replace("bye", "bai")
-        uwu = uwu.replace("hi", "hai")
-        uwu = "cummies" if uwu in ("cum", "semen") else uwu
-        uwu = "boi pussy" if uwu == "ass" else uwu
-        uwu = "daddy" if uwu in ("dad", "father") else uwu
-
-        # Add back punctuations
-        uwu += extra_punctuation + final_punctuation
-
-        # Add occasional stutter
-        if (
-            len(uwu) > 2
-            and uwu[0].isalpha()
-            and "-" not in uwu
-            and not random.randint(0, 6)
-        ):
-            uwu = f"{uwu[0]}-{uwu}"
-
-        return uwu
-
     @commands.command()
     async def fuwwy(self, ctx: commands.Context, *, text: str = None):
         """Fuwwyize the pwevious message, ow youw own text."""
@@ -557,7 +465,7 @@ class General(commands.Cog):
             text = (await ctx.channel.history(limit=2).flatten())[
                 1
             ].content or "I can't translate that!"
-        await ctx.send(self.fuwwyize_string(text))
+        await ctx.send(self.fuwwyize_string(text), allowed_mentions=discord.AllowedMentions(users=False))
 
     def fuwwyize_string(self, string: str):
         """Uwuize and wetuwn a stwing."""
@@ -623,17 +531,25 @@ class General(commands.Cog):
         if uwu == "dragon": uwu = self.fur["dragon"]
         if uwu == "dragons": uwu = self.fur["dragons"]
         if uwu == "eat": uwu = self.fur["eat"]
+        if uwu == "everyone": uwu = self.fur["everyone"]
         if uwu == "foot": uwu = self.fur["foot"]
         if uwu == "feet": uwu = self.fur["feet"]
         if uwu == "for": uwu = self.fur["for"]
+        if uwu == "fuck": uwu = self.fur["fuck"]
+        if uwu == "fucking": uwu = self.fur["fucking"]
+        if uwu == "fucked": uwu = self.fur["fucked"]
         if uwu == "hand": uwu = self.fur["hand"]
         if uwu == "hands": uwu = self.fur["hands"]
         if uwu == "hi": uwu = self.fur["hi"]
+        if uwu == "human": uwu = self.fur["human"]
+        if uwu == "humans": uwu = self.fur["humans"]
         if uwu == "hyena": uwu = self.fur["hyena"]
         if uwu == "hyenas": uwu = self.fur["hyenas"]
+        if uwu == "innocent": uwu = self.fur["innocent"]
         if uwu == "kiss": uwu = self.fur["kiss"]
         if uwu == "kisses": uwu = self.fur["kisses"]
         if uwu == "lmao": uwu = self.fur["lmao"]
+        if uwu == "masturbate" or uwu == "fap": uwu = self.fur["masturbate"]
         if uwu == "mouth": uwu = self.fur["mouth"]
         if uwu == "naughty": uwu = self.fur["naughty"]
         if uwu == "not": uwu = self.fur["not"]
@@ -645,7 +561,9 @@ class General(commands.Cog):
         if uwu == "porn": uwu = self.fur["porn"]
         if uwu == "roar": uwu = self.fur["roar"]
         if uwu == "shout": uwu = self.fur["shout"]
+        if uwu == "someone": uwu = self.fur["someone"]
         if uwu == "source": uwu = self.fur["source"]
+        if uwu == "sexy": uwu = self.fur["sexy"]
         if uwu == "tale": uwu = self.fur["tale"]
         if uwu == "the": uwu = self.fur["the"]
         if uwu == "this": uwu = self.fur["this"]
@@ -681,13 +599,12 @@ class General(commands.Cog):
         # Full words
         uwu = uwu.replace("you're", "ur")
         uwu = uwu.replace("youre", "ur")
-        uwu = uwu.replace("fuck", "fwickk")
         uwu = uwu.replace("shit", "poopoo")
         uwu = uwu.replace("bitch", "meanie")
         uwu = uwu.replace("asshole", "b-butthole")
         uwu = uwu.replace("dick", "peenie")
         uwu = uwu.replace("penis", "peenie")
-        uwu = "cummies" if uwu in ("cum", "semen") else uwu
+        uwu = "spooge" if uwu in ("cum", "semen") else uwu
         uwu = "boi pussy" if uwu == "ass" else uwu
         uwu = "daddy" if uwu in ("dad", "father") else uwu
 
@@ -791,6 +708,348 @@ class General(commands.Cog):
                 await ctx.send(embed=embed)
         except:
             await self.del_message(ctx, "I couldn't understand your time format. Do `-help utc` for examples on using the command.")
+
+    @commands.command(aliases=["uinfo"])
+    @commands.guild_only()
+    @commands.bot_has_permissions(embed_links=True)
+    async def userinfo(self, ctx, *, user: discord.Member = None):
+        """Show information about a user.
+
+        This includes fields for status, discord join date, server
+        join date, voice state and previous names/nicknames.
+
+        If the user has no roles, previous names or previous nicknames,
+        these fields will be omitted.
+        """
+        author = ctx.author
+        guild = ctx.guild
+
+        if not user:
+            user = author
+
+        roles = user.roles[-1:0:-1]
+        names = await self.FromModconfig.user(user).past_names()
+        nicks = await self.FromModconfig.member(user).past_nicks()
+        if names:
+            names = [escape_spoilers_and_mass_mentions(name) for name in names if name]
+        if nicks:
+            nicks = [escape_spoilers_and_mass_mentions(nick) for nick in nicks if nick]
+
+        joined_at = user.joined_at
+        since_created = (ctx.message.created_at - user.created_at).days
+        if joined_at is not None:
+            since_joined = (ctx.message.created_at - joined_at).days
+            user_joined = joined_at.strftime("%d %b %Y %H:%M")
+        else:
+            since_joined = "?"
+            user_joined = ("Unknown")
+        user_created = user.created_at.strftime("%d %b %Y %H:%M")
+        voice_state = user.voice
+        member_number = (
+            sorted(guild.members, key=lambda m: m.joined_at or ctx.message.created_at).index(user)
+            + 1
+        )
+
+        created_on = ("{}\n({} days ago)").format(user_created, since_created)
+        joined_on = ("{}\n({} days ago)").format(user_joined, since_joined)
+
+        if any(a.type is discord.ActivityType.streaming for a in user.activities):
+            statusemoji = "\N{LARGE PURPLE CIRCLE}"
+        elif user.status.name == "online":
+            statusemoji = "\N{LARGE GREEN CIRCLE}"
+        elif user.status.name == "offline":
+            statusemoji = "\N{MEDIUM WHITE CIRCLE}\N{VARIATION SELECTOR-16}"
+        elif user.status.name == "dnd":
+            statusemoji = "\N{LARGE RED CIRCLE}"
+        elif user.status.name == "idle":
+            statusemoji = "\N{LARGE ORANGE CIRCLE}"
+        activity = ("User is currently {}").format(user.status)
+        status_string = self.get_status_string(user)
+        if user.id == ctx.guild.owner.id:
+            status_string += "\n\nIs the owner of this server"
+        if user.id == 128853022200561665:
+            status_string += "\nCreated me!  - Angiedale OwO"
+
+        if roles:
+
+            role_str = ", ".join([x.mention for x in roles])
+            # 400 BAD REQUEST (error code: 50035): Invalid Form Body
+            # In embed.fields.2.value: Must be 1024 or fewer in length.
+            if len(role_str) > 1024:
+                # Alternative string building time.
+                # This is not the most optimal, but if you're hitting this, you are losing more time
+                # to every single check running on users than the occasional user info invoke
+                # We don't start by building this way, since the number of times we hit this should be
+                # infinitesimally small compared to when we don't across all uses of Red.
+                continuation_string = (
+                    "and {numeric_number} more roles not displayed due to embed limits."
+                )
+                available_length = 1024 - len(continuation_string)  # do not attempt to tweak, i18n
+
+                role_chunks = []
+                remaining_roles = 0
+
+                for r in roles:
+                    chunk = f"{r.mention}, "
+                    chunk_size = len(chunk)
+
+                    if chunk_size < available_length:
+                        available_length -= chunk_size
+                        role_chunks.append(chunk)
+                    else:
+                        remaining_roles += 1
+
+                role_chunks.append(continuation_string.format(numeric_number=remaining_roles))
+
+                role_str = "".join(role_chunks)
+
+        else:
+            role_str = None
+
+        data = discord.Embed(description=status_string or activity, colour=user.colour)
+
+        data.add_field(name=("Joined Discord on"), value=created_on)
+        data.add_field(name=("Joined this server on"), value=joined_on)
+        if role_str is not None:
+            data.add_field(
+                name=("Roles") if len(roles) > 1 else ("Role"), value=role_str, inline=False
+            )
+        if names:
+            # May need sanitizing later, but mentions do not ping in embeds currently
+            val = filter_invites(", ".join(names))
+            data.add_field(
+                name=("Previous Names") if len(names) > 1 else ("Previous Name"),
+                value=val,
+                inline=False,
+            )
+        if nicks:
+            # May need sanitizing later, but mentions do not ping in embeds currently
+            val = filter_invites(", ".join(nicks))
+            data.add_field(
+                name=("Previous Nicknames") if len(nicks) > 1 else ("Previous Nickname"),
+                value=val,
+                inline=False,
+            )
+        if voice_state and voice_state.channel:
+            data.add_field(
+                name=_("Current voice channel"),
+                value="{0.mention} ID: {0.id}".format(voice_state.channel),
+                inline=False,
+            )
+        data.set_footer(text=("Member #{} | User ID: {}").format(member_number, user.id))
+
+        name = str(user)
+        name = " ◈ ".join((name, user.nick)) if user.nick else name
+        name = filter_invites(name)
+
+        avatar = user.avatar_url_as(static_format="png")
+        data.set_author(name=f"{statusemoji} {name}", url=avatar)
+        data.set_thumbnail(url=avatar)
+
+        await ctx.send(embed=data)
+
+    def get_status_string(self, user):
+        string = ""
+        for a in [
+            self.handle_custom(user),
+            self.handle_playing(user),
+            self.handle_listening(user),
+            self.handle_streaming(user),
+            self.handle_watching(user),
+            self.handle_competing(user),
+        ]:
+            status_string, status_type = a
+            if status_string is None:
+                continue
+            string += f"{status_string}\n"
+        string += f"\nShares servers with bot: {str(len(set([member.guild.name for member in self.bot.get_all_members() if member.id == user.id])))}"
+        return string
+
+    def handle_custom(self, user):
+        a = [c for c in user.activities if c.type == discord.ActivityType.custom]
+        if not a:
+            return None, discord.ActivityType.custom
+        a = a[0]
+        c_status = None
+        if not a.name and not a.emoji:
+            return None, discord.ActivityType.custom
+        elif a.name and a.emoji:
+            c_status = ("Custom Status: {emoji} {name}").format(emoji=a.emoji, name=a.name)
+        elif a.emoji:
+            c_status = ("Custom Status: {emoji}").format(emoji=a.emoji)
+        elif a.name:
+            c_status = ("Custom Status: {name}").format(name=a.name)
+        return c_status, discord.ActivityType.custom
+
+    def handle_playing(self, user):
+        p_acts = [c for c in user.activities if c.type == discord.ActivityType.playing]
+        if not p_acts:
+            return None, discord.ActivityType.playing
+        p_act = p_acts[0]
+        act = ("Playing: {name}").format(name=p_act.name)
+        return act, discord.ActivityType.playing
+
+    def handle_streaming(self, user):
+        s_acts = [c for c in user.activities if c.type == discord.ActivityType.streaming]
+        if not s_acts:
+            return None, discord.ActivityType.streaming
+        s_act = s_acts[0]
+        if isinstance(s_act, discord.Streaming):
+            act = ("Streaming: [{name}{sep}{game}]({url})").format(
+                name=discord.utils.escape_markdown(s_act.name),
+                sep=" | " if s_act.game else "",
+                game=discord.utils.escape_markdown(s_act.game) if s_act.game else "",
+                url=s_act.url,
+            )
+        else:
+            act = ("Streaming: {name}").format(name=s_act.name)
+        return act, discord.ActivityType.streaming
+
+    def handle_listening(self, user):
+        l_acts = [c for c in user.activities if c.type == discord.ActivityType.listening]
+        if not l_acts:
+            return None, discord.ActivityType.listening
+        l_act = l_acts[0]
+        if isinstance(l_act, discord.Spotify):
+            act = ("Listening to: [{title}{sep}{artist}]({url})").format(
+                title=discord.utils.escape_markdown(l_act.title),
+                sep=" | " if l_act.artist else "",
+                artist=discord.utils.escape_markdown(l_act.artist) if l_act.artist else "",
+                url=f"https://open.spotify.com/track/{l_act.track_id}",
+            )
+        else:
+            act = ("Listening to: {title}").format(title=l_act.name)
+        return act, discord.ActivityType.listening
+
+    def handle_watching(self, user):
+        w_acts = [c for c in user.activities if c.type == discord.ActivityType.watching]
+        if not w_acts:
+            return None, discord.ActivityType.watching
+        w_act = w_acts[0]
+        act = ("Watching: {name}").format(name=w_act.name)
+        return act, discord.ActivityType.watching
+
+    def handle_competing(self, user):
+        w_acts = [c for c in user.activities if c.type == discord.ActivityType.competing]
+        if not w_acts:
+            return None, discord.ActivityType.competing
+        w_act = w_acts[0]
+        act = ("Competing in: {competing}").format(competing=w_act.name)
+        return act, discord.ActivityType.competing
+
+    @commands.guild_only()
+    @commands.command(aliases=["chinfo"])
+    async def channelinfo(self, ctx, channel: Union[discord.TextChannel, discord.VoiceChannel, discord.CategoryChannel] = None):
+        """Shows channel information. Defaults to current text channel."""
+        if channel is None:
+            channel = ctx.channel
+
+        if channel is None:
+            return await ctx.send("Not a valid channel.")
+
+        cembed = []
+
+        embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
+        embed.set_author(name=channel.name, icon_url=channel.guild.icon_url)
+        Text = ["members","is_news()"]
+        Voice = ["members[active]","user_limit"]
+
+        embed.set_footer(text=f'Channel ID: {channel.id} ◈ Created at')
+
+        embed.add_field(name="Type", value=str(channel.type).capitalize(), inline=True)
+        embed.add_field(name="Position", value=channel.position, inline=True)
+
+        if isinstance(channel, discord.VoiceChannel):
+            embed.add_field(name="Bitrate", value=f"{int(channel.bitrate / 1000)}kbps", inline=True)
+            embed.add_field(name="Category", value=channel.category, inline=False)
+            embed.add_field(name="Users In Channel", value=len(channel.members), inline=True)
+            embed.add_field(name="User Limit", value=channel.user_limit, inline=True)
+        else:
+            embed.add_field(name="NSFW", value=channel.is_nsfw(), inline=True)
+
+        if isinstance(channel, discord.TextChannel):
+            if channel.topic:
+                embed.description = channel.topic
+            embed.add_field(name="Category", value=channel.category, inline=False)
+            embed.add_field(name="Users With Access", value=len(channel.members), inline=True)
+            embed.add_field(name="Announcement Channel", value=channel.is_news(), inline=True)
+        elif isinstance(channel, discord.CategoryChannel):
+            embed.add_field(name="Text Channels", value=len(channel.text_channels), inline=True)
+            embed.add_field(name="Voice Channels", value=len(channel.voice_channels), inline=True)
+
+        embed.timestamp = channel.created_at
+
+        cembed.append(embed)
+
+        await menu(ctx, cembed, {"\N{CROSS MARK}": close_menu})
+
+    @commands.guild_only()
+    @commands.command(aliases=["einfo"])
+    async def emojiinfo(self, ctx, emoji: Optional[discord.Emoji] = None):
+        """Emoji information. Only works for servers the bot is in"""
+        if not emoji:
+            await self.del_message(ctx, "Please use a custom emoji from a server that I'm in")
+        else:
+            e = emoji
+
+            theembed = []
+
+            embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
+
+            text = f"{e}\n\n"
+            text += f"From Server: **{e.guild}**\n"
+            text += f"Animated: **{e.animated}**\n"
+            text += f"Twitch Sub Emote: **{e.managed}**\n\n"
+            text += f"**[Link To Image]({e.url})**"
+
+            embed.description = text
+            embed.title = e.name
+            embed.set_thumbnail(url=e.url)
+
+            embed.set_footer(text=f'Emote ID: {e.id} ◈ Created at')
+
+            embed.timestamp = e.created_at
+
+            theembed.append(embed)
+
+            await menu(ctx, theembed, {"\N{CROSS MARK}": close_menu})
+
+    @commands.command(aliases=["re"], hidden=True)
+    async def randomemote(self, ctx, all_servers: bool = False):
+        """Sends a random emote."""
+        if await self.bot.is_owner(ctx.author) and all_servers:
+            bad_guilds = 678278754497200139
+            guilds = self.bot.guilds
+            guilds.remove(self.bot.get_guild(bad_guilds))
+            find_guild = True
+            while find_guild:
+                g = random.choice(guilds)
+                el = g.emojis
+                if len(el) > 0:
+                    twitch = True
+                    while twitch and len(el) > 0:
+                        e = random.choice(el)
+                        if not e.managed:
+                            twitch = False
+                        else:
+                            el.remove(e)
+                    find_guild = False
+                else:
+                    guilds.remove(g)
+            await ctx.send(e)
+        else:
+            try:
+                twitch = True
+                el = ctx.guild.emojis
+                while twitch and len(el) > 0:
+                    e = random.choice(el)
+                    if not e.managed:
+                        twitch = False
+                    else:
+                        el.remove(e)
+                await ctx.send(e)
+            except:
+                await self.del_message(ctx, "Seems I cant find an emoji from this server")
 
     async def del_message(self, ctx, message_text):
         message = await ctx.maybe_send_embed(message_text)
