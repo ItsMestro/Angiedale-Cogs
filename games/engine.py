@@ -188,7 +188,7 @@ class GameEngine(Database):
         win, amount, msg, message_obj = result
 
         if not win:
-            embed = await self.build_embed(msg, settings, win, total=amount, bonus="(+0)")
+            embed = await self.build_embed(msg, settings, win, total=amount, bonus="")
             if (not await self.old_message_cache.get_guild(self.ctx.guild)) and message_obj:
                 return await message_obj.edit(content=self.player.mention, embed=embed)
             else:
@@ -197,7 +197,7 @@ class GameEngine(Database):
         player_data = await super().get_data(self.ctx, player=self.player)
         await self.update_stats(stat="Won")
         if self.limit_check(settings, amount):
-            embed = await self.build_embed(msg, settings, win, total=amount, bonus="(+0)")
+            embed = await self.build_embed(msg, settings, win, total=amount, bonus="")
             return await self.limit_handler(
                 embed,
                 amount,
@@ -271,7 +271,7 @@ class GameEngine(Database):
 
         if win:
             embed.colour = 0x00FF00
-            end = ("Congratulations, you just won {} {} {}!\n{}").format(
+            end = ("Congratulations, you just won {} {}{}!\n{}").format(
                 humanize_number(total), currency, bonus, bal_msg
             )
         else:

@@ -1,5 +1,3 @@
-import datetime
-import time
 import calendar
 import logging
 import re
@@ -9,30 +7,24 @@ from random import randint, choice
 from typing import cast, Iterable, Final, List, Literal, Union
 from operator import itemgetter
 
-import urllib.parse
-import aiohttp
 import asyncio
-import math
 import pathlib
 
 import io
 import yaml
 import discord
 
-from collections import Counter, defaultdict, deque, namedtuple
+from collections import Counter, deque
 from redbot.core import commands, Config, checks, bank
 from redbot.core.bot import Red
 from redbot.core.errors import BalanceTooHigh
 from redbot.core.data_manager import cog_data_path
 from redbot.core.utils import AsyncIter
-from redbot.core.utils.menus import menu, DEFAULT_CONTROLS, start_adding_reactions
+from redbot.core.utils.menus import start_adding_reactions
 from redbot.core.utils.predicates import MessagePredicate, ReactionPredicate
 from redbot.core.utils.chat_formatting import (
     bold,
-    escape,
-    italics,
     humanize_number,
-    humanize_timedelta,
     box,
     pagify,
 )
