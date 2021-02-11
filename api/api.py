@@ -527,12 +527,12 @@ class API(commands.Cog):
                                 title=result["title"]
                             )
                             if search:
-                                embed.author(
-                                    text=f"Random result for {search}"
+                                embed.set_author(
+                                    name=f"Result for {search}"
                                 )
                             else:
-                                embed.author(
-                                    text=f"Trending image on tenor"
+                                embed.set_author(
+                                    name=f"Trending image on tenor"
                                 )
                             embed.set_image(
                                 url=result["media"][0]["gif"]["url"]
