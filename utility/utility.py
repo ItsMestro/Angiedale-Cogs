@@ -5,14 +5,18 @@ import logging
 import time
 import random
 import re
+import requests
+import os
+import shutil
+from zipfile import ZipFile
 from typing import Dict, Optional
 from datetime import datetime, timedelta
 from pylint import epylint as lint
 from redbot.core import Config, commands, checks
 from redbot.core.utils.predicates import MessagePredicate, ReactionPredicate
 from redbot.core.bot import Red
-from redbot.core.data_manager import cog_data_path
-from redbot.core.utils.chat_formatting import humanize_timedelta, pagify
+from redbot.core.data_manager import cog_data_path, bundled_data_path
+from redbot.core.utils.chat_formatting import humanize_timedelta, pagify, escape, info, error
 from redbot.core.utils.menus import start_adding_reactions
 from .polls import Poll
 from .converters import PollOptions, TIME_RE, MULTI_RE
@@ -25,7 +29,7 @@ EMOJI_RE = re.compile(r"<a?:[a-zA-Z0-9\_]+:([0-9]+)>")
 class Utility(commands.Cog):
     """Utility commands"""
 
-    raffle_defaults = {"Channel": None, "Raffles": {}}
+    raffle_defaults = {"Channel": None, "Raffles": {}, "Mention": None}
 
     def __init__(self, bot: Red):
         super().__init__()
@@ -40,6 +44,8 @@ class Utility(commands.Cog):
         default_guild_settings = {"polls": {}, "embed": True}
         self.conf.register_guild(**default_guild_settings)
         self.conf.register_global(polls=[])
+        self.newsconfig = Config.get_conf(self, identifier=1387010, cog_name="UtilityNews", force_registration=True)
+        self.newsconfig.register_guild(reporters=[], channel=None, footer=None)
         self.polls: Dict[int, Dict[int, Poll]] = {}
         self.migrate = self.bot.loop.create_task(self.migrate_old_polls())
         self.loop = self.bot.loop.create_task(self.load_polls())
@@ -125,7 +131,7 @@ class Utility(commands.Cog):
         if len(items) < 1:
             await ctx.send(error("Not enough items to pick from."))
         else:
-            await ctx.send(info("From {} items, I pick: {}".format(len(items), choice(items))))
+            await ctx.send(info("From {} items, I pick: {}".format(len(items), random.choice(items))))
 
     @commands.command()
     async def pickx(self, ctx, x : int, *items):
@@ -139,7 +145,7 @@ class Utility(commands.Cog):
         elif len(items) < 1:
             await ctx.send(error("Not enough items to pick from."))
         else:
-            await ctx.send(info("From {} items, I pick: {}".format(len(items), ", ".join(choices(items, k=x)))))
+            await ctx.send(info("From {} items, I pick: {}".format(len(items), ", ".join(random.choices(items, k=x)))))
 
     @commands.command()
     async def drawx(self, ctx, x : int, *items):
@@ -153,7 +159,7 @@ class Utility(commands.Cog):
         elif len(items) < 1 or len(items) < x:
             await ctx.send(error("Not enough items to draw from."))
         else:
-            drawn = sample(range(len(items)), x)
+            drawn = random.sample(range(len(items)), x)
             drawn = [items[i] for i in sorted(drawn)]
             await ctx.send(info("From {} items, I draw: {}".format(len(items), ", ".join(drawn))))
 
@@ -257,7 +263,7 @@ class Utility(commands.Cog):
             await self._roll1(ctx, 1, dice[0])
             return
 
-        d_rol = [randint(1, X) for X in dice]
+        d_rol = [random.randint(1, X) for X in dice]
 
         d_ind = ""
         if len(dice) < 100:
@@ -293,7 +299,7 @@ class Utility(commands.Cog):
         if r_max < r_min:
             await ctx.send(error("Between {} and {} is not a valid range.".format(r_min, r_max)))
         else:
-            r = randint(r_min, r_max)
+            r = random.randint(r_min, r_max)
             await ctx.send(info("I roll {} {}{}-sided die{}, and it lands on: **{:,}**".format(a_an, strange, r_cnt, r_rng, r)))
 
     @commands.group(autohelp=True)
@@ -334,8 +340,15 @@ class Utility(commands.Cog):
         description = f"{description}\n\nReact to this message with <:KannaPog:755808378210746400> to enter.\n\n"
 
         channel = await self._get_channel(ctx)
+        mention = await self.raffleconfig.guild(ctx.guild).Mention()
         end = calendar.timegm(ctx.message.created_at.utctimetuple()) + timer
         fmt_end = time.strftime("%a %d %b %Y %H:%M:%S", time.gmtime(end))
+
+        if mention:
+            mention = ctx.guild.get_role(mention)
+
+        if not mention.is_default():
+            mention = mention.mention
 
         try:
             embed = discord.Embed(
@@ -347,7 +360,11 @@ class Utility(commands.Cog):
         embed.add_field(name="Days on Server", value=f"{dos}")
         role_info = f'{", ".join(str_roles) if roles else "@everyone"}'
         embed.add_field(name="Allowed Roles", value=role_info)
-        msg = await channel.send(embed=embed)
+        embed.add_field(name="Hosted by", value=ctx.author.mention)
+        if mention:
+            msg = await channel.send(content=mention, embed=embed, allowed_mentions=discord.AllowedMentions(everyone=True, roles=True))
+        else:
+            msg = await channel.send(embed=embed)
         embed.set_footer(
             text=(
                 f"Started by: {ctx.author.name} | Winners: {winners} | Ends at {fmt_end} UTC | Raffle ID: {msg.id}"
@@ -482,14 +499,13 @@ class Utility(commands.Cog):
                 "and think that I am stupid enough to say you won something."
             )
 
-    @commands.group(autohelp=True)
-    @commands.guild_only()
-    @commands.guildowner()
-    async def setraffle(self, ctx):
-        """Set Raffle group command"""
+    @raffle.group(autohelp=True)
+    @checks.guildowner()
+    async def set(self, ctx):
+        """Change raffle settings"""
         pass
 
-    @setraffle.command()
+    @set.command()
     async def channel(self, ctx, channel: discord.TextChannel = None):
         """Set the output channel for raffles."""
         if channel:
@@ -497,6 +513,19 @@ class Utility(commands.Cog):
             return await ctx.send(f"Raffle output channel set to {channel.mention}.")
         await self.raffleconfig.guild(ctx.guild).Channel.clear()
         await ctx.send("Raffles will now be started where they were created.")
+
+    @set.command()
+    async def mention(self, ctx, role: discord.Role = None):
+        """Set a role I should ping for raffles."""
+        if role:
+            if role.is_default():
+                await self.raffleconfig.guild(ctx.guild).Mention.set(role.id)
+                return await ctx.send(f"I will now mention {role} for new raffles.")
+            else:
+                await self.raffleconfig.guild(ctx.guild).Mention.set(role.id)
+                return await ctx.send(f"I will now mention {role.mention} for new raffles.", allowed_mentions=discord.AllowedMentions(roles=True))
+        await self.raffleconfig.guild(ctx.guild).Mention.clear()
+        await ctx.send("I will no longer mention any role for new raffles.")
 
     def cog_unload(self):
         self.__unload()
@@ -702,7 +731,7 @@ class Utility(commands.Cog):
             await channel.send(f"Congratulations {display}! You have won the {msg.embeds[0].title} raffle!")
 
     async def validate_entries(self, users, msg):
-        dos, roles = msg.embeds[0].fields
+        dos, roles, host = msg.embeds[0].fields
         dos = int(dos.value)
         roles = roles.value.split(", ")
 
@@ -1084,3 +1113,196 @@ class Utility(commands.Cog):
             self.polls[guild.id] = {}
         self.polls[guild.id][poll.message_id] = poll
         await self.store_poll(poll)
+
+    @commands.command()
+    @commands.guild_only()
+    @checks.is_owner()
+    async def dumpemotes(self, ctx, guild: int = None):
+        """Dumps emotes from a server."""
+        if guild:
+            g = self.bot.get_guild(guild)
+        else:
+            g = ctx.guild
+        path = f"{bundled_data_path(self)}/{g.id}"
+        message = await ctx.send("Give me a moment...")
+
+        if not os.path.exists(path):
+            os.makedirs(path)
+
+        for emote in g.emojis:
+            r = requests.get(emote.url)
+            if emote.animated:
+                with open(f"{path}/{emote.name}.gif", "wb") as f:
+                    f.write(r.content)
+            else:
+                with open(f"{path}/{emote.name}.png", "wb") as f:
+                    f.write(r.content)
+            await asyncio.sleep(0.2)
+        try:
+            await message.delete()
+        except:
+            pass
+        with ZipFile(f"{path}.zip", "w") as zip:
+            for file in os.listdir(path):
+                zip.write(f"{path}/{file}", file)
+
+        with open(f"{path}.zip", "rb") as fp:
+            await ctx.send(content="Here's your emotes!",file=discord.File(fp, f"{g.name} Emotes.zip"))
+        
+        os.remove(f"{path}.zip")
+        shutil.rmtree(path)
+
+    @commands.command()
+    @commands.guild_only()
+    async def sendnews(self, ctx):
+        """Send a news embed in current server."""
+        ss = await self.newsconfig.guild(ctx.guild).all()
+
+        if not ss["channel"]:
+            await self.del_message(ctx, "News have not been set up in this server.")
+            return
+
+        if not ctx.author.id in ss["reporters"]:
+            await self.del_message(ctx, "You have not been added as a reporter. Ask someone that moderates the server to add you.")
+            return
+
+        titlepred = lambda m: len(m.content) <= 256
+        descpred = lambda m: len(m.content) <= 2048
+        yesnopred = MessagePredicate.yes_or_no(ctx, ctx.channel, ctx.author)
+        questionpred = lambda m: len(m.content) <= 256
+        answerpred = lambda m: len(m.content) <= 1024
+
+        def amountpred(m):
+            try:
+                if int(m.content) >= 0 and int(m.content) <= 25:
+                    return True
+                return False
+            except ValueError:
+                return False
+
+        try:
+            title = await self._get_response(ctx, "What title would you like the post to have? (Max 256 Chars)", titlepred)
+            description = await self._get_response(ctx, "What is the content of the post? Type `None` to leave empty (Max 2048 Chars)", descpred)
+
+            q_amount = 0
+            if await self._get_response(ctx, "Do you want to add a QnA section?", yesnopred) == "yes":
+                q_amount = await self._get_response(ctx, "How many questions do you want to add? (Max 25. Each question can max be 256 characters and answers 1024)", amountpred)
+                i = 1
+                qna = []
+                while i <= int(q_amount):
+                    response = await self._get_response(ctx, f"QnA: **{i}** Format like this `<question>|<answer>`", questionpred)
+                    qa = response.split("|")
+                    qna.append(f"{qa[0]}\n{qa[1]}")
+                    i += 1
+        except asyncio.TimeoutError:
+            return await self.del_message(ctx, "I didn't get a response in time. Cancelling news post.")
+
+        embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
+        embed.set_author(
+            name=f"Author: {ctx.author.name}",
+            icon_url=ctx.author.avatar_url
+        )
+        embed.title = title
+        if not description.lower() == "none":
+            embed.description = description
+        embed.timestamp = datetime.utcnow()
+        if ss["footer"]:
+            embed.set_footer(text=ss["footer"])
+
+        channel = self.bot.get_channel(ss["channel"])
+        
+        if channel:
+            await channel.send(embed=embed)
+            if int(q_amount) > 0:
+                embed_list = []
+                qnas = "\n\n".join(qna)
+                pages = list(pagify(qnas, delims=["\n\n"], page_length=4096))
+                for page in pages:
+                    embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
+                    pair = page.split("\n\n")
+                    for t in pair:
+                        f = t.split("\n")
+                        embed.add_field(
+                            name=f[0], value=f[1], inline=False
+                        )
+                    embed_list.append(embed)
+                for e in embed_list:
+                    await channel.send(embed=e)
+        else:
+            await ctx.send("I couldn't find the channel that was set in this server. Maybe it was deleted?")
+
+    @commands.group()
+    @commands.guild_only()
+    @checks.mod_or_permissions(administrator=True)
+    async def setnews(self, ctx):
+        """Change settings for the news command."""
+
+    @setnews.command()
+    async def channel(self, ctx, channel: discord.TextChannel = None):
+        """Set the channel news posts get sent in."""
+        if channel:
+            await self.newsconfig.guild(ctx.guild).channel.set(channel.id)
+            await ctx.send(f"News posts will now be sent in {channel.mention}")
+        else:
+            await ctx.send(f"Channel for news has been cleared.")
+
+    @setnews.command()
+    async def addreporter(self, ctx, user: discord.Member):
+        """Add someone as a news reporter."""
+        if user.id in await self.newsconfig.guild(ctx.guild).reporters():
+            await ctx.send(f"{user.mention} is already a reporter in this server.", allowed_mentions=discord.AllowedMentions(users=False))
+            return
+        async with self.newsconfig.guild(ctx.guild).reporters() as r:
+            r.append(user.id)
+        await ctx.send(f"{user.mention} is now added to the list of reporters.", allowed_mentions=discord.AllowedMentions(users=False))
+
+    @setnews.command()
+    async def removereporter(self, ctx, user: discord.Member):
+        """Add someone as a news reporter."""
+        async with self.newsconfig.guild(ctx.guild).reporters() as r:
+            try:
+                r.remove(user.id)
+            except ValueError:
+                await ctx.send(f"Could not find that user in the list.")
+                return
+        await ctx.send(f"{user.mention} has now been removed from the list of reporters.", allowed_mentions=discord.AllowedMentions(users=False))
+
+    @setnews.command()
+    async def clearreporters(self, ctx):
+        """Clear the list of reporters."""
+        await self.newsconfig.guild(ctx.guild).reporters.clear()
+        await ctx.send("All reporters have now been removed in this server.")
+
+    @setnews.command()
+    async def footer(self, ctx, *, text: str = None):
+        """Set an optional short text that is put at the bottom of every embed."""
+        if not text:
+            await self.newsconfig.guild(ctx.guild).footer.clear()
+            await ctx.send("Cleared the footer text.")
+            return
+
+        if len(text) <= 60:
+            await self.newsconfig.guild(ctx.guild).footer.set(text)
+            await ctx.send("Footer text is now set.")
+        else:
+            await ctx.send("Please use a text that is shorter than 60 characters.")
+
+    async def _get_response(self, ctx, question, predicate):
+        question = await ctx.send(question)
+        resp = await ctx.bot.wait_for(
+            "message",
+            timeout=60,
+            check=lambda m: (m.author == ctx.author and m.channel == ctx.channel and predicate(m)),
+        )
+        if ctx.channel.permissions_for(ctx.me).manage_messages:
+            await resp.delete()
+        await question.delete()
+        return resp.content
+
+    async def del_message(self, ctx, message_text):
+        message = await ctx.maybe_send_embed(message_text)
+        await asyncio.sleep(10)
+        try:
+            await message.delete()
+        except (discord.errors.NotFound, discord.errors.Forbidden):
+            pass
