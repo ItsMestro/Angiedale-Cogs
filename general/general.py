@@ -109,7 +109,7 @@ class General(commands.Cog):
         self.channels = {}
         self.FromModconfig = Config.get_conf(self, 4961522000, cog_name="Mod")
 
-    @commands.command()
+    @commands.command(usage="<choice> <choices...>")
     async def choose(self, ctx, *choices):
         """Choose between multiple options.
 
