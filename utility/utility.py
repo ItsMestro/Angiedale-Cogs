@@ -1169,8 +1169,7 @@ class Utility(commands.Cog):
         titlepred = lambda m: len(m.content) <= 256
         descpred = lambda m: len(m.content) <= 2048
         yesnopred = MessagePredicate.yes_or_no(ctx, ctx.channel, ctx.author)
-        questionpred = lambda m: len(m.content) <= 256
-        answerpred = lambda m: len(m.content) <= 1024
+        questionpred = lambda m: len(m.content) <= 1280
 
         def amountpred(m):
             try:
@@ -1181,19 +1180,24 @@ class Utility(commands.Cog):
                 return False
 
         try:
-            title = await self._get_response(ctx, "What title would you like the post to have? (Max 256 Chars)", titlepred)
-            description = await self._get_response(ctx, "What is the content of the post? Type `None` to leave empty (Max 2048 Chars)", descpred)
+            title = await self._get_news_response(ctx, "What title would you like the post to have? (Max 256 Chars)", titlepred)
+            description = await self._get_news_response(ctx, "What is the content of the post? Type `None` to leave empty (Max 2048 Chars)", descpred)
 
             q_amount = 0
-            if await self._get_response(ctx, "Do you want to add a QnA section?", yesnopred) == "yes":
-                q_amount = await self._get_response(ctx, "How many questions do you want to add? (Max 25. Each question can max be 256 characters and answers 1024)", amountpred)
+            if await self._get_news_response(ctx, "Do you want to add a QnA section?", yesnopred) == "yes":
+                q_amount = await self._get_news_response(ctx, "How many questions do you want to add? (Max 25. Each question can max be 256 characters and answers 1024)", amountpred)
                 i = 1
                 qna = []
                 while i <= int(q_amount):
-                    response = await self._get_response(ctx, f"QnA: **{i}** Format like this `<question>|<answer>`", questionpred)
+                    response = await self._get_news_response(ctx, f"QnA: **{i}** (Format like this `<question>|<answer>`)", questionpred)
                     qa = response.split("|")
-                    qna.append(f"{qa[0]}\n{qa[1]}")
-                    i += 1
+                    if qa[0] > 256:
+                        return await self.del_message(ctx, "Your question was too long.")
+                    elif qa[1] > 1028:
+                        return await self.del_message(ctx, "Your answer was too long.")
+                    else:
+                        qna.append(f"{qa[0]}\a{qa[1]}")
+                        i += 1
         except asyncio.TimeoutError:
             return await self.del_message(ctx, "I didn't get a response in time. Cancelling news post.")
 
@@ -1215,13 +1219,13 @@ class Utility(commands.Cog):
             await channel.send(embed=embed)
             if int(q_amount) > 0:
                 embed_list = []
-                qnas = "\n\n".join(qna)
-                pages = list(pagify(qnas, delims=["\n\n"], page_length=4096))
+                qnas = "\a\a".join(qna)
+                pages = list(pagify(qnas, delims=["\a\a"], page_length=4096))
                 for page in pages:
                     embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
-                    pair = page.split("\n\n")
+                    pair = page.split("\a\a")
                     for t in pair:
-                        f = t.split("\n")
+                        f = t.split("\a")
                         embed.add_field(
                             name=f[0], value=f[1], inline=False
                         )
@@ -1287,7 +1291,7 @@ class Utility(commands.Cog):
         else:
             await ctx.send("Please use a text that is shorter than 60 characters.")
 
-    async def _get_response(self, ctx, question, predicate):
+    async def _get_news_response(self, ctx, question, predicate):
         question = await ctx.send(question)
         resp = await ctx.bot.wait_for(
             "message",

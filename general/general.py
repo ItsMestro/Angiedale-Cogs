@@ -832,7 +832,7 @@ class General(commands.Cog):
             )
         if voice_state and voice_state.channel:
             data.add_field(
-                name=_("Current voice channel"),
+                name=("Current voice channel"),
                 value="{0.mention} ID: {0.id}".format(voice_state.channel),
                 inline=False,
             )

@@ -1210,8 +1210,8 @@ class Management(commands.Cog):
         wheneaster = easter(datetoday.year)
         if datetoday >= wheneaster and datetoday <= wheneaster + timedelta(days=7):
             statuses = ["with you <3", "with things", "with ink", "Splatoon", "in the bot channel", "with my owner", "Happy Easter", "Happy Easter", "with colored eggs", "with bunnies", "egghunt", usersstatus, serversstatus,]
-        elif datetoday.month == 2 and datetoday.day == 14:
-            statuses = ["with you <3", "with things", "with ink", "Splatoon", "in the bot channel", "with my owner", "Happy Valentine", "Happy Valentine", "cupid", "with love", "with a box of heart chocolate", "my lover", usersstatus, serversstatus,]
+        elif datetoday.month == 2 and datetoday.day >= 14 and datetoday.day <= 15:
+            statuses = ["with you <3", "with things", "with ink", "Splatoon", "in the bot channel", "with my owner", "Happy Valentine", "Happy Valentine", "cupid", "with love", "with a box of heart chocolate", "with my lover", "with my valentine", usersstatus, serversstatus,]
         elif datetoday.month == 12 and datetoday.day >= 24 and datetoday.day < 31:
             statuses = ["with you <3", "with things", "with ink", "Splatoon", "in the bot channel", "with my owner", "Merry Christmas", "Happy Holidays" "Merry Squidmas", "the christmas tree", "with santa", "with gifts", "in the snow", usersstatus, serversstatus,]
         elif datetoday.month == 12 and datetoday.day == 31 or datetoday.month == 1 and datetoday.day <= 7:
@@ -1855,7 +1855,7 @@ class Management(commands.Cog):
             for f in t[1]:
                 newlinelist += f"\n{f.name} ◈ **{f.type}** ◈ {f.id}"
             thing.append(f"{t[0].name} ◈ {t[0].id}\n" + newlinelist)
-        categories_formed = "\n\n\n".join(thing)
+        categories_formed = "\a\a\a".join(thing)
         if channels_desc:
             final_string = f"{channels_desc}\t{categories_formed}"
         else:
@@ -1871,7 +1871,7 @@ class Management(commands.Cog):
         base_embed.set_thumbnail(url=ctx.guild.icon_url)
 
         i = 1
-        pages = list(pagify(final_string, delims=["\n\n\n"], page_length=800))
+        pages = list(pagify(final_string, delims=["\a\a\a"], page_length=1000))
         for page in pages:
             embed = base_embed.copy()
             if i == 1:
@@ -1879,12 +1879,15 @@ class Management(commands.Cog):
                     page = page.split("\t")
                     embed.description = page[0]
                     page = page[1]
-            if page.startswith("\n"):
-                page = page[2:]
-            entries = page.split("\n\n\n")
+            if page.startswith("\a\a\a"):
+                page = page[3:]
+            entries = page.split("\a\a\a")
             for c in entries:
-                data = c.split("\n\n")
-                embed.add_field(name=data[0], value=data[1], inline=False)
+                if "\n\n" in c:
+                    data = c.split("\n\n")
+                    embed.add_field(name=data[0], value=data[1], inline=False)
+                else:
+                    embed.description = c
             embed.set_footer(text=f"Page {i}/{len(pages)}")
             embed_list.append(embed)
             i += 1
