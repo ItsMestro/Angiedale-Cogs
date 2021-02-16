@@ -94,8 +94,8 @@ class Helper():
         self.osuconfig: Config = Config.get_conf(self, 1387002, cog_name="Osu")
 
     def map(self, map):
-        if map.startswith("https://osu.ppy.sh/") or map.startswith("http://osu.ppy.sh/"):
-            return map.rsplit('/', 1)[-1]
+        if map.startswith("https://osu.ppy.sh/b/") or map.startswith("http://osu.ppy.sh/b/") or map.startswith("https://osu.ppy.sh/beatmap") or map.startswith("http://osu.ppy.sh/beatmap"):
+            return re.sub("[^0-9]", "", map.rsplit('/', 1)[-1])
         elif map.isdigit():
             return map
         else:
@@ -166,7 +166,7 @@ class Helper():
         if not user:
             userid = await self.osuconfig.user(ctx.author).userid()
             if not userid:
-                await self.profilelinking(ctx)
+                await profilelinking(ctx)
                 return
         else:
             if isinstance(user, discord.Member):
@@ -176,6 +176,10 @@ class Helper():
                 if not str(user).isnumeric():
                     data = await api.fetch_api(ctx, f"users/{user}/osu")
                     await asyncio.sleep(0.5)
+                    if data:
+                        userid = data["id"]
+                elif user.startswith("https://osu.ppy.sh/users") or user.startswith("http://osu.ppy.sh/users") or user.startswith("https://osu.ppy.sh/u/") or user.startswith("http://osu.ppy.sh/u/"):
+                    data = await api.fetch_api(ctx, f'users/{re.sub("[^0-9]", "", user.rsplit("/", 1)[-1])}/osu')
                     if data:
                         userid = data["id"]
                 else:
@@ -222,7 +226,6 @@ class Helper():
         if userid:
             return userid, recent, pos
         else:
-            await del_message(ctx, f"Could not find the user {args[0]}.")
             return
 
     async def pp(self, ctx, api, args):
@@ -290,9 +293,36 @@ class Helper():
 
         return mapid, params
 
+    async def topcompare(self, ctx, api, args):
+        args = self.ttol(args)
+
+        userid = None
+        rank = None
+
+        if "-p" in args:
+            if len(args) > 2:
+                await del_message(ctx, "Please use only one of the available arguments.")
+                return
+            elif len(args) < 2:
+                await del_message(ctx, "Please provide a rank for `-p`")
+                return
+            else:
+                l = args.index("-p")
+                if not args[l + 1].isdigit():
+                    await del_message(ctx, "Please user a number for `-p`")
+                    return
+                elif int(args[l + 1]) > 10000 or int(args[l + 1]) < 1:
+                    await del_message(ctx, "Please provide a rank between 1-10000 for `-p`")
+                    return
+                else:
+                    rank = int(args[l + 1])
+                    return userid, rank
+        else:
+            userid = await self.user(ctx, api, args[0])
+            return userid, rank
+
 async def profilelinking(ctx):
-    prefix = ctx.clean_prefix
-    await ctx.maybe_send_embed(f"Looks like you haven't linked an account.\nYou can do so using `{prefix}osulink <username>`"
+    await ctx.maybe_send_embed(f"Looks like you haven't linked an account.\nYou can do so using `{ctx.clean_prefix}osulink <username>`"
         "\n\nAlternatively you can use the command\nwith a username or id after it.")
 
 async def del_message(ctx, message_text):

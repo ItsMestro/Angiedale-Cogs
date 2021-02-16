@@ -1,7 +1,9 @@
+from re import S
 import discord
 import logging
 import aiohttp
 import asyncio
+from math import ceil
 from typing import Optional, Union
 
 from redbot.core import commands, Config
@@ -23,7 +25,10 @@ class Osu(commands.Cog):
     replaced with any mode.
 
     These versions of modes also work:
-    `std` `osu` `t` `ctb` `fruits` `m`
+    `std` `osu` `o` `s`
+    `t`
+    `ctb` `fruits` `f` `c`
+    `m`
     """
 
     default_user_settings = {"username": None, "userid": None}
@@ -82,10 +87,10 @@ class Osu(commands.Cog):
     async def map(self, ctx, beatmap: str):
         """Get info about a osu! map."""
 
-        map = self.helper.map(beatmap)
+        mapid = self.helper.map(beatmap)
 
-        if map:
-            data = await self.api.fetch_api(ctx, f'beatmaps/{map}')
+        if mapid:
+            data = await self.api.fetch_api(ctx, f'beatmaps/{mapid}')
 
             if data:
                 embeds = await self.embed.map(ctx, data)
@@ -174,7 +179,7 @@ class Osu(commands.Cog):
     @commands.command(aliases=["osuc", "oc"])
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def osucompare(self, ctx, user = None):
-        """Compare your score with the last one sent in the channel.
+        """Compare your or someone elses score with the last one sent in the channel.
         """
 
         userid = await self.helper.user(ctx, self.api, user)
@@ -205,14 +210,37 @@ class Osu(commands.Cog):
 
     @commands.command(aliases=["osus", "os"])
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def osuscore(self, ctx, *username):
-        """Get a users score for a specified map."""
-        await ctx.send("wip")
+    async def osuscore(self, ctx, beatmap, user = None):
+        """Get your or another users score for a specified map."""
+        
+        userid = await self.helper.user(ctx, self.api, user)
+
+        if userid:
+            mapid = self.helper.map(beatmap)
+
+            if mapid:
+                mapdata = await self.api.fetch_api(ctx, f"beatmaps/{mapid}")
+                if mapdata:
+                    await asyncio.sleep(0.5)
+                    data = await self.api.fetch_api(ctx, f"beatmaps/{mapid}/scores/users/{userid}")
+
+                    if data:
+                        embeds = await self.embed.recent(ctx, [data["score"]], mapdata)
+                        await menu(ctx, embeds, multipage(embeds))
+                    else:
+                        if user:
+                            await del_message(ctx, f"Can't find any plays on that map by {user}.")
+                        else:
+                            await del_message(ctx, "Can't find any plays on that map by you.")
+                else:
+                    await del_message(ctx, "I can't find the map specified.")
+            else:
+                await del_message(ctx, f"That doesn't seem to be a valid map.")
 
     @commands.command(hidden=True)
     @commands.guild_only()
     @commands.cooldown(10, 10, commands.BucketType.user)
-    async def et(self, ctx, user: discord.Member=None):
+    async def et(self, ctx, user: discord.Member = None):
         """Marcinho is ET"""
 
         author = ctx.message.author
@@ -235,9 +263,26 @@ class Osu(commands.Cog):
 
         await ctx.send(message)
 
+    @commands.command(hidden=True)
+    @commands.guild_only()
+    @commands.cooldown(10, 10, commands.BucketType.user)
+    async def birthday(self, ctx, user: discord.Member = None):
+        """It's Zayyken's birthday today"""
+
+        author = ctx.message.author
+        if not user:
+            if ctx.guild.id == 571000112688660501:
+                message = f"{author.mention} wishes <@201671692647399424> Happy Birthday!"
+            else:
+                message = "I dont know who you're trying to wish happy birthday"
+        else:
+            message = f"{author.mention} wishes {user.mention} Happy Birthday!"
+
+        await ctx.send(message)
+
     @commands.command(aliases=["osu", "std"])
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def standard(self, ctx, user: Optional[Union[str, int, discord.Member]] = None):
+    async def standard(self, ctx, user = None):
         """Get a players osu! profile."""
 
         userid = await self.helper.user(ctx, self.api, user)
@@ -256,7 +301,7 @@ class Osu(commands.Cog):
 
     @commands.command(hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def taiko(self, ctx, user: Optional[Union[str, int, discord.Member]] = None):
+    async def taiko(self, ctx, user = None):
         """Get a players osu! profile."""
 
         userid = await self.helper.user(ctx, self.api, user)
@@ -274,7 +319,7 @@ class Osu(commands.Cog):
 
     @commands.command(aliases=["catch", "ctb"], hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def fruits(self, ctx, user: Optional[Union[str, int, discord.Member]] = None):
+    async def fruits(self, ctx, user = None):
         """Get a players osu! profile."""
 
         userid = await self.helper.user(ctx, self.api, user)
@@ -292,7 +337,7 @@ class Osu(commands.Cog):
 
     @commands.command(hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def mania(self, ctx, user: Optional[Union[str, int, discord.Member]] = None):
+    async def mania(self, ctx, user = None):
         """Get a players osu! profile."""
 
         userid = await self.helper.user(ctx, self.api, user)
@@ -308,9 +353,9 @@ class Osu(commands.Cog):
             else:
                 await del_message(ctx, "I can't seem to get your profile.")
 
-    @commands.command(aliases=["rsstd", "recentosu", "rsosu", "rsstandard", "recentstd"])
+    @commands.command(aliases=["rsstd", "recentosu", "rsosu", "rsstandard", "recentstd", "rso"])
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def recentstandard(self, ctx, user: Optional[Union[str, int, discord.Member]] = None):
+    async def recentstandard(self, ctx, user = None):
         """Get a players recent osu! plays.
         
         Includes failed plays.
@@ -333,7 +378,7 @@ class Osu(commands.Cog):
 
     @commands.command(aliases=["rst", "rstaiko", "recentt"], hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def recenttaiko(self, ctx, user: Optional[Union[str, int, discord.Member]] = None):
+    async def recenttaiko(self, ctx, user = None):
         """Get a players recent osu! plays.
         
         Includes failed plays.
@@ -356,7 +401,7 @@ class Osu(commands.Cog):
 
     @commands.command(aliases=["rsctb", "recentcatch", "recentctb", "rscatch", "rsfruits"], hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def recentfruits(self, ctx, user: Optional[Union[str, int, discord.Member]] = None):
+    async def recentfruits(self, ctx, user = None):
         """Get a players recent osu! plays.
         
         Includes failed plays.
@@ -379,7 +424,7 @@ class Osu(commands.Cog):
 
     @commands.command(aliases=["rsm", "recentm", "rsmania"], hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def recentmania(self, ctx, user: Optional[Union[str, int, discord.Member]] = None):
+    async def recentmania(self, ctx, user = None):
         """Get a players recent osu! plays.
         
         Includes failed plays.
@@ -556,7 +601,7 @@ class Osu(commands.Cog):
         
         **Arguments:**
         
-        - `-pp <number>` will dsiplay how many scores you have above `<number>`"""
+        - `-pp <number>` will display how many scores you have above `<number>`"""
         
         userid, pp = await self.helper.pp(ctx, self.api, user_or_args)
 
@@ -585,7 +630,7 @@ class Osu(commands.Cog):
         
         **Arguments:**
         
-        - `-pp <number>` will dsiplay how many scores you have above `<number>`"""
+        - `-pp <number>` will display how many scores you have above `<number>`"""
         
         userid, pp = await self.helper.pp(ctx, self.api, user_or_args)
 
@@ -614,7 +659,7 @@ class Osu(commands.Cog):
         
         **Arguments:**
         
-        - `-pp <number>` will dsiplay how many scores you have above `<number>`"""
+        - `-pp <number>` will display how many scores you have above `<number>`"""
         
         userid, pp = await self.helper.pp(ctx, self.api, user_or_args)
 
@@ -635,3 +680,211 @@ class Osu(commands.Cog):
                 await menu(ctx, embeds, singlepage())
             else:
                 await del_message(ctx, f"There isn't enough plays by this user to use this command.")
+
+    @commands.command(aliases=["tcs", "tco", "tcstd", "tcosu", "topcompareosu", "topcomparestd"])
+    @commands.cooldown(1, 20, commands.BucketType.user)
+    async def topcomparestandard(self, ctx, *user_or_args):
+        """Returns a list of unique maps between you and another user.
+
+        Requires to have your account linked with the bot.
+
+        **Arguments:**
+        
+        - `-p <rank>` will compare you with the person at `<rank>` rank. Can not be higher than 10,000.
+        - `<user>` compares you with the specific user.
+        """
+
+        author = await self.osuconfig.user(ctx.author).userid()
+
+        if author:
+            userid, rank = await self.helper.topcompare(ctx, self.api, user_or_args)
+
+            if rank:
+                params = {"cursor[page]": ceil(rank / 50)}
+
+                data = await self.api.fetch_api(ctx, f'rankings/osu/performance', params=params)
+                userid = data["ranking"][(rank % 50) - 1]["user"]["id"]
+
+            if userid:
+                params = {"mode": "osu", "limit": "50"}
+
+                udata1 = await self.api.fetch_api(ctx, f"users/{userid}/scores/best", params=params)
+
+                if udata1:
+                    adata1 = await self.api.fetch_api(ctx, f"users/{author}/scores/best", params=params)
+
+                    if adata1:
+                        params["offset"] =  "50"
+                        adata2 = await self.api.fetch_api(ctx, f"users/{author}/scores/best", params=params)
+                        adata = adata1 + adata2
+
+                        udata2 = await self.api.fetch_api(ctx, f"users/{userid}/scores/best", params=params)
+                        udata = udata1 + udata2
+
+                        embeds = await self.embed.topcompare(ctx, adata, udata)
+                        if embeds:
+                            await menu(ctx, embeds, multipage(embeds))
+                        else:
+                            await del_message(ctx, "Your top plays are surprisingly identical.")
+                    else:
+                        await del_message(ctx, "You don't seem to have any top plays in this mode.")
+                else:
+                    await del_message(ctx, "That user doesn't seem to have any top plays in this mode.")
+        else:
+            await del_message(ctx, f"You need to have your account linked before using this command.\nYou can do so using `{ctx.clean_prefix}osulink <username>`")
+
+    @commands.command(aliases=["tct", "tct"], hidden=True)
+    @commands.cooldown(1, 20, commands.BucketType.user)
+    async def topcomparetaiko(self, ctx, *user_or_args):
+        """Returns a list of unique maps between you and another user.
+
+        Requires to have your account linked with the bot.
+
+        **Arguments:**
+        
+        - `-p <rank>` will compare you with the person at `<rank>` rank. Can not be higher than 10,000.
+        - `<user>` compares you with the specific user.
+        """
+
+        author = await self.osuconfig.user(ctx.author).userid()
+
+        if author:
+            userid, rank = await self.helper.topcompare(ctx, self.api, user_or_args)
+
+            if rank:
+                params = {"cursor[page]": ceil(rank / 50)}
+
+                data = await self.api.fetch_api(ctx, f'rankings/taiko/performance', params=params)
+                userid = data["ranking"][(rank % 50) - 1]["user"]["id"]
+
+            if userid:
+                params = {"mode": "taiko", "limit": "50"}
+
+                udata1 = await self.api.fetch_api(ctx, f"users/{userid}/scores/best", params=params)
+
+                if udata1:
+                    adata1 = await self.api.fetch_api(ctx, f"users/{author}/scores/best", params=params)
+
+                    if adata1:
+                        params["offset"] =  "50"
+                        adata2 = await self.api.fetch_api(ctx, f"users/{author}/scores/best", params=params)
+                        adata = adata1 + adata2
+
+                        udata2 = await self.api.fetch_api(ctx, f"users/{userid}/scores/best", params=params)
+                        udata = udata1 + udata2
+
+                        embeds = await self.embed.topcompare(ctx, adata, udata)
+                        if embeds:
+                            await menu(ctx, embeds, multipage(embeds))
+                        else:
+                            await del_message(ctx, "Your top plays are surprisingly identical.")
+                    else:
+                        await del_message(ctx, "You don't seem to have any top plays in this mode.")
+                else:
+                    await del_message(ctx, "That user doesn't seem to have any top plays in this mode.")
+        else:
+            await del_message(ctx, f"You need to have your account linked before using this command.\nYou can do so using `{ctx.clean_prefix}osulink <username>`")
+
+    @commands.command(aliases=["tcf", "tcc", "tcctb", "topcomparecatch", "topcomparectb", "tcfruits", "tccatch"], hidden=True)
+    @commands.cooldown(1, 20, commands.BucketType.user)
+    async def topcomparefruits(self, ctx, *user_or_args):
+        """Returns a list of unique maps between you and another user.
+
+        Requires to have your account linked with the bot.
+
+        **Arguments:**
+        
+        - `-p <rank>` will compare you with the person at `<rank>` rank. Can not be higher than 10,000.
+        - `<user>` compares you with the specific user.
+        """
+
+        author = await self.osuconfig.user(ctx.author).userid()
+
+        if author:
+            userid, rank = await self.helper.topcompare(ctx, self.api, user_or_args)
+
+            if rank:
+                params = {"cursor[page]": ceil(rank / 50)}
+
+                data = await self.api.fetch_api(ctx, f'rankings/fruits/performance', params=params)
+                userid = data["ranking"][(rank % 50) - 1]["user"]["id"]
+
+            if userid:
+                params = {"mode": "fruits", "limit": "50"}
+
+                udata1 = await self.api.fetch_api(ctx, f"users/{userid}/scores/best", params=params)
+
+                if udata1:
+                    adata1 = await self.api.fetch_api(ctx, f"users/{author}/scores/best", params=params)
+
+                    if adata1:
+                        params["offset"] =  "50"
+                        adata2 = await self.api.fetch_api(ctx, f"users/{author}/scores/best", params=params)
+                        adata = adata1 + adata2
+
+                        udata2 = await self.api.fetch_api(ctx, f"users/{userid}/scores/best", params=params)
+                        udata = udata1 + udata2
+
+                        embeds = await self.embed.topcompare(ctx, adata, udata)
+                        if embeds:
+                            await menu(ctx, embeds, multipage(embeds))
+                        else:
+                            await del_message(ctx, "Your top plays are surprisingly identical.")
+                    else:
+                        await del_message(ctx, "You don't seem to have any top plays in this mode.")
+                else:
+                    await del_message(ctx, "That user doesn't seem to have any top plays in this mode.")
+        else:
+            await del_message(ctx, f"You need to have your account linked before using this command.\nYou can do so using `{ctx.clean_prefix}osulink <username>`")
+
+    @commands.command(aliases=["tcm", "tcmania"], hidden=True)
+    @commands.cooldown(1, 20, commands.BucketType.user)
+    async def topcomparemania(self, ctx, *user_or_args):
+        """Returns a list of unique maps between you and another user.
+
+        Requires to have your account linked with the bot.
+
+        **Arguments:**
+        
+        - `-p <rank>` will compare you with the person at `<rank>` rank. Can not be higher than 10,000.
+        - `<user>` compares you with the specific user.
+        """
+
+        author = await self.osuconfig.user(ctx.author).userid()
+
+        if author:
+            userid, rank = await self.helper.topcompare(ctx, self.api, user_or_args)
+
+            if rank:
+                params = {"cursor[page]": ceil(rank / 50)}
+
+                data = await self.api.fetch_api(ctx, f'rankings/mania/performance', params=params)
+                userid = data["ranking"][(rank % 50) - 1]["user"]["id"]
+
+            if userid:
+                params = {"mode": "mania", "limit": "50"}
+
+                udata1 = await self.api.fetch_api(ctx, f"users/{userid}/scores/best", params=params)
+
+                if udata1:
+                    adata1 = await self.api.fetch_api(ctx, f"users/{author}/scores/best", params=params)
+
+                    if adata1:
+                        params["offset"] =  "50"
+                        adata2 = await self.api.fetch_api(ctx, f"users/{author}/scores/best", params=params)
+                        adata = adata1 + adata2
+
+                        udata2 = await self.api.fetch_api(ctx, f"users/{userid}/scores/best", params=params)
+                        udata = udata1 + udata2
+
+                        embeds = await self.embed.topcompare(ctx, adata, udata)
+                        if embeds:
+                            await menu(ctx, embeds, multipage(embeds))
+                        else:
+                            await del_message(ctx, "Your top plays are surprisingly identical.")
+                    else:
+                        await del_message(ctx, "You don't seem to have any top plays in this mode.")
+                else:
+                    await del_message(ctx, "That user doesn't seem to have any top plays in this mode.")
+        else:
+            await del_message(ctx, f"You need to have your account linked before using this command.\nYou can do so using `{ctx.clean_prefix}osulink <username>`")

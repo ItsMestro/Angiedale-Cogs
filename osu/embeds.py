@@ -141,7 +141,7 @@ class Embed():
             embed_list.append(embed)
         else:
             page_num = 1
-            while page_num <= ceil(len(data) / 5):
+            while page_num <= ceil(len(d) / 5):
                 start_index = (page_num - 1) * 5
                 end_index = (page_num - 1 ) * 5 + 5
                 maps = ""
@@ -177,12 +177,81 @@ class Embed():
                 
                 embed.description = maps
 
-                embed.set_footer(text=f"Page {page_num}/{ceil(len(data) / 5)}")
+                embed.set_footer(text=f"Page {page_num}/{ceil(len(d) / 5)}")
 
                 embed_list.append(embed)
                 page_num += 1
         
         return embed_list
+
+    async def topcompare(self, ctx, adata, udata):
+        ad = self.d.top(adata)
+        ud = self.d.top(udata)
+
+        for ascore in enumerate(ad):
+            for uscore in enumerate(ud):
+                if ud[uscore[0]]["mapid"] == ad[ascore[0]]["mapid"]:
+                    ud.pop(uscore[0])
+                    break
+        d = ud
+
+        if len(d) > 0:
+            embed_list = []
+            base_embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
+
+            base_embed.set_author(
+                name=f'Comparing unique top plays for {d[0]["username"]} | osu!{d[0]["mode"].capitalize()}',
+                url=f'https://osu.ppy.sh/users/{d[0]["userid"]}',
+                icon_url=f'https://osu.ppy.sh/images/flags/{d[0]["userflag"]}.png'
+            )
+
+            base_embed.set_thumbnail(url=f'https://a.ppy.sh/{d[0]["userid"]}')
+
+            page_num = 1
+            while page_num <= ceil(len(d) / 5):
+                start_index = (page_num - 1) * 5
+                end_index = (page_num - 1 ) * 5 + 5
+                maps = ""
+                for map in d[start_index:end_index]:
+                    mods = ""
+                    if map["mods"]:
+                        mods = f' +{mods.join(map["mods"])}'
+
+                    date = datetime.now() - datetime.strptime(map["played"], "%Y-%m-%dT%H:%M:%S%z").replace(tzinfo=None)
+                    time = re.split(r",\s", humanize_timedelta(timedelta=date))
+                    try:
+                        time = f'{time[0]} {time[1]}'
+                    except ValueError:
+                        pass
+                    except IndexError:
+                        time = time[0]
+
+                    if map["mapmode"] == 3:
+                        version = re.sub(r"^\S*\s", "", map["version"])
+                        hits = f'{humanize_number(map["scoregeki"])}/{humanize_number(map["score300"])}/{humanize_number(map["scorekatu"])}/{humanize_number(map["score100"])}/{humanize_number(map["score50"])}/{humanize_number(map["scoremiss"])}'
+                    else:
+                        version = map["version"]
+                        hits = f'{humanize_number(map["score300"])}/{humanize_number(map["score100"])}/{humanize_number(map["score50"])}/{humanize_number(map["scoremiss"])}'
+
+                    maps += (
+                        f'**{map["index"] + 1}. [{map["title"]} - [{version}]]({map["mapurl"]}){mods}** [{map["sr"]}★]\n'
+                        f'{EMOJI[map["scorerank"]]} **{humanize_number(round(map["scorepp"],2))}pp** ◈ ({"{:.2%}".format(map["accuracy"])}) ◈ {humanize_number(map["score"])}\n'
+                        f'**{humanize_number(map["combo"])}x** ◈ [{hits}] ◈ {time} ago\n\n'
+                    )
+
+                
+                embed = base_embed.copy()
+                
+                embed.description = maps
+
+                embed.set_footer(text=f'Page {page_num}/{ceil(len(d) / 5)} ◈ Found {len(d)} unique plays not in top 100 for {ad[0]["username"]}')
+
+                embed_list.append(embed)
+                page_num += 1
+
+            return embed_list
+        else:
+            return
 
     async def map(self, ctx, data):
         d = self.d.map(data)
@@ -399,9 +468,9 @@ class Embed():
                 titleshort = f'{e["title"]}{dev}'
                 titlemini = f'{e["title"]}'
                 if e["major"] == True:
-                    titlefull = bold(titlefull)
-                    titleshort = bold(titleshort)
-                    titlemini = bold(titlemini)
+                    titlefull = f'**{titlefull}**'
+                    titleshort = f'**{titleshort}**'
+                    titlemini = f'**{titlemini}**'
 
 
                 if e["category"] in catfull:
@@ -881,6 +950,7 @@ class Data:
             score["mapmode"] = s["beatmap"]["mode_int"]
             score["version"] = s["beatmap"]["version"]
             score["mapurl"] = s["beatmap"]["url"]
+            score["mapid"] = s["beatmap"]["id"]
             score["sr"] = s["beatmap"]["difficulty_rating"]
             score["ar"] = s["beatmap"]["ar"]
             score["cs"] = s["beatmap"]["cs"]
@@ -1021,7 +1091,10 @@ class Data:
         data["achievements"] = d["user_achievements"]
         data["followers"] = d["follower_count"]
         data["joined"] = d["join_date"]
-        data["rankhistory"] = d["rank_history"]["data"]
+        try:
+            data["rankhistory"] = d["rank_history"]["data"]
+        except:
+            pass
         data["mode"] = d["rank_history"]["mode"]
         data["online"] = d["is_online"]
 
