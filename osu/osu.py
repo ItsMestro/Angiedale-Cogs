@@ -445,7 +445,7 @@ class Osu(commands.Cog):
             else:
                 await del_message(ctx, f"Looks like you don't have any recent plays in that mode.")
 
-    @commands.command(aliases=["topstd", "toposu"])
+    @commands.command(aliases=["topstd", "toposu"], usage="[user] [args]")
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def topstandard(self, ctx, *user_or_args):
         """Get a players osu! top plays.
@@ -475,7 +475,7 @@ class Osu(commands.Cog):
             else:
                 await del_message(ctx, f"I can't find any top plays for that user in this mode.")
 
-    @commands.command(aliases=["topt"], hidden=True)
+    @commands.command(aliases=["topt"], hidden=True, usage="[user] [args]")
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def toptaiko(self, ctx, *user_or_args):
         """Get a players osu! top plays.
@@ -505,7 +505,7 @@ class Osu(commands.Cog):
             else:
                 await del_message(ctx, f"I can't find any top plays for that user in this mode.")
 
-    @commands.command(aliases=["topcatch", "topctb"], hidden=True)
+    @commands.command(aliases=["topcatch", "topctb"], hidden=True, usage="[user] [args]")
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def topfruits(self, ctx, *user_or_args):
         """Get a players osu! top plays.
@@ -535,7 +535,7 @@ class Osu(commands.Cog):
             else:
                 await del_message(ctx, f"I can't find any top plays for that user in this mode.")
 
-    @commands.command(aliases=["topm"], hidden=True)
+    @commands.command(aliases=["topm"], hidden=True, usage="[user] [args]")
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def topmania(self, ctx, *user_or_args):
         """Get a players osu! top plays.
@@ -565,7 +565,7 @@ class Osu(commands.Cog):
             else:
                 await del_message(ctx, f"I can't find any top plays for that user in this mode.")
 
-    @commands.command(aliases=["ppstd", "pposu"])
+    @commands.command(aliases=["ppstd", "pposu"], usage="[user] [args]")
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def ppstandard(self, ctx, *user_or_args):
         """Shows pp info for osu!.
@@ -594,7 +594,7 @@ class Osu(commands.Cog):
             else:
                 await del_message(ctx, f"There isn't enough plays by this user to use this command.")
 
-    @commands.command(aliases=["ppt"], hidden=True)
+    @commands.command(aliases=["ppt"], hidden=True, usage="[user] [args]")
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def pptaiko(self, ctx, *user_or_args):
         """Shows pp info for osu!.
@@ -623,7 +623,7 @@ class Osu(commands.Cog):
             else:
                 await del_message(ctx, f"There isn't enough plays by this user to use this command.")
 
-    @commands.command(aliases=["ppf", "ppc", "ppcatch", "ppctb"], hidden=True)
+    @commands.command(aliases=["ppf", "ppc", "ppcatch", "ppctb"], hidden=True, usage="[user] [args]")
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def ppfruits(self, ctx, *user_or_args):
         """Shows pp info for osu!.
@@ -652,7 +652,7 @@ class Osu(commands.Cog):
             else:
                 await del_message(ctx, f"There isn't enough plays by this user to use this command.")
 
-    @commands.command(aliases=["ppm"], hidden=True)
+    @commands.command(aliases=["ppm"], hidden=True, usage="[user] [args]")
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def ppmania(self, ctx, *user_or_args):
         """Shows pp info for osu!.
@@ -681,7 +681,7 @@ class Osu(commands.Cog):
             else:
                 await del_message(ctx, f"There isn't enough plays by this user to use this command.")
 
-    @commands.command(aliases=["tcs", "tco", "tcstd", "tcosu", "topcompareosu", "topcomparestd"])
+    @commands.command(aliases=["tcs", "tco", "tcstd", "tcosu", "topcompareosu", "topcomparestd"], usage="[user] [args]")
     @commands.cooldown(1, 20, commands.BucketType.user)
     async def topcomparestandard(self, ctx, *user_or_args):
         """Returns a list of unique maps between you and another user.
@@ -733,7 +733,7 @@ class Osu(commands.Cog):
         else:
             await del_message(ctx, f"You need to have your account linked before using this command.\nYou can do so using `{ctx.clean_prefix}osulink <username>`")
 
-    @commands.command(aliases=["tct", "tct"], hidden=True)
+    @commands.command(aliases=["tct", "tct"], hidden=True, usage="[user] [args]")
     @commands.cooldown(1, 20, commands.BucketType.user)
     async def topcomparetaiko(self, ctx, *user_or_args):
         """Returns a list of unique maps between you and another user.
@@ -787,7 +787,7 @@ class Osu(commands.Cog):
 
     @commands.command(aliases=["tcf", "tcc", "tcctb", "topcomparecatch", "topcomparectb", "tcfruits", "tccatch"], hidden=True)
     @commands.cooldown(1, 20, commands.BucketType.user)
-    async def topcomparefruits(self, ctx, *user_or_args):
+    async def topcomparefruits(self, ctx, *user_or_args, usage="[user] [args]"):
         """Returns a list of unique maps between you and another user.
 
         Requires to have your account linked with the bot.
@@ -839,7 +839,7 @@ class Osu(commands.Cog):
 
     @commands.command(aliases=["tcm", "tcmania"], hidden=True)
     @commands.cooldown(1, 20, commands.BucketType.user)
-    async def topcomparemania(self, ctx, *user_or_args):
+    async def topcomparemania(self, ctx, *user_or_args, usage="[user] [args]"):
         """Returns a list of unique maps between you and another user.
 
         Requires to have your account linked with the bot.
