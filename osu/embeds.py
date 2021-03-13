@@ -1198,7 +1198,10 @@ class Embed(Data):
                         ppaddon = f' (+{humanize_number(checkedpp)})'
                     if checkedacc > 0:
                         accaddon = f' (+{"{:.2%}".format(checkedacc)})'
-                    embedtitle = f'Improved #{d["index"] + 1} from #{d["oldindex"] + 1} for {d["username"]}'
+                    if d["index"] > d["oldindex"]:
+                        embedtitle = f'Improved #{d["index"] + 1} from #{d["oldindex"] + 1} for {d["username"]}'
+                    else:
+                        embedtitle = f'Changed #{d["index"] + 1} from #{d["oldindex"] + 1} for {d["username"]}'
             except KeyError:
                 pass
 
