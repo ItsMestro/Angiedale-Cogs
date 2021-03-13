@@ -1,7 +1,6 @@
-import re
 import math
-
-from typing import Union, Dict, List, Sequence
+import re
+from typing import Dict, List, Sequence, Union
 
 utf8_re = re.compile(r"^[\U00000000-\U0010FFFF]*$")
 min_int, max_int = 1 - (2 ** 64), (2 ** 64) - 1

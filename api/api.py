@@ -1,13 +1,14 @@
 import asyncio
 import datetime
 import json
+import logging
 import re
+from random import choice
+
 import aiohttp
 import discord
-import logging
-from random import choice
-from redbot.core.utils.menus import menu, commands, DEFAULT_CONTROLS
 from redbot.core.bot import Red
+from redbot.core.utils.menus import DEFAULT_CONTROLS, commands, menu
 
 log = logging.getLogger("red.angiedale.api")
 
@@ -135,6 +136,10 @@ class API(commands.Cog):
     def __init__(self, bot: Red):
         self.bot = bot
         super().__init__()
+
+    async def red_delete_data_for_user(self, **kwargs):
+        """Nothing to delete"""
+        return
 
     def format_name(self, first_name, last_name):  # Combines first_name and last_name and/or shows either of the two
         if first_name and last_name:
@@ -354,7 +359,7 @@ class API(commands.Cog):
         except TypeError:
             await ctx.send("No anime was found or there was an error in the process")
 
-    @anilist.command(name="mange")
+    @anilist.command(name="manga")
     @commands.bot_has_permissions(embed_links=True, add_reactions=True)
     async def anilist_manga(self, ctx, *, entered_title):
         """Searches for manga using Anilist"""
@@ -556,3 +561,32 @@ class API(commands.Cog):
                 await message.delete()
             except (discord.errors.NotFound, discord.errors.Forbidden):
                 pass
+
+    async def _youtube_results(self, query: str):
+        try:
+            headers = {"user-agent": "Red-cog/3.0"}
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    "https://www.youtube.com/results", params={"search_query": query}, headers=headers
+                ) as r:
+                    result = await r.text()
+            yt_find = re.findall(r"{\"videoId\":\"(.{11})", result)
+            url_list = []
+            for track in yt_find:
+                url = f"https://www.youtube.com/watch?v={track}"
+                if url not in url_list:
+                    url_list.append(url)
+
+        except Exception as e:
+            url_list = [f"Something went terribly wrong! [{e}]"]
+
+        return url_list
+
+    @commands.command()
+    async def youtube(self, ctx, *, query: str):
+        """Search on Youtube."""
+        result = await self._youtube_results(query)
+        if result:
+            await menu(ctx, result, DEFAULT_CONTROLS)
+        else:
+            await ctx.send("Nothing found. Try again later.")

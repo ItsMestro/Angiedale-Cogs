@@ -1,7 +1,0 @@
-{
-    "author" : ["Mestro", "Jintaku", "Wyn"],
-    "description" : "Ability to fetch info from various sites and games",
-    "install_msg" : "API was loaded!",
-    "short" : "Fetch info from places",
-    "end_user_data_statement": "This cog does not store any End User Data"
-}

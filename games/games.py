@@ -1,48 +1,42 @@
-import calendar
-import logging
-import re
-import random
-from enum import Enum
-from random import randint, choice
-from typing import cast, Iterable, Final, List, Literal, Union
-from operator import itemgetter
-
 import asyncio
-import pathlib
-
+import calendar
 import io
-import yaml
-import discord
-
+import logging
+import pathlib
+import random
+import re
 from collections import Counter, deque
-from redbot.core import commands, Config, checks, bank
+from enum import Enum
+from operator import itemgetter
+from random import choice, randint
+from typing import Final, Iterable, List, Literal, Union, cast
+
+import discord
+import yaml
+from redbot.core import Config, bank, checks, commands, errors
 from redbot.core.bot import Red
-from redbot.core.errors import BalanceTooHigh
 from redbot.core.data_manager import cog_data_path
+from redbot.core.errors import BalanceTooHigh
 from redbot.core.utils import AsyncIter
+from redbot.core.utils.chat_formatting import (
+    bold, box, humanize_number, pagify
+)
 from redbot.core.utils.menus import start_adding_reactions
 from redbot.core.utils.predicates import MessagePredicate, ReactionPredicate
-from redbot.core.utils.chat_formatting import (
-    bold,
-    humanize_number,
-    box,
-    pagify,
-)
-
-from . import utils
-from .data import Database
-from .casino import Core, Blackjack, Double, War
-from .utils import is_input_unsupported
 from tabulate import tabulate
 
+from . import utils
+from .casino import Blackjack, Core, Double, War
 from .checks import trivia_stop_check
 from .converters import finite_float
-from .log import LOG
+from .data import Database
 from .session import TriviaSession
+from .utils import is_input_unsupported
 
 __all__ = ["Trivia", "UNIQUE_ID", "get_core_lists"]
 
 log = logging.getLogger("red.angiedale.games")
+
 _SCHEMA_VERSION: Final[int] = 2
 
 
@@ -194,7 +188,7 @@ class Games(Database, commands.Cog):
         self.bot = bot
         self.cycle_task = self.bot.loop.create_task(self.membership_updater())
         self.trivia_sessions = []
-        self.triviaconfig = Config.get_conf(self, identifier=1387004, cog_name="GamesTrivia", force_registration=True)
+        self.triviaconfig = Config.get_conf(self, identifier=1387000, cog_name="GamesTrivia", force_registration=True)
 
         self.triviaconfig.register_guild(
             max_score=5,
@@ -208,7 +202,7 @@ class Games(Database, commands.Cog):
 
         self.triviaconfig.register_member(wins=0, games=0, total_score=0)
 
-        self.economyconfig = Config.get_conf(self, 1387001, cog_name="Economy")
+        self.economyconfig = Config.get_conf(self, identifier=1387000, cog_name="Economy")
 
     async def initialise(self):
         self.migration_task = self.bot.loop.create_task(
@@ -223,6 +217,12 @@ class Games(Database, commands.Cog):
         requester: Literal["discord_deleted_user", "owner", "user", "user_strict"],
         user_id: int,
     ):
+        await super().config.user_from_id(user_id).clear()
+        all_members2 = await super().config.all_members()
+        async for guild_id, guild_data in AsyncIter(all_members2.items(), steps=100):
+            if user_id in guild_data:
+                await super().config.member_from_ids(guild_id, user_id).clear()
+
         if requester != "discord_deleted_user":
             return
 
@@ -232,11 +232,10 @@ class Games(Database, commands.Cog):
             if user_id in guild_data:
                 await self.triviaconfig.member_from_ids(guild_id, user_id).clear()
 
-        await super().config.user_from_id(user_id).clear()
-        all_members2 = await super().config.all_members()
-        async for guild_id, guild_data in AsyncIter(all_members2.items(), steps=100):
-            if user_id in guild_data:
-                await super().config.member_from_ids(guild_id, user_id).clear()
+    async def cog_before_invoke(self, ctx: commands.Context) -> None:
+        if not self.cog_ready_event.is_set():
+            async with ctx.typing():
+                await self.cog_ready_event.wait()
 
     @commands.command()
     async def roll(self, ctx, number: int = 100):
@@ -536,7 +535,7 @@ class Games(Database, commands.Cog):
             await ctx.send(
                 ("There was an error parsing the trivia list. See logs for more info.")
             )
-            LOG.exception("Custom Trivia file %s failed to upload", parsedfile.filename)
+            log.exception("Custom Trivia file %s failed to upload", parsedfile.filename)
 
     @commands.is_owner()
     @triviaset_custom.command(name="delete", aliases=["remove"])
@@ -600,7 +599,7 @@ class Games(Database, commands.Cog):
         settings["lists"] = dict(zip(categories, reversed(authors)))
         session = TriviaSession.start(ctx, trivia_dict, settings)
         self.trivia_sessions.append(session)
-        LOG.debug("New trivia session; #%s in %d", ctx.channel, ctx.guild.id)
+        log.debug("New trivia session; #%s in %d", ctx.channel, ctx.guild.id)
 
     @trivia_stop_check()
     @trivia.command(name="stop")
@@ -825,7 +824,7 @@ class Games(Database, commands.Cog):
 
         """
         channel = session.ctx.channel
-        LOG.debug("Ending trivia session; #%s in %s", channel, channel.guild.id)
+        log.debug("Ending trivia session; #%s in %s", channel, channel.guild.id)
         if session in self.trivia_sessions:
             self.trivia_sessions.remove(session)
         if session.scores:
@@ -958,6 +957,10 @@ class Games(Database, commands.Cog):
     def cog_unload(self):
         for session in self.trivia_sessions:
             session.force_stop()
+        
+        self.cycle_task.cancel()
+        if self.migration_task:
+            self.migration_task.cancel()
 
     @commands.command()
     @commands.guild_only()
@@ -1551,11 +1554,6 @@ class Games(Database, commands.Cog):
 
         await Membership(ctx, timeout, choice.content.lower()).process()
 
-    @casino.command()
-    async def version(self, ctx: commands.Context):
-        """Shows the current Casino version."""
-        await ctx.send("Casino is running version {}.".format(__version__))
-
     async def global_casino_only(ctx):
         if await ctx.cog.config.Settings.Global() and not await ctx.bot.is_owner(ctx.author):
             return False
@@ -1947,19 +1945,6 @@ class Games(Database, commands.Cog):
             seconds = int((cooldown + reduction - now))
             results.append(utils.cooldown_formatter(seconds, custom_msg="<<Ready to Play!"))
         return results
-
-    def cog_unload(self):
-        self.__unload()
-
-    def __unload(self):
-        self.cycle_task.cancel()
-        if self.migration_task:
-            self.migration_task.cancel()
-
-    async def cog_before_invoke(self, ctx: commands.Context) -> None:
-        if not self.cog_ready_event.is_set():
-            async with ctx.typing():
-                await self.cog_ready_event.wait()
 
 class Membership(Database):
     """This class handles membership processing."""
@@ -2394,7 +2379,6 @@ class Membership(Database):
             return True
         else:
             return False
-
 
 def get_core_lists() -> List[pathlib.Path]:
     """Return a list of paths for all trivia lists packaged with the bot."""

@@ -1,13 +1,13 @@
 import asyncio
 import logging
+from collections import namedtuple
 from copy import deepcopy
 
 import discord
 from redbot.core import Config, bank
-from collections import namedtuple
 
 from .cache import OldMessageTypeManager
-from .utils import is_input_unsupported, min_int, max_int
+from .utils import is_input_unsupported, max_int, min_int
 
 user_defaults = {
     "Pending_Credits": 0,
@@ -140,7 +140,7 @@ log = logging.getLogger("red.angiedale.games.data")
 
 class Database:
 
-    config: Config = Config.get_conf(_DataObj, 1387008, cog_name="GamesCasino", force_registration=True)
+    config: Config = Config.get_conf(_DataObj, identifier=1387000, cog_name="GamesCasino", force_registration=True)
 
     def __init__(self):
         self.config.register_guild(**guild_defaults)

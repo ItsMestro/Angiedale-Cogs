@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import logging
 from functools import wraps
 from typing import TYPE_CHECKING, List, Optional, Union
 
@@ -19,6 +20,8 @@ if TYPE_CHECKING:
 # Credits: https://github.com/Cog-Creators/Red-DiscordBot/blob/V3/develop/redbot/core/bank.py
 # This is a modified version of Red's Bank API that listen for the existance of the Adventure Cog.
 # If Cog is not loaded, then it will default to Red's Bank API
+
+log = logging.getLogger("red.angiedale.adventure.bank")
 
 _ = Translator("Adventure Bank API", __file__)
 
@@ -62,7 +65,7 @@ _bot: Red = None
 def _init(bot: Red):
     global _config, _bot
     if _config is None:
-        _config = Config.get_conf(None, 1387006, cog_name="AdventureBank", force_registration=True)
+        _config = Config.get_conf(None, identifier=1387000, cog_name="AdventureBank", force_registration=True)
         _config.register_user(**_DEFAULT_MEMBER)
     _bot = bot
 
@@ -584,7 +587,7 @@ async def get_currency_name(guild: discord.Guild = None, _forced: bool = False) 
     """
     if _forced or (cog := _bot.get_cog("Adventure")) is None or not cog._separate_economy:
         return await bank.get_currency_name(guild=guild)
-    return _("gold coins")
+    return _("bits")
 
 
 async def set_currency_name(name: str, guild: discord.Guild = None) -> str:

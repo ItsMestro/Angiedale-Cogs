@@ -1,7 +1,0 @@
-{
-    "author" : ["Mestro"],
-    "description" : "Customized version of the built in Economy Cog",
-    "install_msg" : "Economy was loaded!",
-    "short" : "Various commands related to economy",
-    "end_user_data_statement": "This cog stores data related to when a user last used certain commands. This cog does not support data requests, but will respect deletion requests."
-}

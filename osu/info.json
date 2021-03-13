@@ -1,7 +1,0 @@
-{
-    "author" : ["Mestro"],
-    "description" : "Commands for the game osu!",
-    "install_msg" : "osu was loaded!",
-    "short" : "osu commands",
-    "end_user_data_statement": "This cog stores data that is submitted by the user for the sake of recognizing a user with an online profile"
-}

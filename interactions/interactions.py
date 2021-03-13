@@ -1,23 +1,15 @@
-import discord
 import json
-from redbot.core import commands
-from random import randint
-from redbot.core.data_manager import bundled_data_path
-from redbot.core.bot import Red
-from bs4 import BeautifulSoup
-import aiohttp
 import logging
+from random import randint
+
+import aiohttp
+import discord
+from bs4 import BeautifulSoup
+from redbot.core import commands
+from redbot.core.bot import Red
+from redbot.core.data_manager import bundled_data_path
 
 log = logging.getLogger("red.angiedale.interactions")
-log.setLevel(logging.DEBUG)
-
-console = logging.StreamHandler()
-
-if logging.getLogger("red").isEnabledFor(logging.DEBUG):
-    console.setLevel(logging.DEBUG)
-else:
-    console.setLevel(logging.INFO)
-log.addHandler(console)
 
 
 class Interactions(commands.Cog):
@@ -343,8 +335,5 @@ class Interactions(commands.Cog):
         await ctx.send(embed=em)
 
     @commands.command(aliases=["dogan"], hidden=True)
-    async def loganonrock(self, ctx):
-        embed = discord.Embed()
-        embed.description = f"Logan no longer on rock"
-        embed.set_image(url="https://image.freepik.com/free-photo/bored-dog-waiting-owner-rock-beside-river_37478-11.jpg")
-        await ctx.send(embed=embed)
+    async def logan(self, ctx):
+        await ctx.send("Loggy Woggy")

@@ -1,30 +1,18 @@
 """Module to manage trivia sessions."""
 import asyncio
-import time
+import logging
 import random
+import time
 from collections import Counter
+
 import discord
 from redbot.core import bank, errors
-from redbot.core.utils.chat_formatting import box, bold, humanize_list, humanize_number
+from redbot.core.utils.chat_formatting import bold, box, humanize_list
 from redbot.core.utils.common_filters import normalize_smartquotes
-from .log import LOG
+
+LOG = logging.getLogger("red.angiedale.games.trivia")
 
 __all__ = ["TriviaSession"]
-
-
-
-_ = lambda s: s
-_REVEAL_MESSAGES = (
-    ("I know this one! {answer}!"),
-    ("Easy: {answer}."),
-    ("Oh really? It's {answer} of course."),
-)
-_FAIL_MESSAGES = (
-    ("To the next one I guess..."),
-    ("Moving on..."),
-    ("I'm sure you'll know the answer of the next one."),
-    ("\N{PENSIVE FACE} Next one."),
-)
 
 
 class TriviaSession:
@@ -201,9 +189,18 @@ class TriviaSession:
                 self.stop()
                 return False
             if self.settings["reveal_answer"]:
-                reply = (random.choice(_REVEAL_MESSAGES)).format(answer=answers[0])
+                reply = (random.choice((
+                    ("I know this one! {answer}!"),
+                    ("Easy: {answer}."),
+                    ("Oh really? It's {answer} of course."))
+                    )).format(answer=answers[0])
             else:
-                reply = (random.choice(_FAIL_MESSAGES))
+                reply = (random.choice((
+                    ("To the next one I guess..."),
+                    ("Moving on..."),
+                    ("I'm sure you'll know the answer of the next one."),
+                    ("\N{PENSIVE FACE} Next one.")))
+                    )
             if self.settings["bot_plays"]:
                 reply += (" **+1** for me!")
                 self.scores[self.ctx.guild.me] += 1
@@ -313,7 +310,7 @@ class TriviaSession:
             except errors.BalanceTooHigh as e:
                 await bank.set_balance(winner, e.max_balance)
         if len(winners) > 1:
-            msg = _(
+            msg = (
                 "Congratulations {users}! You have each received {num} {currency} for winning!"
             ).format(
                 users=humanize_list([bold(winner.display_name) for winner in winners]),
@@ -321,7 +318,7 @@ class TriviaSession:
                 currency=await bank.get_currency_name(self.ctx.guild),
             )
         else:
-            msg = _(
+            msg = (
                 "Congratulations {user}! You have received {num} {currency} for winning!"
             ).format(
                 user=bold(winners[0].display_name),

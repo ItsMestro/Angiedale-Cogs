@@ -1,21 +1,18 @@
 # Standard Library
 import calendar
 from functools import wraps
-
 # Casino
 from typing import Optional
 
+# Discord
+import discord
+# Red
+from redbot.core import bank
+from redbot.core.errors import BalanceTooHigh
 from redbot.core.utils.chat_formatting import humanize_number
 
 from . import utils
 from .data import Database
-
-# Red
-from redbot.core import bank
-from redbot.core.errors import BalanceTooHigh
-
-# Discord
-import discord
 
 
 def game_engine(name=None, choice=None, choices=None):

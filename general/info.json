@@ -1,7 +1,0 @@
-{
-    "author" : ["Mestro", "aikaterna", "Yukirin", "PhasecoreX"],
-    "description" : "Commands that don't fit any other category",
-    "install_msg" : "General was loaded!",
-    "short" : "General commands",
-    "end_user_data_statement": "This cog does not store any End User Data"
-}

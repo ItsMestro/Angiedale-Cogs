@@ -2,19 +2,17 @@
 import asyncio
 import random
 
-# Casino
-from .deck import Deck
-from .engine import game_engine
-
+# Discord
+import discord
 # Red
 from redbot.core import bank
 from redbot.core.errors import BalanceTooHigh
 from redbot.core.utils.chat_formatting import box
 from redbot.core.utils.predicates import MessagePredicate
 
-# Discord
-import discord
-
+# Casino
+from .deck import Deck
+from .engine import game_engine
 
 deck = Deck()
 

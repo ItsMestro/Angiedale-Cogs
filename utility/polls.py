@@ -1,12 +1,8 @@
-import asyncio
-import discord
-import random
-import string
 import logging
-
-from typing import Dict, Optional, List
 from datetime import datetime, timedelta
+from typing import Dict, List, Optional
 
+import discord
 from redbot.core.bot import Red
 from redbot.core.utils.chat_formatting import humanize_timedelta, pagify
 from redbot.core.utils.menus import start_adding_reactions

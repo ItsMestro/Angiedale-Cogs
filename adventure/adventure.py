@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import asyncio
 import contextlib
 import json
@@ -15,7 +14,7 @@ from typing import List, Literal, MutableMapping, Optional, Union
 
 import discord
 from beautifultable import ALIGN_LEFT, BeautifulTable
-from discord.ext.commands import CheckFailure
+from discord.ext.commands.core import CheckFailure
 from discord.ext.commands.errors import BadArgument
 from redbot.core import Config, commands
 from redbot.core.bot import Red
@@ -24,49 +23,28 @@ from redbot.core.data_manager import bundled_data_path, cog_data_path
 from redbot.core.errors import BalanceTooHigh
 from redbot.core.i18n import Translator, cog_i18n
 from redbot.core.utils import AsyncIter
-from redbot.core.utils.chat_formatting import box, escape, humanize_list, humanize_number, humanize_timedelta, pagify
+from redbot.core.utils.chat_formatting import (
+    box, escape, humanize_list, humanize_number, humanize_timedelta, pagify
+)
 from redbot.core.utils.common_filters import filter_various_mentions
-from redbot.core.utils.menus import DEFAULT_CONTROLS, menu, start_adding_reactions
+from redbot.core.utils.menus import menu, start_adding_reactions
 from redbot.core.utils.predicates import MessagePredicate, ReactionPredicate
 
 import adventure.charsheet
+
 from . import bank
 from .charsheet import (
-    DEV_LIST,
-    ORDER,
-    RARITIES,
-    BackpackFilterParser,
-    Character,
-    DayConverter,
-    EquipableItemConverter,
-    EquipmentConverter,
-    GameSession,
-    Item,
-    ItemConverter,
-    ItemsConverter,
-    PercentageConverter,
-    RarityConverter,
-    SlotConverter,
-    Stats,
-    ThemeSetMonterConverter,
-    ThemeSetPetConverter,
-    calculate_sp,
-    can_equip,
-    equip_level,
-    has_funds,
-    no_dev_prompt,
-    parse_timedelta,
+    DEV_LIST, ORDER, RARITIES, BackpackFilterParser, Character,
+    DayConverter, EquipableItemConverter, EquipmentConverter,
+    GameSession, Item, ItemConverter, ItemsConverter,
+    PercentageConverter, RarityConverter, SlotConverter, Stats,
+    ThemeSetMonterConverter, ThemeSetPetConverter, calculate_sp,
+    can_equip, equip_level, has_funds, no_dev_prompt, parse_timedelta
 )
 from .menus import (
-    BackpackMenu,
-    BaseMenu,
-    LeaderboardMenu,
-    LeaderboardSource,
-    NVScoreboardSource,
-    ScoreBoardMenu,
-    ScoreboardSource,
-    SimpleSource,
-    WeeklyScoreboardSource,
+    BackpackMenu, BaseMenu, LeaderboardMenu,
+    LeaderboardSource, NVScoreboardSource, ScoreBoardMenu,
+    ScoreboardSource, SimpleSource, WeeklyScoreboardSource
 )
 
 _ = Translator("Adventure", __file__)
@@ -324,7 +302,7 @@ class Adventure(commands.Cog):
         self.locks: MutableMapping[int, asyncio.Lock] = {}
         self.gb_task = None
 
-        self.config = Config.get_conf(self, 1387005, cog_name="Adventure", force_registration=True)
+        self.config = Config.get_conf(self, identifier=1387000, cog_name="Adventure", force_registration=True)
         self._daily_bonus = {}
         self._separate_economy = None
 
@@ -394,7 +372,7 @@ class Adventure(commands.Cog):
             "themes": {},
             "daily_bonus": {"1": 0, "2": 0.25, "3": 0, "4": 0.25, "5": 0.5, "6": 1.0, "7": 1.0},
             "tax_brackets": {},
-            "separate_economy": False,
+            "separate_economy": True,
             "to_conversion_rate": 5,
             "from_conversion_rate": 10,
             "max_allowed_withdraw": 50000,
@@ -2119,7 +2097,7 @@ class Adventure(commands.Cog):
                 )
                 await ctx.send(current_stats)
 
-    @commands.guildowner()
+    @commands.admin_or_permissions(administrator=True)
     @commands.group()
     @commands.guild_only()
     async def adventureset(self, ctx: commands.Context):
@@ -2244,12 +2222,12 @@ class Adventure(commands.Cog):
     async def commands_adventureset_economy(self, ctx: commands.Context):
         """[Admin] Manages the adventure economy."""
 
-    @commands_adventureset_economy.command(name="tax", usage="<gold,tax ...>")
+    @commands_adventureset_economy.command(name="tax", usage="<bits,tax ...>")
     @commands.is_owner()
     async def commands_adventureset_economy_tax(self, ctx: commands.Context, *, taxes: TaxesConverter):
         """[Owner] Set the tax thresholds.
 
-        **gold** must be positive
+        **bits** must be positive
         **tax** must be between 0 and 1.
 
         Example: `[p]adventureset economy tax 10000,0.1 20000,0.2 ...`
@@ -2276,8 +2254,8 @@ class Adventure(commands.Cog):
     async def commands_adventureset_economy_conversion_rate(self, ctx: commands.Context, rate_in: int, rate_out: int):
         """[Owner] Set how much 1 bank credit is worth in adventure.
 
-        **rate_in**: Is how much gold you will get for 1 bank credit. Default is 10
-        **rate_out**: Is how much gold is needed to convert to 1 bank credit. Default is 11
+        **rate_in**: Is how much bits you will get for 1 bank credit. Default is 10
+        **rate_out**: Is how much bits is needed to convert to 1 bank credit. Default is 11
         """
         if rate_in < 0 or rate_out < 0:
             return await smart_embed(ctx, _("You are evil ... please DM me your phone number we need to hangout."))
@@ -5340,7 +5318,7 @@ class Adventure(commands.Cog):
         if not await has_funds(ctx.author, 250):
             currency_name = await bank.get_currency_name(ctx.guild,)
             extra = (
-                _("\nRun `{ctx.clean_prefix}apayday` to get some gold.").format(ctx=ctx)
+                _("\nRun `{ctx.clean_prefix}apayday` to get some bits.").format(ctx=ctx)
                 if self._separate_economy
                 else ""
             )
@@ -8150,10 +8128,10 @@ class Adventure(commands.Cog):
     @has_separated_economy()
     @commands.cooldown(rate=1, per=21600, type=commands.BucketType.user)
     async def commands_apayday(self, ctx: commands.Context):
-        """Get some free gold."""
+        """Get some free bits."""
         author = ctx.author
         adventure_credits_name = await bank.get_currency_name(ctx.guild)
-        amount = 333  # Make Customizable?
+        amount = random.randint(300, 400)  # Make Customizable?
         try:
             await bank.deposit_credits(author, amount)
         except BalanceTooHigh as exc:
@@ -8199,7 +8177,7 @@ class Adventure(commands.Cog):
     @commands_atransfer.command(name="deposit")
     @commands.guild_only()
     async def commands_atransfer_deposit(self, ctx: commands.Context, *, amount: int):
-        """Convert bank currency to gold."""
+        """Convert bank currency to bits."""
         from_conversion_rate = await self.config.to_conversion_rate()
         transferable_amount = amount * from_conversion_rate
         if amount <= 0:
@@ -8253,7 +8231,7 @@ class Adventure(commands.Cog):
     @commands.guild_only()
     @commands.cooldown(rate=1, per=600, type=commands.BucketType.user)
     async def commands_atransfer_withdraw(self, ctx: commands.Context, *, amount: int):
-        """Convert gold to bank currency."""
+        """Convert bits to bank currency."""
         if await bank.is_global(_forced=True):
             global_config = await self.config.all()
             can_withdraw = global_config["disallow_withdraw"]
@@ -8317,7 +8295,7 @@ class Adventure(commands.Cog):
     @commands.guild_only()
     @commands.cooldown(rate=1, per=600, type=commands.BucketType.user)
     async def commands_atransfer_player(self, ctx: commands.Context, amount: int, *, player: discord.User):
-        """Transfer gold to another player."""
+        """Transfer bits to another player."""
         if amount <= 0:
             await smart_embed(
                 ctx, _("{author.mention} You can't transfer 0 or negative values.").format(author=ctx.author),
@@ -8365,7 +8343,7 @@ class Adventure(commands.Cog):
     @commands_atransfer.command(name="give")
     @commands.is_owner()
     async def commands_atransfer_give(self, ctx: commands.Context, amount: int, *players: discord.User):
-        """[Owner] Give gold to adventurers."""
+        """[Owner] Give bits to adventurers."""
         if amount <= 0:
             await smart_embed(
                 ctx, _("{author.mention} You can't give 0 or negative values.").format(author=ctx.author),

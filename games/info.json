@@ -1,8 +1,0 @@
-{
-    "author" : ["Mestro", "Redjumpman"],
-    "description" : "A collection of games and other minor things",
-    "install_msg" : "Games was loaded!",
-    "short" : "Various games",
-    "end_user_data_statement": "This cog stores statistics of the users that participate in some of the games. This cog does not support data requests, but will respect deletion requests.",
-    "requirements" : ["tabulate"]
-}

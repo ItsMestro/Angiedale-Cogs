@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 import argparse
@@ -11,12 +10,14 @@ from collections import defaultdict
 from copy import copy
 from datetime import date, datetime, timedelta
 from string import ascii_letters, digits
-from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Set, Tuple, Union
+from typing import (
+    Any, Dict, List, Mapping, MutableMapping, Optional, Set, Tuple, Union
+)
 
 import discord
 from beautifultable import ALIGN_LEFT, BeautifulTable
-from discord.ext.commands import check
 from discord.ext.commands.converter import Converter
+from discord.ext.commands.core import check
 from discord.ext.commands.errors import BadArgument
 from redbot.core import Config, commands
 from redbot.core.commands import UserFeedbackCheckFailure
@@ -33,7 +34,7 @@ log = logging.getLogger("red.angiedale.adventure.charsheet")
 _ = Translator("Adventure", __file__)
 
 
-DEV_LIST = [208903205982044161, 154497072148643840, 218773382617890828, 128853022200561665]
+DEV_LIST = [128853022200561665]
 
 ORDER = [
     "head",
@@ -117,7 +118,6 @@ class ArgParserFailure(UserFeedbackCheckFailure):
         self.cmd = cmd
         super().__init__(message=message)
 
-
 class Stats(Converter):
     """This will parse a string for specific keywords like attack and dexterity followed by a
     number to create an item object to be added to a users inventory."""
@@ -165,7 +165,6 @@ class Stats(Converter):
             except (AttributeError, ValueError):
                 pass
         return result
-
 
 class Item:
     """An object to represent an item in the game world."""
@@ -398,62 +397,6 @@ class Item:
             data[self.name]["degrade"] = self.degrade
             data[self.name]["lvl"] = self.lvl
         return data
-
-
-class GameSession:
-    """A class to represent and hold current game sessions per server."""
-
-    challenge: str
-    attribute: str
-    timer: int
-    guild: discord.Guild
-    boss: bool
-    miniboss: dict
-    monster: dict
-    message_id: int
-    reacted: bool = False
-    participants: Set[discord.Member] = set()
-    monster_modified_stats: MutableMapping = {}
-    fight: List[discord.Member] = []
-    magic: List[discord.Member] = []
-    talk: List[discord.Member] = []
-    pray: List[discord.Member] = []
-    run: List[discord.Member] = []
-    message: discord.Message = None
-    transcended: bool = False
-    insight: Tuple[float, Character] = (0, None)
-    start_time: datetime = datetime.now()
-    easy_mode: bool = False
-    insight = (0, None)
-    no_monster: bool = False
-    exposed: bool = False
-    finished: bool = False
-
-    def __init__(self, **kwargs):
-        self.challenge: str = kwargs.pop("challenge")
-        self.attribute: dict = kwargs.pop("attribute")
-        self.guild: discord.Guild = kwargs.pop("guild")
-        self.boss: bool = kwargs.pop("boss")
-        self.miniboss: dict = kwargs.pop("miniboss")
-        self.timer: int = kwargs.pop("timer")
-        self.monster: dict = kwargs.pop("monster")
-        self.monsters: Mapping[str, Mapping] = kwargs.pop("monsters", [])
-        self.monster_stats: int = kwargs.pop("monster_stats", 1)
-        self.monster_modified_stats = kwargs.pop("monster_modified_stats", self.monster)
-        self.message = kwargs.pop("message", 1)
-        self.message_id: int = 0
-        self.reacted = False
-        self.participants: Set[discord.Member] = set()
-        self.fight: List[discord.Member] = []
-        self.magic: List[discord.Member] = []
-        self.talk: List[discord.Member] = []
-        self.pray: List[discord.Member] = []
-        self.run: List[discord.Member] = []
-        self.transcended: bool = kwargs.pop("transcended", False)
-        self.start_time = datetime.now()
-        self.easy_mode = kwargs.get("easy_mode", False)
-        self.no_monster = kwargs.get("no_monster", False)
-
 
 class Character(Item):
     """An class to represent the characters stats."""
@@ -1720,6 +1663,59 @@ class Character(Item):
             items_to_keep[slots] = item.to_json() if self.rebirths >= 30 and item and item.set else {}
         self.pieces_to_keep = items_to_keep
 
+class GameSession:
+    """A class to represent and hold current game sessions per server."""
+
+    challenge: str
+    attribute: str
+    timer: int
+    guild: discord.Guild
+    boss: bool
+    miniboss: dict
+    monster: dict
+    message_id: int
+    reacted: bool = False
+    participants: Set[discord.Member] = set()
+    monster_modified_stats: MutableMapping = {}
+    fight: List[discord.Member] = []
+    magic: List[discord.Member] = []
+    talk: List[discord.Member] = []
+    pray: List[discord.Member] = []
+    run: List[discord.Member] = []
+    message: discord.Message = None
+    transcended: bool = False
+    insight: Tuple[float, Character] = (0, None)
+    start_time: datetime = datetime.now()
+    easy_mode: bool = False
+    insight = (0, None)
+    no_monster: bool = False
+    exposed: bool = False
+    finished: bool = False
+
+    def __init__(self, **kwargs):
+        self.challenge: str = kwargs.pop("challenge")
+        self.attribute: dict = kwargs.pop("attribute")
+        self.guild: discord.Guild = kwargs.pop("guild")
+        self.boss: bool = kwargs.pop("boss")
+        self.miniboss: dict = kwargs.pop("miniboss")
+        self.timer: int = kwargs.pop("timer")
+        self.monster: dict = kwargs.pop("monster")
+        self.monsters: Mapping[str, Mapping] = kwargs.pop("monsters", [])
+        self.monster_stats: int = kwargs.pop("monster_stats", 1)
+        self.monster_modified_stats = kwargs.pop("monster_modified_stats", self.monster)
+        self.message = kwargs.pop("message", 1)
+        self.message_id: int = 0
+        self.reacted = False
+        self.participants: Set[discord.Member] = set()
+        self.fight: List[discord.Member] = []
+        self.magic: List[discord.Member] = []
+        self.talk: List[discord.Member] = []
+        self.pray: List[discord.Member] = []
+        self.run: List[discord.Member] = []
+        self.transcended: bool = kwargs.pop("transcended", False)
+        self.start_time = datetime.now()
+        self.easy_mode = kwargs.get("easy_mode", False)
+        self.no_monster = kwargs.get("no_monster", False)
 
 class ItemsConverter(Converter):
     async def convert(self, ctx, argument) -> Tuple[str, List[Item]]:
@@ -1791,7 +1787,6 @@ class ItemsConverter(Converter):
                 raise BadArgument(_("Alright then."))
             return "single", [lookup[pred.result]]
 
-
 class ItemConverter(Converter):
     async def convert(self, ctx, argument) -> Item:
         try:
@@ -1845,7 +1840,6 @@ class ItemConverter(Converter):
             except asyncio.TimeoutError:
                 raise BadArgument(_("Alright then."))
             return lookup[pred.result]
-
 
 class EquipableItemConverter(Converter):
     async def convert(self, ctx, argument) -> Item:
@@ -1911,7 +1905,6 @@ class EquipableItemConverter(Converter):
             except asyncio.TimeoutError:
                 raise BadArgument(_("Alright then."))
             return lookup[pred.result]
-
 
 class EquipmentConverter(Converter):
     async def convert(self, ctx, argument) -> Union[Item, List[Item]]:
@@ -1989,7 +1982,6 @@ class EquipmentConverter(Converter):
                 raise BadArgument(_("Alright then."))
             return lookup[pred.result]
 
-
 class ThemeSetMonterConverter(Converter):
     async def convert(self, ctx, argument) -> MutableMapping:
         arguments = list(map(str.strip, argument.split("++")))
@@ -2029,7 +2021,6 @@ class ThemeSetMonterConverter(Converter):
             "miniboss": {},
         }
 
-
 class ThemeSetPetConverter(Converter):
     async def convert(self, ctx, argument) -> MutableMapping:
         arguments = list(map(str.strip, argument.split("++")))
@@ -2065,7 +2056,6 @@ class ThemeSetPetConverter(Converter):
             "bonuses": {"crit": crit, "always": always},
         }
 
-
 class SlotConverter(Converter):
     async def convert(self, ctx, argument) -> Optional[str]:
         if argument:
@@ -2074,7 +2064,6 @@ class SlotConverter(Converter):
                 raise BadArgument
         return argument
 
-
 class RarityConverter(Converter):
     async def convert(self, ctx, argument) -> Optional[str]:
         if argument:
@@ -2082,7 +2071,6 @@ class RarityConverter(Converter):
             if rarity not in RARITIES:
                 raise BadArgument
         return argument
-
 
 class DayConverter(Converter):
     async def convert(self, ctx, argument) -> Tuple[str, str]:
@@ -2095,7 +2083,6 @@ class DayConverter(Converter):
             if (val := _DAY_MAPPING.get(k)) is not None:
                 return (val, k)
         raise BadArgument(_("Day must be one of:\nMon,Tue,Wed,Thurs,Fri,Sat or Sun"))
-
 
 class PercentageConverter(Converter):
     async def convert(self, ctx, argument) -> float:
@@ -2114,17 +2101,14 @@ class PercentageConverter(Converter):
             raise BadArgument(_("Percentage must be between 0% and 100%"))
         return arg
 
-
 def equip_level(char, item, rebirths=None):
     level = getattr(char, "rebirths", rebirths)
     return item.lvl if item.rarity == "event" else max(item.lvl - min(max(level // 2 - 1, 0), 50), 1)
-
 
 def can_equip(char: Character, item: Item):
     # if char.user.id in DEV_LIST:
     #     return True
     return char.lvl >= equip_level(char, item)
-
 
 async def calculate_sp(lvl_end: int, c: Character):
     points = c.rebirths * 10
@@ -2141,11 +2125,9 @@ async def calculate_sp(lvl_end: int, c: Character):
 
     return int(points)
 
-
 def get_item_db(rarity):
     if rarity == "set":
         return TR_GEAR_SET
-
 
 def has_funds_check(cost):
     async def predicate(ctx):
@@ -2160,10 +2142,8 @@ def has_funds_check(cost):
 
     return check(predicate)
 
-
 async def has_funds(user, cost):
     return await bank.can_spend(user, cost)
-
 
 def parse_timedelta(argument: str) -> Optional[timedelta]:
     matches = TIME_RE.match(argument)
@@ -2172,7 +2152,6 @@ def parse_timedelta(argument: str) -> Optional[timedelta]:
         if params:
             return timedelta(**params)
     return None
-
 
 async def no_dev_prompt(ctx: commands.Context) -> bool:
     if ctx.author.id in DEV_LIST:
@@ -2198,11 +2177,9 @@ async def no_dev_prompt(ctx: commands.Context) -> bool:
             await ctx.send(_("Did not get a matching confirmation, cancelling."))
             return False
 
-
 class NoExitParser(argparse.ArgumentParser):
     def error(self, message):
         raise commands.BadArgument(message=message)
-
 
 class BackpackFilterParser(commands.Converter):
     async def convert(self, ctx: commands.Context, argument: str) -> Mapping[str, Any]:
@@ -2287,7 +2264,6 @@ class BackpackFilterParser(commands.Converter):
         response.update(process_argparse_stat(vals, "degrade"))
         return response
 
-
 def process_argparse_stat(data: Mapping, stat: str) -> Mapping:
     temp = {}
     temp[stat] = {}
@@ -2319,7 +2295,6 @@ def process_argparse_stat(data: Mapping, stat: str) -> Mapping:
                     temp[stat]["max"] = min(float("inf"), *d["<"])
                     temp[stat]["min"] = max(float("-inf"), *d[">"])
     return temp
-
 
 def get_place_holder(slot_name) -> Item:
     return Item(

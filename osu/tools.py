@@ -1,21 +1,23 @@
-import discord
-import logging
 import asyncio
-import aiohttp
+import logging
+import os
 import re
 from datetime import datetime
-from typing import Optional, Dict
+from typing import Dict, Optional
 
-from redbot.core.utils.menus import close_menu, DEFAULT_CONTROLS, next_page
-from redbot.core import commands, Config
+import aiohttp
+import discord
+from discord.errors import HTTPException
+from redbot.core import Config, commands
+from redbot.core.data_manager import bundled_data_path
+from redbot.core.utils.menus import DEFAULT_CONTROLS, close_menu, next_page
 
 log = logging.getLogger("red.angiedale.osu")
 
 class API():
     """Class for handling OAuth."""
 
-    def __init__(self, bot):
-        self.bot = bot
+    def __init__(self):
         self.osu_bearer_cache: dict = {}
 
     async def maybe_renew_osu_bearer_token(self) -> None:
@@ -68,7 +70,7 @@ class API():
         self.osu_bearer_cache = data
         self.osu_bearer_cache["expires_at"] = datetime.now().timestamp() + data.get("expires_in")
 
-    async def fetch_api(self, ctx, url, params = None, isfrom = None):
+    async def fetch_api(self, url, params = None):
         await self.maybe_renew_osu_bearer_token()
 
         endpoint = f"https://osu.ppy.sh/api/v2/{url}"
@@ -82,18 +84,24 @@ class API():
             async with session.get(endpoint, headers=header, params=params) as r:
                 if r.status == 404:
                     return
+                elif r.status == 525:
+                    return "525 Error"
+                elif r.status == 502:
+                    return "502 Error"
                 else:
-                    data = await r.json(encoding="utf-8")
-                    return data
+                    try:
+                        data = await r.json(encoding="utf-8")
+                        return data
+                    except:
+                        return
 
 class Helper():
     """Helper class to find arguments."""
 
-    def __init__(self, bot):
-        self.bot = bot
-        self.osuconfig: Config = Config.get_conf(self, 1387002, cog_name="Osu")
+    def __init__(self):
+        self.osuconfig: Config = Config.get_conf(self, identifier=1387000, cog_name="Osu")
 
-    def map(self, map):
+    def findmap(self, map):
         if map.startswith("https://osu.ppy.sh/b/") or map.startswith("http://osu.ppy.sh/b/") or map.startswith("https://osu.ppy.sh/beatmap") or map.startswith("http://osu.ppy.sh/beatmap"):
             return re.sub("[^0-9]", "", map.rsplit('/', 1)[-1])
         elif map.isdigit():
@@ -161,25 +169,28 @@ class Helper():
     def ttol(self, args):
         return [(x.lower()) for x in args]
 
-    async def user(self, ctx, api, user):
+    async def user(self, ctx, user):
         userid = None
         if not user:
             userid = await self.osuconfig.user(ctx.author).userid()
             if not userid:
                 await profilelinking(ctx)
-                return
+                return None
         else:
             if isinstance(user, discord.Member):
                 userid = await self.osuconfig.user(user).userid()
 
             if not userid:
                 if not str(user).isnumeric():
-                    data = await api.fetch_api(ctx, f"users/{user}/osu")
+                    data = await self.fetch_api(f"users/{user}/osu")
+                    if data == "html error":
+                        await ctx.send("A rare know about bug has been documented. Please let Mestro know immediately so they can fix it.")
+                        return None
                     await asyncio.sleep(0.5)
                     if data:
                         userid = data["id"]
                 elif user.startswith("https://osu.ppy.sh/users") or user.startswith("http://osu.ppy.sh/users") or user.startswith("https://osu.ppy.sh/u/") or user.startswith("http://osu.ppy.sh/u/"):
-                    data = await api.fetch_api(ctx, f'users/{re.sub("[^0-9]", "", user.rsplit("/", 1)[-1])}/osu')
+                    data = await self.fetch_api(f'users/{re.sub("[^0-9]", "", user.rsplit("/", 1)[-1])}/osu')
                     if data:
                         userid = data["id"]
                 else:
@@ -194,7 +205,7 @@ class Helper():
 
         return userid
 
-    async def top(self, ctx, api, args):
+    async def top(self, ctx, args):
         args = self.ttol(args)
 
         recent = False
@@ -203,7 +214,7 @@ class Helper():
         if "-r" in args:
             if "-p" in args:
                 await del_message(ctx, "You can't use `-r` and `-p` at the same time.")
-                return
+                return None, None, None
             else:
                 recent = True
                 args.remove("-r")
@@ -212,23 +223,23 @@ class Helper():
             try:
                 if int(args[l + 1]) <= 0 or int(args[l + 1]) > 100:
                     await del_message(ctx, "Please use a number between 1-100 for `-p`")
-                    return
+                    return None, None, None
                 else:
                     pos = int(args[l + 1])
                     args.pop(l + 1)
                     args.pop(l)
             except ValueError:
                 await del_message(ctx, "Please provide a number for `-p`")
-                return
+                return None, None, None
 
-        userid = await self.user(ctx, api, (args[0] if len(args) > 0 else None))
+        userid = await self.user(ctx, (args[0] if len(args) > 0 else None))
         
         if userid:
             return userid, recent, pos
         else:
-            return
+            return None, None, None
 
-    async def pp(self, ctx, api, args):
+    async def pp(self, ctx, args):
         args = self.ttol(args)
 
         pp = None
@@ -241,16 +252,17 @@ class Helper():
                 args.pop(l + 1)
                 args.pop(l)
             except ValueError:
-                await del_message(ctx, "Please provide a number for `-p`")
-                return
+                return await del_message(ctx, "Please provide a number for `-p`")
 
-        userid = await self.user(ctx, api, (args[0] if len(args) > 0 else None))
-        
-        if userid:
-            return userid, pp
+        if len(args) > 1:
+            await del_message(ctx, "You seem to have used too many arguments.")
         else:
-            await del_message(ctx, f"Could not find the user {args[0]}.")
-            return
+            userid = await self.user(ctx, (args[0] if len(args) > 0 else None))
+            
+            if not userid:
+                await del_message(ctx, f"Could not find the user {args[0]}.")
+
+        return userid, pp
 
     async def history(self, ctx):
         params = None
@@ -293,7 +305,7 @@ class Helper():
 
         return mapid, params
 
-    async def topcompare(self, ctx, api, args):
+    async def topcompare(self, ctx, args):
         args = self.ttol(args)
 
         userid = None
@@ -318,8 +330,89 @@ class Helper():
                     rank = int(args[l + 1])
                     return userid, rank
         else:
-            userid = await self.user(ctx, api, args[0])
+            userid = await self.user(ctx, args[0])
             return userid, rank
+
+    async def removetracking(self, user = None, channel = None, mode = None, dev = False):
+        """Finds unnecessary tracking entries"""
+        if dev == True:
+            async with self.osuconfig.tracking() as modes:
+                try:
+                    modes[mode][user].remove(channel.id)
+                except (KeyError, ValueError):
+                    pass
+                try:
+                    modes[mode][user].append(channel.id)
+                except KeyError:
+                    modes[mode][user] = [channel.id]
+        elif user and channel:
+            async with self.osuconfig.tracking() as modes:
+                done = False
+                for m, us in modes.items():
+                    for id, ch in us.items():
+                        if user == id:
+                            for c in ch:
+                                if channel.guild.id == self.bot.get_channel(c).guild.id:
+                                    ch.remove(c)
+                                    done = True
+                                    break
+                        if len(ch) < 1:
+                            us.pop(id)
+                            try:
+                                os.remove(f'{bundled_data_path(self)}/{id}{m}.json')
+                            except:
+                                pass
+                        if done == True:
+                            break
+
+                    if mode == m:
+                        try:
+                            us[user].append(channel.id)
+                        except KeyError:
+                            us[user] = [channel.id]
+        elif channel:
+            async with self.osuconfig.tracking() as modes:
+                for m, us in modes.items():
+                    for id, ch in us.items():
+                        if channel in ch:
+                            ch.remove(channel)
+        elif user:
+            async with self.osuconfig.tracking() as modes:
+                for m, us in modes.items():
+                    if mode == m:
+                        try:
+                            us.pop(user)
+                            os.remove(f'{bundled_data_path(self)}/{user}{m}.json')
+                        except KeyError:
+                            pass
+
+    async def counttracking(self, channel = None, user = None, guild = None):
+        """Helper for getting tracked users for guilds"""
+        if channel:
+            count = 0
+            async with self.osuconfig.tracking() as modes:
+                for us in modes.values():
+                    for ch in us.values():
+                        for c in ch:
+                            if channel.guild.id == self.bot.get_channel(c).guild.id:
+                                count += 1
+        elif user:
+            count = 0
+            async with self.osuconfig.tracking() as modes:
+                for us in modes.values():
+                    for u in us.keys():
+                        if u == user:
+                            count += 1
+        elif guild:
+            count = []
+            async with self.osuconfig.tracking() as modes:
+                for m, us in modes.items():
+                    for u, ch in us.items():
+                        for c in ch:
+                            i = self.bot.get_channel(c)
+                            if guild == i.guild.id:
+                                count.append({"id": u, "channel": i, "mode": m})
+        return count
 
 async def profilelinking(ctx):
     await ctx.maybe_send_embed(f"Looks like you haven't linked an account.\nYou can do so using `{ctx.clean_prefix}osulink <username>`"

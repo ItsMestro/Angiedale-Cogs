@@ -1,126 +1,149 @@
-import datetime
-import time
-from typing import Union, Optional
-from dateutil.relativedelta import relativedelta
-import random
-import urllib.parse
-import discord
 import asyncio
+import datetime
 import logging
-from redbot.core import commands, Config
+import random
+import time
+import urllib.parse
+from typing import Optional, Tuple, Union
+
+import discord
+from dateutil.relativedelta import relativedelta
+from redbot.core import Config, commands
 from redbot.core.bot import Red
-from redbot.core.utils.common_filters import filter_invites, filter_mass_mentions, escape_spoilers_and_mass_mentions
-from redbot.core.utils.menus import close_menu, menu
 from redbot.core.utils.chat_formatting import (
-    bold,
-    escape,
-    humanize_number,
-    humanize_timedelta,
-    escape,
+    bold, box, escape, humanize_number, humanize_timedelta, pagify
 )
+from redbot.core.utils.common_filters import (
+    escape_spoilers_and_mass_mentions, filter_invites, filter_mass_mentions
+)
+from redbot.core.utils.menus import close_menu, menu
+
+from .converters import SelfRole
+from .reports import Reports
 
 log = logging.getLogger("red.angiedale.general")
 
+KAOMOJI_JOY = [" (* ^ ω ^)", " (o^▽^o)", " (≧◡≦)", ' ☆⌒ヽ(*"､^*)chu', " ( ˘⌣˘)♡(˘⌣˘ )", " xD"]
+KAOMOJI_EMBARRASSED = [" (⁄ ⁄>⁄ ▽ ⁄<⁄ ⁄)..", " (*^.^*)..,", "..,", ",,,", "... ", ".. ", " mmm..", "O.o"]
+KAOMOJI_CONFUSE = [" (o_O)?", " (°ロ°) !?", " (ーー;)?", " owo?"]
+KAOMOJI_SPARKLES = [" *:･ﾟ✧*:･ﾟ✧ ", " ☆*:・ﾟ ", "〜☆ ", " uguu.., ", "-.-"]
 
-class General(commands.Cog):
+fur = {
+        "ahh": "*murr*",
+        "love": "wuv",
+        "loves": "wuvs",
+        "awesome": "pawsome",
+        "awful": "pawful",
+        "bite": "nom",
+        "bites": "noms",
+        "butthole": "tailhole",
+        "buttholes": "tailholes",
+        "bulge": "bulgy-wulgy",
+        "bye": "bai",
+        "celebrity": "popufur",
+        "celebrities": "popufurs",
+        "cheese": "sergal",
+        "child": "cub",
+        "children": "cubs",
+        "computer": "protogen",
+        "computers": "protogens",
+        "confuse": "confuzzle",
+        "confused": "confuzzled",
+        "disease": "pathOwOgen",
+        "dog": "good boy",
+        "dogs": "good boys",
+        "dragon": "derg",
+        "dragons": "dergs",
+        "eat": "vore",
+        "everyone": "everyfur",
+        "foot": "footpaw",
+        "feet": "footpaws",
+        "for": "fur",
+        "fuck": "yiff",
+        "fucking": "yiffing",
+        "fucked": "yiffed",
+        "hand": "paw",
+        "hands": "paws",
+        "hi": "hai",
+        "human": "hyooman",
+        "humans": "hyoomans",
+        "hyena": "yeen",
+        "hyenas": "yeens",
+        "innocent": "furocent",
+        "kiss": "lick",
+        "kisses": "licks",
+        "lmao": "hehe~",
+        "masturbate": "paw off",
+        "mouth": "maw",
+        "naughty": "knotty",
+        "not": "knot",
+        "perfect": "purfect",
+        "persona": "fursona",
+        "personas": "fursonas",
+        "pervert": "furvert",
+        "perverts": "furverts",
+        "porn": "yiff",
+        "roar": "rawr",
+        "shout": "awoo",
+        "someone": "somefur",
+        "source": "sauce",
+        "sexy": "yiffy",
+        "tale": "tail",
+        "the": "teh",
+        "this": "dis",
+        "what": "wat",
+        "with": "wif",
+        "you": "chu",
+        ":)": ":3",
+        ":o": "OwO",
+        ":D": "UwU",
+        "XD": "X3",
+    }
+
+default_guild_settings_r = {"output_channel": None, "active": False, "next_ticket": 1}
+
+default_report = {"report": {}}
+
+class General(Reports, commands.Cog):
     """General commands."""
 
-    KAOMOJI_JOY = [" (* ^ ω ^)", " (o^▽^o)", " (≧◡≦)", ' ☆⌒ヽ(*"､^*)chu', " ( ˘⌣˘)♡(˘⌣˘ )", " xD"]
-    KAOMOJI_EMBARRASSED = [" (⁄ ⁄>⁄ ▽ ⁄<⁄ ⁄)..", " (*^.^*)..,", "..,", ",,,", "... ", ".. ", " mmm..", "O.o"]
-    KAOMOJI_CONFUSE = [" (o_O)?", " (°ロ°) !?", " (ーー;)?", " owo?"]
-    KAOMOJI_SPARKLES = [" *:･ﾟ✧*:･ﾟ✧ ", " ☆*:・ﾟ ", "〜☆ ", " uguu.., ", "-.-"]
+    default_member_settings_m = {"past_nicks": [], "perms_cache": {}, "banned_until": False}
 
-    fur = {
-            "ahh": "*murr*",
-            "love": "wuv",
-            "loves": "wuvs",
-            "awesome": "pawsome",
-            "awful": "pawful",
-            "bite": "nom",
-            "bites": "noms",
-            "butthole": "tailhole",
-            "buttholes": "tailholes",
-            "bulge": "bulgy-wulgy",
-            "bye": "bai",
-            "celebrity": "popufur",
-            "celebrities": "popufurs",
-            "cheese": "sergal",
-            "child": "cub",
-            "children": "cubs",
-            "computer": "protogen",
-            "computers": "protogens",
-            "confuse": "confuzzle",
-            "confused": "confuzzled",
-            "disease": "pathOwOgen",
-            "dog": "good boy",
-            "dogs": "good boys",
-            "dragon": "derg",
-            "dragons": "dergs",
-            "eat": "vore",
-            "everyone": "everyfur",
-            "foot": "footpaw",
-            "feet": "footpaws",
-            "for": "fur",
-            "fuck": "yiff",
-            "fucking": "yiffing",
-            "fucked": "yiffed",
-            "hand": "paw",
-            "hands": "paws",
-            "hi": "hai",
-            "human": "hyooman",
-            "humans": "hyoomans",
-            "hyena": "yeen",
-            "hyenas": "yeens",
-            "innocent": "furocent",
-            "kiss": "lick",
-            "kisses": "licks",
-            "lmao": "hehe~",
-            "masturbate": "paw off",
-            "mouth": "maw",
-            "naughty": "knotty",
-            "not": "knot",
-            "perfect": "purfect",
-            "persona": "fursona",
-            "personas": "fursonas",
-            "pervert": "furvert",
-            "perverts": "furverts",
-            "porn": "yiff",
-            "roar": "rawr",
-            "shout": "awoo",
-            "someone": "somefur",
-            "source": "sauce",
-            "sexy": "yiffy",
-            "tale": "tail",
-            "the": "teh",
-            "this": "dis",
-            "what": "wat",
-            "with": "wif",
-            "you": "chu",
-            ":)": ":3",
-            ":o": "OwO",
-            ":D": "UwU",
-            "XD": "X3",
-        }
+    default_user_settings_m = {"past_names": []}
 
     def __init__(self, bot: Red):
         super().__init__()
         self.stopwatches = {}
         self.bot = bot
         self.channels = {}
-        self.FromModconfig = Config.get_conf(self, 4961522000, cog_name="Mod")
 
-    @commands.command(usage="<choice> <choices...>")
-    async def choose(self, ctx, *choices):
-        """Choose between multiple options.
+        self.warnconfig = Config.get_conf(self, identifier=1387000, force_registration=True, cog_name="Warnings")
 
-        To denote options which include whitespace, you should use
-        double quotes.
+        self.modconfig = Config.get_conf(self, identifier=1387000, cog_name="Mod")
+        self.modconfig.register_member(**self.default_member_settings_m)
+        self.modconfig.register_user(**self.default_user_settings_m)
+
+        self.adminconfig = Config.get_conf(self, identifier=1387000, force_registration=True, cog_name="OwnerAdmin")
+
+    @staticmethod
+    def pass_hierarchy_check(ctx: commands.Context, role: discord.Role) -> bool:
         """
-        choices = [escape(c, mass_mentions=True) for c in choices if c]
-        if len(choices) < 2:
-            await ctx.send(("Not enough options to pick from."))
-        else:
-            await ctx.send(random.choice(choices))
+        Determines if the bot has a higher role than the given one.
+        :param ctx:
+        :param role: Role object.
+        :return:
+        """
+        return ctx.guild.me.top_role > role
+
+    @staticmethod
+    def pass_user_hierarchy_check(ctx: commands.Context, role: discord.Role) -> bool:
+        """
+        Determines if a user is allowed to add/remove/edit the given role.
+        :param ctx:
+        :param role:
+        :return:
+        """
+        return ctx.author.top_role > role or ctx.author == ctx.guild.owner
 
     @commands.command(aliases=["sw"])
     async def stopwatch(self, ctx):
@@ -141,7 +164,7 @@ class General(commands.Cog):
     async def lmgtfy(self, ctx, *, search_terms: str):
         """Create a lmgtfy link."""
         search_terms = escape(urllib.parse.quote_plus(search_terms), mass_mentions=True)
-        await ctx.send("https://lmgtfy.com/?q={}".format(search_terms))
+        await ctx.send("https://lmgtfy.app/?q={}".format(search_terms))
 
     @commands.command()
     @commands.guild_only()
@@ -465,7 +488,8 @@ class General(commands.Cog):
             text = (await ctx.channel.history(limit=2).flatten())[
                 1
             ].content or "I can't translate that!"
-        await ctx.send(self.fuwwyize_string(text), allowed_mentions=discord.AllowedMentions(users=False))
+        fuwwytext = self.fuwwyize_string(text)
+        await ctx.send(fuwwytext[:2000] if len(fuwwytext) > 2000 else fuwwytext, allowed_mentions=discord.AllowedMentions(users=False))
 
     def fuwwyize_string(self, string: str):
         """Uwuize and wetuwn a stwing."""
@@ -497,86 +521,86 @@ class General(commands.Cog):
 
         # Process punctuation
         if final_punctuation == "." and not random.randint(0, 3):
-            final_punctuation = random.choice(self.KAOMOJI_JOY)
+            final_punctuation = random.choice(KAOMOJI_JOY)
         if final_punctuation == "?" and not random.randint(0, 2):
-            final_punctuation = random.choice(self.KAOMOJI_CONFUSE)
+            final_punctuation = random.choice(KAOMOJI_CONFUSE)
         if final_punctuation == "!" and not random.randint(0, 2):
-            final_punctuation = random.choice(self.KAOMOJI_JOY)
+            final_punctuation = random.choice(KAOMOJI_JOY)
         if final_punctuation == "," and not random.randint(0, 3):
-            final_punctuation = random.choice(self.KAOMOJI_EMBARRASSED)
+            final_punctuation = random.choice(KAOMOJI_EMBARRASSED)
         if final_punctuation and not random.randint(0, 4):
-            final_punctuation = random.choice(self.KAOMOJI_SPARKLES)
+            final_punctuation = random.choice(KAOMOJI_SPARKLES)
 
         # Full Words Extra
-        if uwu == "ahh": uwu = self.fur["ahh"]
-        if uwu == "love": uwu = self.fur["love"]
-        if uwu == "awesome": uwu = self.fur["awesome"]
-        if uwu == "awful": uwu = self.fur["awful"]
-        if uwu == "bite": uwu = self.fur["bite"]
-        if uwu == "bites": uwu = self.fur["bites"]
-        if uwu == "butthole": uwu = self.fur["butthole"]
-        if uwu == "buttholes": uwu = self.fur["buttholes"]
-        if uwu == "bulge": uwu = self.fur["bulge"]
-        if uwu == "bye": uwu = self.fur["bye"]
-        if uwu == "celebrity": uwu = self.fur["celebrity"]
-        if uwu == "celebrities": uwu = self.fur["celebrities"]
-        if uwu == "cheese": uwu = self.fur["cheese"]
-        if uwu == "child" or uwu == "kid" or uwu == "infant": uwu = self.fur["child"]
-        if uwu == "children" or uwu == "kids" or uwu == "infants": uwu = self.fur["children"]
-        if uwu == "robot" or uwu == "cyborg" or uwu == "computer": uwu = self.fur["computer"]
-        if uwu == "robots" or uwu == "cyborgs" or uwu == "computers": uwu = self.fur["computers"]
-        if uwu == "disease": uwu = self.fur["disease"]
-        if uwu == "dog": uwu = self.fur["dog"]
-        if uwu == "dogs": uwu = self.fur["dogs"]
-        if uwu == "dragon": uwu = self.fur["dragon"]
-        if uwu == "dragons": uwu = self.fur["dragons"]
-        if uwu == "eat": uwu = self.fur["eat"]
-        if uwu == "everyone": uwu = self.fur["everyone"]
-        if uwu == "foot": uwu = self.fur["foot"]
-        if uwu == "feet": uwu = self.fur["feet"]
-        if uwu == "for": uwu = self.fur["for"]
-        if uwu == "fuck": uwu = self.fur["fuck"]
-        if uwu == "fucking": uwu = self.fur["fucking"]
-        if uwu == "fucked": uwu = self.fur["fucked"]
-        if uwu == "hand": uwu = self.fur["hand"]
-        if uwu == "hands": uwu = self.fur["hands"]
-        if uwu == "hi": uwu = self.fur["hi"]
-        if uwu == "human": uwu = self.fur["human"]
-        if uwu == "humans": uwu = self.fur["humans"]
-        if uwu == "hyena": uwu = self.fur["hyena"]
-        if uwu == "hyenas": uwu = self.fur["hyenas"]
-        if uwu == "innocent": uwu = self.fur["innocent"]
-        if uwu == "kiss": uwu = self.fur["kiss"]
-        if uwu == "kisses": uwu = self.fur["kisses"]
-        if uwu == "lmao": uwu = self.fur["lmao"]
-        if uwu == "masturbate" or uwu == "fap": uwu = self.fur["masturbate"]
-        if uwu == "mouth": uwu = self.fur["mouth"]
-        if uwu == "naughty": uwu = self.fur["naughty"]
-        if uwu == "not": uwu = self.fur["not"]
-        if uwu == "perfect": uwu = self.fur["perfect"]
-        if uwu == "persona": uwu = self.fur["persona"]
-        if uwu == "personas": uwu = self.fur["personas"]
-        if uwu == "pervert": uwu = self.fur["pervert"]
-        if uwu == "perverts": uwu = self.fur["perverts"]
-        if uwu == "porn": uwu = self.fur["porn"]
-        if uwu == "roar": uwu = self.fur["roar"]
-        if uwu == "shout": uwu = self.fur["shout"]
-        if uwu == "someone": uwu = self.fur["someone"]
-        if uwu == "source": uwu = self.fur["source"]
-        if uwu == "sexy": uwu = self.fur["sexy"]
-        if uwu == "tale": uwu = self.fur["tale"]
-        if uwu == "the": uwu = self.fur["the"]
-        if uwu == "this": uwu = self.fur["this"]
-        if uwu == "what": uwu = self.fur["what"]
-        if uwu == "with": uwu = self.fur["with"]
-        if uwu == "you": uwu = self.fur["you"]
-        if uwu == ":)": uwu = self.fur[":)"]
-        if uwu == ":o" or uwu == ":O": uwu = self.fur[":o"]
-        if uwu == ":D": uwu = self.fur[":D"]
-        if uwu == "XD" or uwu == "xD" or uwu == "xd": uwu = self.fur["XD"]
+        if uwu == "ahh": uwu = fur["ahh"]
+        if uwu == "love": uwu = fur["love"]
+        if uwu == "awesome": uwu = fur["awesome"]
+        if uwu == "awful": uwu = fur["awful"]
+        if uwu == "bite": uwu = fur["bite"]
+        if uwu == "bites": uwu = fur["bites"]
+        if uwu == "butthole": uwu = fur["butthole"]
+        if uwu == "buttholes": uwu = fur["buttholes"]
+        if uwu == "bulge": uwu = fur["bulge"]
+        if uwu == "bye": uwu = fur["bye"]
+        if uwu == "celebrity": uwu = fur["celebrity"]
+        if uwu == "celebrities": uwu = fur["celebrities"]
+        if uwu == "cheese": uwu = fur["cheese"]
+        if uwu == "child" or uwu == "kid" or uwu == "infant": uwu = fur["child"]
+        if uwu == "children" or uwu == "kids" or uwu == "infants": uwu = fur["children"]
+        if uwu == "robot" or uwu == "cyborg" or uwu == "computer": uwu = fur["computer"]
+        if uwu == "robots" or uwu == "cyborgs" or uwu == "computers": uwu = fur["computers"]
+        if uwu == "disease": uwu = fur["disease"]
+        if uwu == "dog": uwu = fur["dog"]
+        if uwu == "dogs": uwu = fur["dogs"]
+        if uwu == "dragon": uwu = fur["dragon"]
+        if uwu == "dragons": uwu = fur["dragons"]
+        if uwu == "eat": uwu = fur["eat"]
+        if uwu == "everyone": uwu = fur["everyone"]
+        if uwu == "foot": uwu = fur["foot"]
+        if uwu == "feet": uwu = fur["feet"]
+        if uwu == "for": uwu = fur["for"]
+        if uwu == "fuck": uwu = fur["fuck"]
+        if uwu == "fucking": uwu = fur["fucking"]
+        if uwu == "fucked": uwu = fur["fucked"]
+        if uwu == "hand": uwu = fur["hand"]
+        if uwu == "hands": uwu = fur["hands"]
+        if uwu == "hi": uwu = fur["hi"]
+        if uwu == "human": uwu = fur["human"]
+        if uwu == "humans": uwu = fur["humans"]
+        if uwu == "hyena": uwu = fur["hyena"]
+        if uwu == "hyenas": uwu = fur["hyenas"]
+        if uwu == "innocent": uwu = fur["innocent"]
+        if uwu == "kiss": uwu = fur["kiss"]
+        if uwu == "kisses": uwu = fur["kisses"]
+        if uwu == "lmao": uwu = fur["lmao"]
+        if uwu == "masturbate" or uwu == "fap": uwu = fur["masturbate"]
+        if uwu == "mouth": uwu = fur["mouth"]
+        if uwu == "naughty": uwu = fur["naughty"]
+        if uwu == "not": uwu = fur["not"]
+        if uwu == "perfect": uwu = fur["perfect"]
+        if uwu == "persona": uwu = fur["persona"]
+        if uwu == "personas": uwu = fur["personas"]
+        if uwu == "pervert": uwu = fur["pervert"]
+        if uwu == "perverts": uwu = fur["perverts"]
+        if uwu == "porn": uwu = fur["porn"]
+        if uwu == "roar": uwu = fur["roar"]
+        if uwu == "shout": uwu = fur["shout"]
+        if uwu == "someone": uwu = fur["someone"]
+        if uwu == "source": uwu = fur["source"]
+        if uwu == "sexy": uwu = fur["sexy"]
+        if uwu == "tale": uwu = fur["tale"]
+        if uwu == "the": uwu = fur["the"]
+        if uwu == "this": uwu = fur["this"]
+        if uwu == "what": uwu = fur["what"]
+        if uwu == "with": uwu = fur["with"]
+        if uwu == "you": uwu = fur["you"]
+        if uwu == ":)": uwu = fur[":)"]
+        if uwu == ":o" or uwu == ":O": uwu = fur[":o"]
+        if uwu == ":D": uwu = fur[":D"]
+        if uwu == "XD" or uwu == "xD" or uwu == "xd": uwu = fur["XD"]
 
         # L -> W and R -> W
-        if not uwu in self.fur.values():
+        if not uwu in fur.values():
             protected = ""
             if (
                 uwu.endswith("le")
@@ -707,7 +731,7 @@ class General(commands.Cog):
                 )
                 await ctx.send(embed=embed)
         except:
-            await self.del_message(ctx, "I couldn't understand your time format. Do `-help utc` for examples on using the command.")
+            await self.del_message(ctx, f"I couldn't understand your time format. Do `{ctx.clean_prefix}help utc` for examples on using the command.")
 
     @commands.command(aliases=["uinfo"])
     @commands.guild_only()
@@ -728,8 +752,8 @@ class General(commands.Cog):
             user = author
 
         roles = user.roles[-1:0:-1]
-        names = await self.FromModconfig.user(user).past_names()
-        nicks = await self.FromModconfig.member(user).past_nicks()
+        names = await self.modconfig.user(user).past_names()
+        nicks = await self.modconfig.member(user).past_nicks()
         if names:
             names = [escape_spoilers_and_mass_mentions(name) for name in names if name]
         if nicks:
@@ -951,8 +975,6 @@ class General(commands.Cog):
 
         embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
         embed.set_author(name=channel.name, icon_url=channel.guild.icon_url)
-        Text = ["members","is_news()"]
-        Voice = ["members[active]","user_limit"]
 
         embed.set_footer(text=f'Channel ID: {channel.id} ◈ Created at')
 
@@ -984,7 +1006,7 @@ class General(commands.Cog):
         await menu(ctx, cembed, {"\N{CROSS MARK}": close_menu})
 
     @commands.guild_only()
-    @commands.command(aliases=["einfo"])
+    @commands.command(aliases=["einfo", "emoteinfo"])
     async def emojiinfo(self, ctx, emoji: Optional[discord.Emoji] = None):
         """Emoji information. Only works for servers the bot is in"""
         if not emoji:
@@ -1049,7 +1071,7 @@ class General(commands.Cog):
                         el.remove(e)
                 await ctx.send(e)
             except:
-                await self.del_message(ctx, "Seems I cant find an emoji from this server")
+                await self.del_message(ctx, "I can find any emojis to pick from in this server")
 
     async def del_message(self, ctx, message_text):
         message = await ctx.maybe_send_embed(message_text)
@@ -1058,3 +1080,186 @@ class General(commands.Cog):
             await message.delete()
         except (discord.errors.NotFound, discord.errors.Forbidden):
             pass
+
+    @commands.guild_only()
+    @commands.group(invoke_without_command=True)
+    async def selfrole(self, ctx: commands.Context, *, selfrole: SelfRole):
+        """
+        Add or remove a selfrole from yourself.
+
+        Server admins must have configured the role as user settable.
+        NOTE: The role is case sensitive!
+        """
+        if selfrole in ctx.author.roles:
+            return await self._removerole(ctx, ctx.author, selfrole, check_user=False)
+        else:
+            return await self._addrole(ctx, ctx.author, selfrole, check_user=False)
+
+    @selfrole.command(name="add", hidden=True)
+    async def selfrole_add(self, ctx: commands.Context, *, selfrole: SelfRole):
+        """
+        Add a selfrole to yourself.
+
+        Server admins must have configured the role as user settable.
+        NOTE: The role is case sensitive!
+        """
+        # noinspection PyTypeChecker
+        await self._addrole(ctx, ctx.author, selfrole, check_user=False)
+
+    @selfrole.command(name="remove", hidden=True)
+    async def selfrole_remove(self, ctx: commands.Context, *, selfrole: SelfRole):
+        """
+        Remove a selfrole from yourself.
+
+        Server admins must have configured the role as user settable.
+        NOTE: The role is case sensitive!
+        """
+        # noinspection PyTypeChecker
+        await self._removerole(ctx, ctx.author, selfrole, check_user=False)
+
+    @selfrole.command(name="list")
+    async def selfrole_list(self, ctx: commands.Context):
+        """
+        Lists all available selfroles.
+        """
+        selfroles = await self._valid_selfroles(ctx.guild)
+        fmt_selfroles = "\n".join(["+ " + r.name for r in selfroles])
+
+        if not fmt_selfroles:
+            await ctx.send("There are currently no selfroles.")
+            return
+
+        msg = ("Available Selfroles:\n{selfroles}").format(selfroles=fmt_selfroles)
+        await ctx.send(box(msg, "diff"))
+
+    async def _addrole(
+        self, ctx: commands.Context, member: discord.Member, role: discord.Role, *, check_user=True
+    ):
+        if role in member.roles:
+            await ctx.send(
+                ("{member.display_name} already has the role {role.name}.").format(
+                    role=role, member=member
+                )
+            )
+            return
+        if check_user and not self.pass_user_hierarchy_check(ctx, role):
+            await ctx.send((
+                "I can not let you give {role.name} to {member.display_name}"
+                " because that role is higher than or equal to your highest role"
+                " in the Discord hierarchy."
+                ).format(role=role, member=member))
+            return
+        if not self.pass_hierarchy_check(ctx, role):
+            await ctx.send((
+                "I can not give {role.name} to {member.display_name}"
+                " because that role is higher than or equal to my highest role"
+                " in the Discord hierarchy."
+                ).format(role=role, member=member))
+            return
+        if not ctx.guild.me.guild_permissions.manage_roles:
+            await ctx.send(("I need manage roles permission to do that."))
+            return
+        try:
+            await member.add_roles(role)
+        except discord.Forbidden:
+            await ctx.send((
+                "I attempted to do something that Discord denied me permissions for."
+                " Your command failed to successfully complete."))
+        else:
+            await ctx.send(
+                ("I successfully added {role.name} to {member.display_name}").format(
+                    role=role, member=member
+                )
+            )
+
+    async def _removerole(
+        self, ctx: commands.Context, member: discord.Member, role: discord.Role, *, check_user=True
+    ):
+        if role not in member.roles:
+            await ctx.send(
+                ("{member.display_name} does not have the role {role.name}.").format(
+                    role=role, member=member
+                )
+            )
+            return
+        if check_user and not self.pass_user_hierarchy_check(ctx, role):
+            await ctx.send((
+                "I can not let you remove {role.name} from {member.display_name}"
+                " because that role is higher than or equal to your highest role"
+                " in the Discord hierarchy."
+                ).format(role=role, member=member))
+            return
+        if not self.pass_hierarchy_check(ctx, role):
+            await ctx.send((
+                "I can not remove {role.name} from {member.display_name}"
+                " because that role is higher than or equal to my highest role"
+                " in the Discord hierarchy."
+                ).format(role=role, member=member))
+            return
+        if not ctx.guild.me.guild_permissions.manage_roles:
+            await ctx.send(("I need manage roles permission to do that."))
+            return
+        try:
+            await member.remove_roles(role)
+        except discord.Forbidden:
+            await ctx.send((
+                "I attempted to do something that Discord denied me permissions for."
+                " Your command failed to successfully complete."))
+        else:
+            await ctx.send(
+                ("I successfully removed {role.name} from {member.display_name}").format(
+                    role=role, member=member
+                )
+            )
+
+    async def _valid_selfroles(self, guild: discord.Guild) -> Tuple[discord.Role]:
+        """
+        Returns a tuple of valid selfroles
+        :param guild:
+        :return:
+        """
+        selfrole_ids = set(await self.adminconfig.guild(guild).selfroles())
+        guild_roles = guild.roles
+
+        valid_roles = tuple(r for r in guild_roles if r.id in selfrole_ids)
+        valid_role_ids = set(r.id for r in valid_roles)
+
+        if selfrole_ids != valid_role_ids:
+            await self.adminconfig.guild(guild).selfroles.set(list(valid_role_ids))
+
+        # noinspection PyTypeChecker
+        return valid_roles
+
+    @commands.command()
+    @commands.guild_only()
+    async def mywarnings(self, ctx: commands.Context):
+        """List warnings for yourself."""
+
+        user = ctx.author
+
+        msg = ""
+        member_settings = self.warnconfig.member(user)
+        async with member_settings.warnings() as user_warnings:
+            if not user_warnings.keys():  # no warnings for the user
+                await ctx.send(("You have no warnings!"))
+            else:
+                for key in user_warnings.keys():
+                    mod_id = user_warnings[key]["mod"]
+                    if mod_id == 0xDE1:
+                        mod = ("Deleted Moderator")
+                    else:
+                        bot = ctx.bot
+                        mod = bot.get_user(mod_id) or ("Unknown Moderator ({})").format(mod_id)
+                    msg += (
+                        "{num_points} point warning {reason_name} issued by {user} for "
+                        "{description}\n"
+                    ).format(
+                        num_points=user_warnings[key]["points"],
+                        reason_name=key,
+                        user=mod,
+                        description=user_warnings[key]["description"],
+                    )
+                await ctx.send_interactive(
+                    pagify(msg, shorten_by=58),
+                    box_lang=("Warnings for {user}").format(user=user),
+                )

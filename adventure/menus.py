@@ -236,7 +236,7 @@ class NVScoreboardSource(WeeklyScoreboardSource):
         pos_len = len(str(start_position + 9)) + 2
         header = (
             f"{'#':{pos_len}}{'Wins':{win_len}}"
-            f"{'Losses':{loses_len}}{'XP Won':{xp__len}}{'Gold Spent':{gold__len}}{'Adventurer':2}"
+            f"{'Losses':{loses_len}}{'XP Won':{xp__len}}{'Bits Spent':{gold__len}}{'Adventurer':2}"
         )
 
         author = ctx.author

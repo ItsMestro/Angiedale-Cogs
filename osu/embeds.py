@@ -1,12 +1,16 @@
-import discord
+import asyncio
 import logging
-import time
 import re
-from math import ceil
+import time
 from datetime import datetime, timedelta
-from redbot.core.utils.chat_formatting import humanize_number, humanize_timedelta, bold, inline
+from math import ceil
 
-log = logging.getLogger("red.angiedale.osu")
+import discord
+from redbot.core.utils.chat_formatting import (
+    humanize_number, humanize_timedelta, inline
+)
+
+log = logging.getLogger("red.angiedale.osu.embeds")
 
 EMOJI = {
     "XH": "<:SSH_Rank:794823890873483305>",
@@ -21,15 +25,241 @@ EMOJI = {
 }
 
 
-class Embed():
+class Data:
+    """Simplifies api data handling."""
+
+    def topdata(self, d):
+        """/users/{user}/scores"""
+
+        data = []
+        index = 0
+
+        for s in d:
+            score = {}
+
+            score["index"] = index
+
+            try:
+                score["mods"] = s["mods"]
+                score["scorepp"] = s["pp"]
+                score["accuracy"] = s["accuracy"]
+                score["score"] = s["score"]
+                score["combo"] = s["max_combo"]
+                score["scorerank"] = s["rank"]
+                score["played"] = s["created_at"]
+                score["scoregeki"] = s["statistics"]["count_geki"]
+                score["score300"] = s["statistics"]["count_300"]
+                score["scorekatu"] = s["statistics"]["count_katu"]
+                score["score100"] = s["statistics"]["count_100"]
+                score["score50"] = s["statistics"]["count_50"]
+                score["scoremiss"] = s["statistics"]["count_miss"]
+                try:
+                    score["weightpercentage"] = s["weight"]["percentage"]
+                    score["weightpp"] = s["weight"]["pp"]
+                except:
+                    pass
+                score["mode"] = s["mode"]
+
+                score = {**score, **Data.userbasicdata(s["user"])}
+
+                score["mapmode"] = s["beatmap"]["mode_int"]
+                score["version"] = s["beatmap"]["version"]
+                score["mapurl"] = s["beatmap"]["url"]
+                score["mapid"] = s["beatmap"]["id"]
+                score["sr"] = s["beatmap"]["difficulty_rating"]
+                score["ar"] = s["beatmap"]["ar"]
+                score["cs"] = s["beatmap"]["cs"]
+                score["hp"] = s["beatmap"]["drain"]
+                score["od"] = s["beatmap"]["accuracy"]
+                score["bpm"] = s["beatmap"]["bpm"]
+                score["circles"] = s["beatmap"]["count_circles"]
+                score["sliders"] = s["beatmap"]["count_sliders"]
+                score["spinners"] = s["beatmap"]["count_spinners"]
+
+                try:
+                    score["title"] = s["beatmapset"]["title"]
+                    score["artist"] = s["beatmapset"]["artist"]
+                    score["creator"] = s["beatmapset"]["creator"]
+                    score["creatorid"] = s["beatmapset"]["user_id"]
+                    score["status"] = s["beatmapset"]["status"]
+                    score["setid"] = s["beatmapset"]["id"]
+                except:
+                    pass
+            except:
+                log.error(s)
+
+            data.append(score)
+            index += 1
+        
+        return data
+
+    def mapdata(self, d):
+        """/beatmaps/{map}"""
+
+        data = {}
+
+        data["version"] = d["version"]
+        data["mapurl"] = d["url"]
+        data["mapmode"] = d["mode_int"]
+        data["sr"] = d["difficulty_rating"]
+        data["maxcombo"] = d["max_combo"]
+        data["circles"] = d["count_circles"]
+        data["sliders"] = d["count_sliders"]
+        data["spinners"] = d["count_spinners"]
+        data["ar"] = d["ar"]
+        data["cs"] = d["cs"]
+        data["hp"] = d["drain"]
+        data["od"] = d["accuracy"]
+        data["bpm"] = d["bpm"]
+        data["length"] = d["total_length"]
+        data["draintime"] = d["hit_length"]
+        data["mode"] = d["mode"]
+
+        data["artist"] = d["beatmapset"]["artist"]
+        data["title"] = d["beatmapset"]["title"]
+        data["creator"] = d["beatmapset"]["creator"]
+        data["creatorid"] = d["beatmapset"]["user_id"]
+        data["status"] = d["beatmapset"]["status"]
+        data["setid"] = d["beatmapset"]["id"]
+        data["favouritecount"] = d["beatmapset"]["favourite_count"]
+        data["source"] = d["beatmapset"]["source"]
+        data["tags"] = d["beatmapset"]["tags"]
+        data["ratings"] = list(d["beatmapset"]["ratings"])
+        data["submitted"] = d["beatmapset"]["submitted_date"]
+        data["updated"] = d["beatmapset"]["last_updated"]
+        data["playcount"] = d["beatmapset"]["play_count"]
+
+        return data
+
+    def changelogdata(self, d):
+        """/changelog"""
+
+        data = []
+
+        for c in d:
+            cl = {}
+            en = []
+
+            cl["streamname"] = c["update_stream"]["name"]
+            cl["users"] = c["users"]
+            cl["builddisplayname"] = c["update_stream"]["display_name"]
+            cl["displayversion"] = c["display_version"]
+            cl["posted"] = c["created_at"]
+            cl["version"] = c["version"]
+
+            for e in c["changelog_entries"]:
+                et = {}
+
+                et["prid"] = e["github_pull_request_id"]
+                et["repo"] = e["repository"]
+                et["giturl"] = e["github_url"]
+                et["userurl"] = e["github_user"]["user_url"]
+                et["gitusername"] = e["github_user"]["display_name"]
+                et["gituserurl"] = e["github_user"]["github_url"]
+                et["major"] = e["major"]
+                et["title"] = e["title"]
+                et["category"] = e["category"]
+
+                en.append(et)
+
+            cl["entry"] = en
+
+            data.append(cl)
+
+        return data
+
+    def rankingsdata(self, d):
+        """/users"""
+
+        data = {}
+
+        data = {**data, **Data.userbasicdata(d["user"])}
+
+        data["pp"] = d["pp"]
+        data["accuracy"] = d["hit_accuracy"]
+        data["playcount"] = d["play_count"]
+        data["rankedscore"] = d["ranked_score"]
+
+        return data
+
+    def userbasicdata(d):
+        data = {}
+
+        data["username"] = d["username"]
+        data["userflag"] = d["country_code"]
+        data["userid"] = d["id"]
+        try:
+            data["countryname"] = d["country"]["name"]
+        except:
+            pass
+
+        return data
+
+    def userdata(self, d):
+
+        data = {}
+
+        data = {**data, **Data.userbasicdata(d)}
+
+        data["lastonline"] = d["last_visit"]
+        data["mappingfollowers"] = d["mapping_follower_count"]
+        data["firstscores"] = d["scores_first_count"]
+        data["kudosutotal"] = d["kudosu"]["total"]
+        data["achievements"] = d["user_achievements"]
+        data["followers"] = d["follower_count"]
+        data["joined"] = d["join_date"]
+        try:
+            data["rankhistory"] = d["rank_history"]["data"]
+        except:
+            pass
+        data["online"] = d["is_online"]
+
+        data["graveyardedmaps"] = d["graveyard_beatmapset_count"]
+        data["rankedapprovedmaps"] = d["ranked_and_approved_beatmapset_count"]
+        data["lovedmaps"] = d["loved_beatmapset_count"]
+        data["unrankedmaps"] = d["unranked_beatmapset_count"]
+        data["favouritemaps"] = d["favourite_beatmapset_count"]
+
+        data["globalrank"] = d["statistics"]["global_rank"]
+        try:
+            data["countryrank"] = d["statistics"]["country_rank"]
+        except:
+            data["countryrank"] = 0
+        try:
+            data["globalrank4k"] = d["statistics"]["variants"][0]["global_rank"]
+            data["globalrank7k"] = d["statistics"]["variants"][1]["global_rank"]
+            data["countryrank4k"] = d["statistics"]["variants"][0]["country_rank"]
+            data["countryrank7k"] = d["statistics"]["variants"][1]["country_rank"]
+            data["pp4k"] = d["statistics"]["variants"][0]["pp"]
+            data["pp7k"] = d["statistics"]["variants"][1]["pp"]
+        except:
+            pass
+
+        data["accuracy"] = d["statistics"]["hit_accuracy"]
+        data["playcount"] = d["statistics"]["play_count"]
+        data["maxcombo"] = d["statistics"]["maximum_combo"]
+        data["levelcurrent"] = d["statistics"]["level"]["current"]
+        data["levelprogress"] = d["statistics"]["level"]["progress"]
+        data["pp"] = d["statistics"]["pp"]
+        data["rankedscore"] = d["statistics"]["ranked_score"]
+        data["totalscore"] = d["statistics"]["total_score"]
+        data["replayswatched"] = d["statistics"]["replays_watched_by_others"]
+        data["playtime"] = d["statistics"]["play_time"]
+        data["totalhits"] = d["statistics"]["total_hits"]
+
+        data["gradess"] = d["statistics"]["grade_counts"]["ss"]
+        data["gradessh"] = d["statistics"]["grade_counts"]["ssh"]
+        data["grades"] = d["statistics"]["grade_counts"]["s"]
+        data["gradesh"] = d["statistics"]["grade_counts"]["sh"]
+        data["gradea"] = d["statistics"]["grade_counts"]["a"]
+
+        return data
+
+class Embed(Data):
     """Puts data into embeds. Because why not."""
 
-    def __init__(self, bot):
-        self.bot = bot
-        self.d = Data
-
-    async def pp(self, ctx, data, pp_num):
-        d = self.d.top(data)
+    async def ppembed(self, ctx, data, pp_num):
+        d = self.topdata(data)
 
         pp_list = []
         for s in d:
@@ -82,8 +312,8 @@ class Embed():
 
         return embed_list
 
-    async def top(self, ctx, data, recent, pos):
-        d = self.d.top(data)
+    async def topembed(self, ctx, data, recent, pos):
+        d = self.topdata(data)
 
         recent_text = "Top"
         if recent == True:
@@ -184,9 +414,9 @@ class Embed():
         
         return embed_list
 
-    async def topcompare(self, ctx, adata, udata):
-        ad = self.d.top(adata)
-        ud = self.d.top(udata)
+    async def topcompareembed(self, ctx, adata, udata):
+        ad = self.topdata(adata)
+        ud = self.topdata(udata)
 
         for ascore in enumerate(ad):
             for uscore in enumerate(ud):
@@ -253,8 +483,8 @@ class Embed():
         else:
             return
 
-    async def map(self, ctx, data):
-        d = self.d.map(data)
+    async def mapembed(self, ctx, data):
+        d = self.mapdata(data)
 
         submitted = datetime.strptime(d["submitted"], "%Y-%m-%dT%H:%M:%S%z").strftime("%B %-d, %Y")
         updated = datetime.strptime(d["updated"], "%Y-%m-%dT%H:%M:%S%z").strftime("%B %-d, %Y")
@@ -402,7 +632,7 @@ class Embed():
 
         return embed_list
 
-    async def news(self, ctx, data):
+    async def newsembed(self, ctx, data):
         posts = data["news_posts"]
         count = len(posts)
 
@@ -427,8 +657,8 @@ class Embed():
 
         return embed_list
 
-    async def changelog(self, ctx, data):
-        d = self.d.changelog(data["builds"])
+    async def changelogembed(self, ctx, data):
+        d = self.changelogdata(data["builds"])
 
         embed_list = []
         base_embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
@@ -546,10 +776,10 @@ class Embed():
 
         return embed_list
 
-    async def rankings(self, ctx, data, mode, type, country, variant):
+    async def rankingsembed(self, ctx, data, mode, type, country, variant):
         d = []
         for u in data["ranking"]:
-            d.append(self.d.user(u))
+            d.append(self.rankingsdata(u))
 
         if mode == "osu":
             mode = "standard"
@@ -603,15 +833,13 @@ class Embed():
 
         return embed_list
 
-    async def profile(self, ctx, data):
-        d = self.d.user(data)
+    async def profileembed(self, ctx, data, mode = "osu"):
+        d = self.userdata(data)
 
-        if d["mode"] == "osu":
+        if mode == "osu":
             mode = "standard"
-        elif d["mode"] == "fruits":
+        elif mode == "fruits":
             mode = "catch"
-        else:
-            mode = d["mode"]
 
         globalrank = 0
         countryrank = 0
@@ -641,17 +869,20 @@ class Embed():
             performancevalue = f'{humanize_number(d["pp"])}pp'
             rankingvalue = f'#{globalrank} ({d["userflag"].upper()} #{countryrank})'
 
-        playtime = re.split(r",\s", humanize_timedelta(timedelta=timedelta(seconds=d["playtime"])))
-        try:
-            playtime = f"{playtime[0]}, {playtime[1]}, {playtime[2]}"
-        except IndexError:
+        if d["playtime"]:
+            playtime = re.split(r",\s", humanize_timedelta(timedelta=timedelta(seconds=d["playtime"])))
             try:
-                playtime = f"{playtime[0]}, {playtime[1]}"
+                playtime = f"{playtime[0]}, {playtime[1]}, {playtime[2]}"
             except IndexError:
                 try:
-                    playtime = f"{playtime[0]}"
+                    playtime = f"{playtime[0]}, {playtime[1]}"
                 except IndexError:
-                    playtime = "0"
+                    try:
+                        playtime = f"{playtime[0]}"
+                    except IndexError:
+                        playtime = "0"
+        else:
+            playtime = "None"
 
         joindate = datetime.strptime(d["joined"], "%Y-%m-%dT%H:%M:%S%z")
         joindate = joindate.strftime("%B %-d, %Y")
@@ -667,7 +898,7 @@ class Embed():
             f'{"{0:^7}".format(humanize_number(rankhistory[44] - rankhistory[59]))}|{"{0:^10}".format(humanize_number(rankhistory[59]))}| -30d\n'
             f'{"{0:^7}".format(humanize_number(rankhistory[59] - rankhistory[74]))}|{"{0:^10}".format(humanize_number(rankhistory[74]))}| -15d\n'
             f'{"{0:^7}".format(humanize_number(rankhistory[74] - rankhistory[89]))}|{"{0:^10}".format(humanize_number(rankhistory[89]))}|  Now```' )
-        except TypeError:
+        except (TypeError, KeyError):
             rankhistory = "This user doesn't have any rank history."
 
         embed_list = []
@@ -809,16 +1040,16 @@ class Embed():
             
         return embed_list
 
-    async def recent(self, ctx, data, mapdata = None):
+    async def recentembed(self, ctx, data, mapdata = None):
         if mapdata:
-            m = self.d.map(mapdata)
-            da = self.d.top(data)
+            m = self.mapdata(mapdata)
+            da = self.topdata(data)
             s = []
             for sd in da:
                 c = {**m, **sd}
                 s.append(c)
         else:
-            s = self.d.top(data)
+            s = self.topdata(data)
         
         embed_list = []
         p = 1
@@ -911,225 +1142,131 @@ class Embed():
             
         return embed_list
 
-class Data:
-    """Simplifies api data handling."""
-
-    def top(d):
-        """/users/{user}/scores"""
-
-        data = []
-        index = 0
-
-        for s in d:
-            score = {}
-
-            score["index"] = index
-
-            score["mods"] = s["mods"]
-            score["scorepp"] = s["pp"]
-            score["accuracy"] = s["accuracy"]
-            score["score"] = s["score"]
-            score["combo"] = s["max_combo"]
-            score["scorerank"] = s["rank"]
-            score["played"] = s["created_at"]
-            score["scoregeki"] = s["statistics"]["count_geki"]
-            score["score300"] = s["statistics"]["count_300"]
-            score["scorekatu"] = s["statistics"]["count_katu"]
-            score["score100"] = s["statistics"]["count_100"]
-            score["score50"] = s["statistics"]["count_50"]
-            score["scoremiss"] = s["statistics"]["count_miss"]
-            try:
-                score["weightpercentage"] = s["weight"]["percentage"]
-                score["weightpp"] = s["weight"]["pp"]
-            except:
-                pass
-            score["mode"] = s["mode"]
-
-            score = {**score, **Data.userbasic(s["user"])}
-
-            score["mapmode"] = s["beatmap"]["mode_int"]
-            score["version"] = s["beatmap"]["version"]
-            score["mapurl"] = s["beatmap"]["url"]
-            score["mapid"] = s["beatmap"]["id"]
-            score["sr"] = s["beatmap"]["difficulty_rating"]
-            score["ar"] = s["beatmap"]["ar"]
-            score["cs"] = s["beatmap"]["cs"]
-            score["hp"] = s["beatmap"]["drain"]
-            score["od"] = s["beatmap"]["accuracy"]
-            score["bpm"] = s["beatmap"]["bpm"]
-            score["circles"] = s["beatmap"]["count_circles"]
-            score["sliders"] = s["beatmap"]["count_sliders"]
-            score["spinners"] = s["beatmap"]["count_spinners"]
-
-            try:
-                score["title"] = s["beatmapset"]["title"]
-                score["artist"] = s["beatmapset"]["artist"]
-                score["creator"] = s["beatmapset"]["creator"]
-                score["creatorid"] = s["beatmapset"]["user_id"]
-                score["status"] = s["beatmapset"]["status"]
-                score["setid"] = s["beatmapset"]["id"]
-            except:
-                pass
-
-            data.append(score)
-            index += 1
+    async def trackingembed(self, channels, udata, ndata):
+        for p in enumerate(udata):
+            for o in enumerate(ndata):
+                if ndata[o[0]]["mapid"] == udata[p[0]]["mapid"]:
+                    ndata[o[0]]["oldpp"] = udata[p[0]]["scorepp"]
+                    ndata[o[0]]["oldindex"] = udata[p[0]]["index"]
+                    ndata[o[0]]["oldacc"] = udata[p[0]]["accuracy"]
+                    if ndata[o[0]]["played"] == udata[p[0]]["played"]:
+                        ndata.pop(o[0])
+                        break
         
-        return data
+        badchannels = []
+        for d in ndata:
+            if d["mode"] == "osu":
+                mode = "standard"
+            elif d["mode"] == "fruits":
+                mode = "catch"
+            else:
+                mode = d["mode"]
 
-    def map(d):
-        """/beatmaps/{map}"""
+            if d["mode"] == "mania":
+                comboratio = "Combo / Ratio"
+                version = re.sub(r"^\S*\s", "", d["version"])
+                ratio = round(d["scoregeki"] / d["score300"],2)
+                combo = f'**{d["combo"]:,}x** / {ratio}'
+                hits = f'{humanize_number(d["scoregeki"])}/{humanize_number(d["score300"])}/{humanize_number(d["scorekatu"])}/{humanize_number(d["score100"])}/{humanize_number(d["score50"])}/{humanize_number(d["scoremiss"])}'
+                stats = f'OD: `{d["od"]}` | HP: `{d["hp"]}`'
+            else:
+                version = d["version"]
+                comboratio = "Combo"
+                combo = f'**{d["combo"]:,}x**'
+                hits = f'{humanize_number(d["score300"])}/{humanize_number(d["score100"])}/{humanize_number(d["score50"])}/{humanize_number(d["scoremiss"])}'
+                stats = f'CS: `{d["cs"]}` | AR: `{d["ar"]}` | OD: `{d["od"]}` | HP: `{d["hp"]}`'
 
-        data = {}
+            mods = ""
+            if d["mods"]:
+                mods = mods.join(d["mods"])
+                mods = f" +{mods}"
 
-        data["version"] = d["version"]
-        data["mapurl"] = d["url"]
-        data["mapmode"] = d["mode_int"]
-        data["sr"] = d["difficulty_rating"]
-        data["maxcombo"] = d["max_combo"]
-        data["circles"] = d["count_circles"]
-        data["sliders"] = d["count_sliders"]
-        data["spinners"] = d["count_spinners"]
-        data["ar"] = d["ar"]
-        data["cs"] = d["cs"]
-        data["hp"] = d["drain"]
-        data["od"] = d["accuracy"]
-        data["bpm"] = d["bpm"]
-        data["length"] = d["total_length"]
-        data["draintime"] = d["hit_length"]
-        data["mode"] = d["mode"]
+            ppaddon = ""
+            accaddon = ""
+            embedtitle = f'New #{d["index"] + 1} for {d["username"]}'
+            try:
+                performance = f'{humanize_number(round(d["scorepp"], 2))}'
+            except TypeError:
+                performance = 0
+            try:
+                if d["oldpp"]:
+                    checkedpp = round(d["scorepp"] - d["oldpp"], 2)
+                    checkedacc = d["accuracy"] - d["oldacc"]
+                    ppaddon = f' ({humanize_number(checkedpp)})'
+                    accaddon = f' ({"{:.2%}".format(checkedacc)})'
+                    if checkedpp > 0:
+                        ppaddon = f' (+{humanize_number(checkedpp)})'
+                    if checkedacc > 0:
+                        accaddon = f' (+{"{:.2%}".format(checkedacc)})'
+                    embedtitle = f'Improved #{d["index"] + 1} from #{d["oldindex"] + 1} for {d["username"]}'
+            except KeyError:
+                pass
 
-        data["artist"] = d["beatmapset"]["artist"]
-        data["title"] = d["beatmapset"]["title"]
-        data["creator"] = d["beatmapset"]["creator"]
-        data["creatorid"] = d["beatmapset"]["user_id"]
-        data["status"] = d["beatmapset"]["status"]
-        data["setid"] = d["beatmapset"]["id"]
-        data["favouritecount"] = d["beatmapset"]["favourite_count"]
-        data["source"] = d["beatmapset"]["source"]
-        data["tags"] = d["beatmapset"]["tags"]
-        data["ratings"] = list(d["beatmapset"]["ratings"])
-        data["submitted"] = d["beatmapset"]["submitted_date"]
-        data["updated"] = d["beatmapset"]["last_updated"]
-        data["playcount"] = d["beatmapset"]["play_count"]
 
-        return data
+            embed = discord.Embed(color=0)
 
-    def changelog(d):
-        """/changelog"""
+            embed.set_author(
+                name=f'{d["artist"]} - {d["title"]} [{version}] [{str(d["sr"])}★]',
+                url=d["mapurl"],
+                icon_url=f'https://a.ppy.sh/{d["userid"]}'
+            )
 
-        data = []
+            embed.title = embedtitle
 
-        for c in d:
-            cl = {}
-            en = []
+            embed.set_image(url=f'https://assets.ppy.sh/beatmaps/{d["setid"]}/covers/cover.jpg')
 
-            cl["streamname"] = c["update_stream"]["name"]
-            cl["users"] = c["users"]
-            cl["builddisplayname"] = c["update_stream"]["display_name"]
-            cl["displayversion"] = c["display_version"]
-            cl["posted"] = c["created_at"]
-            cl["version"] = c["version"]
+            embed.add_field(
+                name="Grade",
+                value=f'{EMOJI[d["scorerank"]]}{mods}',
+                inline=True
+            )
+            embed.add_field(
+                name="Score",
+                value=humanize_number(d["score"]),
+                inline=True
+            )
+            embed.add_field(
+                name="Accuracy",
+                value="{:.2%}{}".format(d["accuracy"], accaddon),
+                inline=True
+            )
+            embed.add_field(
+                name="PP",
+                value=f"**{performance}pp{ppaddon}**",
+                inline=True
+            )
+            embed.add_field(
+                name=comboratio,
+                value=combo,
+                inline=True
+            )
+            embed.add_field(
+                name="Hits",
+                value=hits,
+                inline=True
+            )
+            embed.add_field(
+                name="Map Info",
+                value=f'Mapper: [{d["creator"]}](https://osu.ppy.sh/users/{d["creatorid"]}) | BPM: `{d["bpm"]}` | Objects: `{humanize_number(d["circles"] + d["sliders"] + d["spinners"])}` \n'
+                f'Status: {inline(d["status"].capitalize())} | {stats}',
+                inline=False
+            )
 
-            for e in c["changelog_entries"]:
-                et = {}
+            embed.set_footer(text=f'{d["username"]} | osu!{mode.capitalize()} | Played')
 
-                et["prid"] = e["github_pull_request_id"]
-                et["repo"] = e["repository"]
-                et["giturl"] = e["github_url"]
-                et["userurl"] = e["github_user"]["user_url"]
-                et["gitusername"] = e["github_user"]["display_name"]
-                et["gituserurl"] = e["github_user"]["github_url"]
-                et["major"] = e["major"]
-                et["title"] = e["title"]
-                et["category"] = e["category"]
+            embed.timestamp = datetime.strptime(d["played"], "%Y-%m-%dT%H:%M:%S%z")
 
-                en.append(et)
+            for channelid in channels:
+                channel = self.bot.get_channel(channelid)
+                if channel:
+                    embed.color = await self.bot.get_embed_color(channel)
+                    try:
+                        await channel.send(embed=embed)
+                    except discord.errors.Forbidden:
+                        pass
+                    await asyncio.sleep(1)
+                else:
+                    badchannels.append(channelid)
+            await asyncio.sleep(1)
 
-            cl["entry"] = en
-
-            data.append(cl)
-
-        return data
-
-    def rankings(d):
-        """/users"""
-
-        data = {}
-
-        data = {**data, **Data.userbasic(d["user"])}
-
-        data["pp"] = d["pp"]
-        data["accuracy"] = d["hit_accuracy"]
-        data["playcount"] = d["play_count"]
-        data["rankedscore"] = d["ranked_score"]
-
-        return data
-
-    def userbasic(d):
-        data = {}
-
-        data["username"] = d["username"]
-        data["userflag"] = d["country_code"]
-        data["userid"] = d["id"]
-        try:
-            data["countryname"] = d["country"]["name"]
-        except:
-            pass
-
-        return data
-
-    def user(d):
-
-        data = {}
-
-        data = {**data, **Data.userbasic(d)}
-
-        data["lastonline"] = d["last_visit"]
-        data["mappingfollowers"] = d["mapping_follower_count"]
-        data["firstscores"] = d["scores_first_count"]
-        data["kudosutotal"] = d["kudosu"]["total"]
-        data["achievements"] = d["user_achievements"]
-        data["followers"] = d["follower_count"]
-        data["joined"] = d["join_date"]
-        try:
-            data["rankhistory"] = d["rank_history"]["data"]
-        except:
-            pass
-        data["mode"] = d["rank_history"]["mode"]
-        data["online"] = d["is_online"]
-
-        data["graveyardedmaps"] = d["graveyard_beatmapset_count"]
-        data["rankedapprovedmaps"] = d["ranked_and_approved_beatmapset_count"]
-        data["lovedmaps"] = d["loved_beatmapset_count"]
-        data["unrankedmaps"] = d["unranked_beatmapset_count"]
-        data["favouritemaps"] = d["favourite_beatmapset_count"]
-
-        data["globalrank"] = d["statistics"]["rank"]["global"]
-        data["countryrank"] = d["statistics"]["rank"]["country"]
-        if data["mode"] == "mania":
-            data["globalrank4k"] = d["statistics"]["variants"][0]["global_rank"]
-            data["globalrank7k"] = d["statistics"]["variants"][1]["global_rank"]
-            data["countryrank4k"] = d["statistics"]["variants"][0]["country_rank"]
-            data["countryrank7k"] = d["statistics"]["variants"][1]["country_rank"]
-            data["pp4k"] = d["statistics"]["variants"][0]["pp"]
-            data["pp7k"] = d["statistics"]["variants"][1]["pp"]
-
-        data["accuracy"] = d["statistics"]["hit_accuracy"]
-        data["playcount"] = d["statistics"]["play_count"]
-        data["maxcombo"] = d["statistics"]["maximum_combo"]
-        data["levelcurrent"] = d["statistics"]["level"]["current"]
-        data["levelprogress"] = d["statistics"]["level"]["progress"]
-        data["pp"] = d["statistics"]["pp"]
-        data["rankedscore"] = d["statistics"]["ranked_score"]
-        data["totalscore"] = d["statistics"]["total_score"]
-        data["replayswatched"] = d["statistics"]["replays_watched_by_others"]
-        data["playtime"] = d["statistics"]["play_time"]
-        data["totalhits"] = d["statistics"]["total_hits"]
-
-        data["gradess"] = d["statistics"]["grade_counts"]["ss"]
-        data["gradessh"] = d["statistics"]["grade_counts"]["ssh"]
-        data["grades"] = d["statistics"]["grade_counts"]["s"]
-        data["gradesh"] = d["statistics"]["grade_counts"]["sh"]
-        data["gradea"] = d["statistics"]["grade_counts"]["a"]
-
-        return data
+        return badchannels

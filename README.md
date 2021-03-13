@@ -17,6 +17,5 @@ These dependencies are required to run some of these cogs. Install using the dow
 beautifultable
 tabulate
 beautifulsoup4
-pylint
 matplotlib
 ```

@@ -1,6 +1,6 @@
 import random
 from collections import deque
-from itertools import product, chain
+from itertools import chain, product
 
 
 class Deck:

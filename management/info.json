@@ -1,7 +1,0 @@
-{
-    "author" : ["Mestro", "aikaterna", "retke (El Laggron)"],
-    "description" : "Collection of commands for managing the bot or other cogs",
-    "install_msg" : "Management was loaded!",
-    "short" : "General management commands",
-    "end_user_data_statement": "This cog stores user IDs of users that create aliases. This cog does not support data requests, but will respect deletion requests."
-}

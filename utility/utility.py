@@ -1,25 +1,24 @@
-import discord
 import asyncio
 import calendar
+import itertools
 import logging
-import time
 import random
 import re
-import requests
-import os
-import shutil
-from zipfile import ZipFile
-from typing import Dict, Optional
+import time
 from datetime import datetime, timedelta
-from pylint import epylint as lint
-from redbot.core import Config, commands, checks
-from redbot.core.utils.predicates import MessagePredicate, ReactionPredicate
+from typing import Dict, Optional
+
+import discord
+from redbot.core import Config, checks, commands
 from redbot.core.bot import Red
-from redbot.core.data_manager import cog_data_path, bundled_data_path
-from redbot.core.utils.chat_formatting import humanize_timedelta, pagify, escape, info, error
+from redbot.core.utils.chat_formatting import (
+    error, escape, humanize_timedelta, info, pagify
+)
 from redbot.core.utils.menus import start_adding_reactions
+from redbot.core.utils.predicates import MessagePredicate, ReactionPredicate
+
+from .converters import MULTI_RE, TIME_RE, PollOptions
 from .polls import Poll
-from .converters import PollOptions, TIME_RE, MULTI_RE
 
 log = logging.getLogger("red.angiedale.utility")
 
@@ -34,95 +33,30 @@ class Utility(commands.Cog):
     def __init__(self, bot: Red):
         super().__init__()
         self.bot = bot
-        self.pylintconfig = Config.get_conf(self, identifier=1387007, cog_name="UtilityPyLint", force_registration=True)
-        default_global = {"lint": False}
-        default_guild = {}
-        self.raffleconfig = Config.get_conf(self, 1387009, cog_name="UtilityRaffle", force_registration=True)
+
+        self.raffleconfig = Config.get_conf(self, identifier=1387000, cog_name="UtilityRaffle", force_registration=True)
         self.raffleconfig.register_guild(**self.raffle_defaults)
         self.load_check = self.bot.loop.create_task(self.raffle_worker())
-        self.conf = Config.get_conf(self, identifier=1387011, cog_name="UtilityReactPoll", force_registration=True)
+
+        self.conf = Config.get_conf(self, identifier=1387000, cog_name="UtilityReactPoll", force_registration=True)
         default_guild_settings = {"polls": {}, "embed": True}
         self.conf.register_guild(**default_guild_settings)
         self.conf.register_global(polls=[])
-        self.newsconfig = Config.get_conf(self, identifier=1387010, cog_name="UtilityNews", force_registration=True)
-        self.newsconfig.register_guild(reporters=[], channel=None, footer=None)
         self.polls: Dict[int, Dict[int, Poll]] = {}
         self.migrate = self.bot.loop.create_task(self.migrate_old_polls())
         self.loop = self.bot.loop.create_task(self.load_polls())
         self.poll_task = self.bot.loop.create_task(self.poll_closer())
         self.close_loop = True
 
-        self.path = str(cog_data_path(self)).replace("\\", "/")
+        self.newsconfig = Config.get_conf(self, identifier=1387000, cog_name="UtilityNews", force_registration=True)
+        self.newsconfig.register_guild(reporters=[], channel=None, footer=None)
 
-        self.do_lint = None
-        self.counter = 0
-
-        # self.answer_path = self.path + "/tmpfile.py"
-
-        self.pylintconfig.register_global(**default_global)
-        self.pylintconfig.register_guild(**default_guild)
 
     async def red_delete_data_for_user(self, **kwargs):
         """Nothing to delete"""
         return
 
-    @checks.guildowner()
-    @commands.command()
-    async def autopylint(self, ctx: commands.Context):
-        """Toggles automatically linting code"""
-        curr = await self.pylintconfig.lint()
-
-        self.do_lint = not curr
-        await self.pylintconfig.lint.set(not curr)
-        await ctx.maybe_send_embed("Autolinting is now set to {}".format(not curr))
-
-    @commands.command()
-    async def pylint(self, ctx: commands.Context, *, code):
-        """Lint python code
-
-        Toggle autolinting with `[p]autopylint`
-        """
-        await self.lint_message(ctx.message)
-
-    async def lint_code(self, code):
-        self.counter += 1
-        path = self.path + "/{}.py".format(self.counter)
-        with open(path, "w") as codefile:
-            codefile.write(code)
-
-        future = await self.bot.loop.run_in_executor(None, lint.py_run, path, "return_std=True")
-
-        if future:
-            (pylint_stdout, pylint_stderr) = future
-        else:
-            (pylint_stdout, pylint_stderr) = None, None
-
-        # print(pylint_stderr)
-        # print(pylint_stdout)
-
-        return pylint_stdout, pylint_stderr
-
-    async def lint_message(self, message):
-        if self.do_lint is None:
-            self.do_lint = await self.pylintconfig.lint()
-        if not self.do_lint:
-            return
-        code_blocks = message.content.split("```")[1::2]
-
-        for c in code_blocks:
-            is_python, code = c.split(None, 1)
-            is_python = is_python.lower() in ["python", "py"]
-            if is_python:  # Then we're in business
-                linted, errors = await self.lint_code(code)
-                linted = linted.getvalue()
-                errors = errors.getvalue()
-                await message.channel.send(linted)
-                # await message.channel.send(errors)
-
-    async def on_message(self, message: discord.Message):
-        await self.lint_message(message)
-
-    @commands.command()
+    @commands.command(aliases=["choose", "random", "draw"])
     async def pick(self, ctx, *items):
         """Chooses/picks a random item from N multiple items.
 
@@ -137,7 +71,7 @@ class Utility(commands.Cog):
     async def pickx(self, ctx, x : int, *items):
         """From a set of N items, chooses/picks X items and display them.
         
-        This is random choosing with replacement, and is the same as using the "pick" command multiple times.
+        This is random choosing with replacement (Can be duplicate), and is the same as using the "pick" command multiple times.
         To denote multiple-word items, use double quotes."""
         items = [escape(c, mass_mentions=True) for c in items]
         if x < 1:
@@ -151,7 +85,7 @@ class Utility(commands.Cog):
     async def drawx(self, ctx, x : int, *items):
         """From a set of N items, draw X items and display them.
         
-        This is random drawing without replacement.
+        This is random drawing without replacement (No dupllicates).
         To denote multiple-word items, use double quotes."""
         items = [escape(c, mass_mentions=True) for c in items]
         if x < 1:
@@ -172,7 +106,7 @@ class Utility(commands.Cog):
         if len(items) < 1:
             await ctx.send(error("Not enough items to shuffle."))
         else:
-            await ctx.send(info("A randomized order of {} items: {}".format(len(items), ", ".join(shuffle(items)))))
+            await ctx.send(info("A randomized order of {} items: {}".format(len(items), ", ".join(random.shuffle(items)))))
 
 
     @commands.command(aliases=["rolld"])
@@ -528,13 +462,10 @@ class Utility(commands.Cog):
         await ctx.send("I will no longer mention any role for new raffles.")
 
     def cog_unload(self):
-        self.__unload()
         self.close_loop = False
         self.poll_task.cancel()
-        pass
-
-    def __unload(self):
         self.load_check.cancel()
+        pass
 
     async def start_checks(self, ctx, timer):
         timer = self.time_converter(timer)
@@ -894,7 +825,7 @@ class Utility(commands.Cog):
 
     @commands.group()
     @commands.guild_only()
-    @checks.guildowner()
+    @checks.admin_or_permissions(administrator=True)
     async def pollset(self, ctx: commands.Context):
         """
             Settings for reaction polls
@@ -1116,44 +1047,6 @@ class Utility(commands.Cog):
 
     @commands.command()
     @commands.guild_only()
-    @checks.is_owner()
-    async def dumpemotes(self, ctx, guild: int = None):
-        """Dumps emotes from a server."""
-        if guild:
-            g = self.bot.get_guild(guild)
-        else:
-            g = ctx.guild
-        path = f"{bundled_data_path(self)}/{g.id}"
-        message = await ctx.send("Give me a moment...")
-
-        if not os.path.exists(path):
-            os.makedirs(path)
-
-        for emote in g.emojis:
-            r = requests.get(emote.url)
-            if emote.animated:
-                with open(f"{path}/{emote.name}.gif", "wb") as f:
-                    f.write(r.content)
-            else:
-                with open(f"{path}/{emote.name}.png", "wb") as f:
-                    f.write(r.content)
-            await asyncio.sleep(0.2)
-        try:
-            await message.delete()
-        except:
-            pass
-        with ZipFile(f"{path}.zip", "w") as zip:
-            for file in os.listdir(path):
-                zip.write(f"{path}/{file}", file)
-
-        with open(f"{path}.zip", "rb") as fp:
-            await ctx.send(content="Here's your emotes!",file=discord.File(fp, f"{g.name} Emotes.zip"))
-        
-        os.remove(f"{path}.zip")
-        shutil.rmtree(path)
-
-    @commands.command()
-    @commands.guild_only()
     async def sendnews(self, ctx):
         """Send a news embed in current server."""
         ss = await self.newsconfig.guild(ctx.guild).all()
@@ -1191,9 +1084,9 @@ class Utility(commands.Cog):
                 while i <= int(q_amount):
                     response = await self._get_news_response(ctx, f"QnA: **{i}** (Format like this `<question>|<answer>`)", questionpred)
                     qa = response.split("|")
-                    if qa[0] > 256:
+                    if len(qa[0]) > 256:
                         return await self.del_message(ctx, "Your question was too long.")
-                    elif qa[1] > 1028:
+                    elif len(qa[1]) > 1028:
                         return await self.del_message(ctx, "Your answer was too long.")
                     else:
                         qna.append(f"{qa[0]}\a{qa[1]}")
@@ -1310,3 +1203,140 @@ class Utility(commands.Cog):
             await message.delete()
         except (discord.errors.NotFound, discord.errors.Forbidden):
             pass
+
+    # @commands.command()
+    # @checks.is_owner()
+    # async def fixembed(self, ctx):
+    #     """test"""
+
+    #     channel = self.bot.get_channel(807609842780340234)
+    #     message = await channel.fetch_message(818484338101846026)
+
+    #     embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
+
+    #     embed.add_field(
+    #         name="How has your experience in 4DMWC been? Especially for the aspiring MWC players, do you guys have a plan to join MWC in the near future?",
+    #         value="IjustLuvBanana: 4DMWC has been fun, I’ve learnt alot of things like controlling nerves, getting better at ratio and also it’s my first tourney experience :D. Not hoping to join MWC next year or the year after that tho but I might try registering.",
+    #         inline=False
+    #         )
+    #     embed.add_field(
+    #         name="palmEuEi: Nahh. I am looking forward for 4 digits MWC 4.",
+    #         value="Trillerspec : I now have an ability to do the competition and finish assignments in the same time HAHA. However I have no plan to participate any tournament anymore because of university applications next year.",
+    #         inline=False
+    #         )
+    #     embed.add_field(
+    #         name="shokoha: I actually want to try MWC, but I feel like I will be ded.",
+    #         value="Zytosy: From my perspective as a 4DMWC player for every iteration, I can tell that every year I have countless experiences and impressions, like I have new friends, and the excitement that stems off the competitions. But for MWC, I am still not considering that now.",
+    #         inline=False
+    #         )
+    #     embed.add_field(
+    #         name="FarmMyLife: It was really fun and completely new experiences, haven't tried big community tournaments like this before so I have so much nerves in the matches and choked frequently.",
+    #         value="But for MWC.... nope, I am still here looking for 4DM4, like palmEuEi.",
+    #         inline=False
+    #         )
+    #     embed.add_field(
+    #         name="Final question but this is the bonus one haha. Any personal favourite moment where you popped off?",
+    #         value="IjustLuvBanana: Only time I’ve popped off would be the finals TH vs NLD. I got a pb on the SV!\n\nTrillerspec: I was finishing assignments and practicing and I still got a good score 55555555",
+    #         inline=False
+    #         )
+    #     embed.add_field(
+    #         name="FarmMyLife: I have so many moments but I would rather not to tell, you want me to tell? OK, here it is, nope. :pensive:",
+    #         value="IjustLuvBanana: Also, shokoha was doing an examination during the match and she played so well.",
+    #         inline=False
+    #         )
+    #     embed.add_field(
+    #         name="palmEuEi: My personal proud moment is when it was 4dm2, I could play only SV and LN, but this year I played every map!",
+    #         value="Polytetral: I know HAHA. As a 4DM2 player I'm very proud you made it this far <3",
+    #         inline=False
+    #         )
+    #     embed.add_field(
+    #         name="palmEuEi: Playing every map doesn't means I am good, I just can play those maps. :joy:",
+    #         value="shokoha : When we won Finland 4-1 it was like throwing the mountain out of my chest.",
+    #         inline=False
+    #         )
+    #     embed.add_field(
+    #         name="palmEuEi: Also we are proud to have best waifu on the team shokoha!",
+    #         value="Polytetral: Well I guess that is also a moment. But waifu discussions can be taken somewhere else HAHA",
+    #         inline=False
+    #         )
+    #     embed.add_field(
+    #         name="FarmMyLife: Is there a method for remediating choking in the match?",
+    #         value="Polytetral: Good question! I've been telling the SG MWC and 4DM teams for the longest time \"If you have a mindblock, pretend it doesnt exist. If you choke, let it be. If not, be happy\". I guess take in deep breaths and really keep yourself from being too distracted or too focused. Both can lead to the failure of muscle memory.",
+    #         inline=False
+    #         )
+
+    #     await message.edit(embed=embed)
+
+    # @commands.command()
+    # async def manualembed(self, ctx):
+    #     channel = self.bot.get_channel(807609842780340234)
+    #     embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
+    #     embed.set_author(
+    #         name=f"Author: {ctx.author.name}",
+    #         icon_url=ctx.author.avatar_url
+    #     )
+    #     embed.title = "4DM3: Finals Week 2 Interviews"
+    #     embed.description = "Brazil: Part 3"
+    #     embed.timestamp = datetime.utcnow()
+    #     embed.set_footer(text="Hosted by: StartAndSelect, Polytetral and - Abby -")
+
+    #     await channel.send(embed=embed)
+
+    #     embed1 = discord.Embed(color=await self.bot.get_embed_color(ctx))
+    #     embed1.add_field(
+    #         name="Anyway I would like to get a sensing of how 4DMWC has been for you guys. How has the experience in 4DM3 been overall?",
+    #         value="Yuragi: It's been fun to some extent, I think I've reached a point where I'm just feeling extreme fatigue from playing the fifth tournament in a row without a break.\nOther than that it's been great, I've met a lot of great people that I hope I keep in contact after this tournament is over, e.g. Lerck, Zaykken, Koidex, Logan, Leon, Arccat etc.",
+    #         inline=False
+    #         )
+    #     embed1.add_field(
+    #         name="Polytetral: Yeah the fatigue really sets in after a while, even playing one tournament for 6 weeks in a row is pretty tiring, let alone 5 tournaments LOL you're pretty dedicated hands off to that",
+    #         value="Halo-: It's been nice! The matches have been good experiences (polite refs and fun players in all teams) and competition has been nice. I've had the opportunity to commentate some of these and that was pretty fun; wish I could have done more but it's hard to conciliate staffing with playing. I'm also in a way better mental state than in 4dm2, and that did wonders for my motivation. This edition seems like it has everyone excited, and I hope it continues to deliver.",
+    #         inline=False
+    #         )
+    #     embed1.add_field(
+    #         name="Chiara: It’s my first time in a big tourney and I’m satisfied. I had some good moments with my teammates and on the matches.",
+    #         value="Lenn: i think that 4DMWC has connected me more to the brazilian community overall, our team has stood in a great bond between our members and no internal fights or any negative form of relation has happened between us. I really enjoyed playing the matches and feel the adrenaline of competitiveness and teamwork, it's good to be on a team that works symbiotically like that.",
+    #         inline=False
+    #         )
+    #     embed1.add_field(
+    #         name="Polytetral: That's good to hear! I'm very glad that you guys got to connect over this tournament, makes all the game worthwhile.",
+    #         value="Namirin-Chan: I entered this tournament with the goal of playing SV mainly, and LN at later stages. Even though I had this role clear from the beginning of the tryout and before I was even chosen as a 4dmwc player, I had low expectations for myself, not least because I was horrible at LN until 3 months ago and this tournament is literally my first time trying to learn to play SV, so I was pretty down thinking I might not end up fulfilling my role. But the members of our team, even the ones not on the team (Masterios, Gabi, and Soutin) were indeed very important figures in my improvement and even in my negative thoughts, so thank you all!",
+    #         inline=False
+    #         )
+
+    #     await channel.send(embed=embed1)
+
+    #     embed2 = discord.Embed(color=await self.bot.get_embed_color(ctx))
+
+    #     embed2.add_field(
+    #         name="This is the bonus question i guess, also the last one. Any personal pop-off moment or team performance that you guys were really proud of?",
+    #         value="Yuragi: The average score of 999k on stay by my side was amazing, top 1 Mei Mode was so hype, the 6-0 against france was unexpected, Se-Ura playing with the wrong scroll speed and winning, and the TB agaisnt Malaysia was nervewrecking!",
+    #         inline=False
+    #         )
+    #     embed2.add_field(
+    #         name="Polytetral: I've always been super impressed by your 999Ks! I don't know what it takes from me to reach your level of dedication in accuracy.",
+    #         value="Yuragi: Can we briefly talk about that?",
+    #         inline=False
+    #         )
+    #     embed2.add_field(
+    #         name="Polytetral: If you want to share your top-secret accuracy recipe :eyes:",
+    #         value="Lenn: ~~Play more~~",
+    #         inline=False
+    #         )
+    #     embed2.add_field(
+    #         name="Chiara: For me patience and effort. Playing a lot of easy charts can be fun sometimes",
+    #         value="Polytetral: I normally just turn to accuracy charts when I can't peak, which can make for a nice breakaway from the mappools and dan grinding haha",
+    #         inline=False
+    #         )
+    #     embed2.add_field(
+    #         name="Namirin-Chan: Lothus definitely an inspiration for us.",
+    #         value="Yuragi: After the rise of Lothus in 2018, several new talents inspired by him began to emerge, for example Sore, Chiara, Zergh, Yuragi and FuyukiTK\nAnd after years of rivalry this culminated in a scenario where most Brazilians really care about accuracy, so our team is just a result of years of rivalry between these players.",
+    #         inline=False
+    #         )
+    #     embed2.add_field(
+    #         name="Polytetral: Yeah I would imagine you guys were hugely inspired by the top players from Brazil as well. I'm sure the community has now seen the glorious upbringing of next-gen accuracy legends which I believe you guys hold with pride. :eyes:",
+    #         value="I'm definitely looking forward to how you guys perform this week!\n\n**And with that we conclude our interview with the Brazilian team. Good luck out there!**",
+    #         inline=False
+    #         )
+
+    #     await channel.send(embed=embed2)

@@ -1,7 +1,7 @@
 import logging
 import re
-from typing import List, Union, Dict
 from datetime import timedelta
+from typing import Dict, List, Union
 
 from discord.ext.commands.converter import Converter
 from discord.ext.commands.errors import BadArgument

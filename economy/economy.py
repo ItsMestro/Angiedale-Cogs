@@ -1,22 +1,19 @@
 import calendar
 import logging
-import random
-from collections import defaultdict, deque, namedtuple
-from enum import Enum
+from collections import defaultdict, namedtuple
 from math import ceil
-from typing import cast, Iterable, Union, Literal
+from random import randint
+from typing import Literal, Union
 
 import discord
-
-from redbot.cogs.mod.converters import RawUserIds
-from redbot.core import Config, bank, commands, errors, checks
+from redbot.core import Config, bank, checks, commands, errors
+from redbot.core.bot import Red
 from redbot.core.commands.converter import TimedeltaConverter
 from redbot.core.utils import AsyncIter
 from redbot.core.utils.chat_formatting import box, humanize_number
-from redbot.core.utils.menus import close_menu, menu, DEFAULT_CONTROLS
-from .converters import positive_int
+from redbot.core.utils.menus import DEFAULT_CONTROLS, close_menu, menu
 
-from redbot.core.bot import Red
+from .converters import RawUserIds, positive_int
 
 log = logging.getLogger("red.angiedale.economy")
 
@@ -79,12 +76,12 @@ class Economy(commands.Cog):
     """Get rich and have fun with imaginary currency!"""
 
     default_guild_settings = {
-        "PAYDAY_TIME": 300,
-        "PAYDAY_CREDITS": 120,
+        "PAYDAY_TIME": 21600,
+        "PAYDAY_CREDITS": 253,
         "SLOT_MIN": 5,
-        "SLOT_MAX": 100,
+        "SLOT_MAX": 100000,
         "SLOT_TIME": 5,
-        "REGISTER_CREDITS": 0,
+        "REGISTER_CREDITS": 500,
     }
 
     default_global_settings = default_guild_settings
@@ -98,7 +95,7 @@ class Economy(commands.Cog):
     def __init__(self, bot: Red):
         super().__init__()
         self.bot = bot
-        self.config = Config.get_conf(self, 1387001, cog_name="Economy")
+        self.config = Config.get_conf(self, identifier=1387000, cog_name="Economy")
         self.config.register_guild(**self.default_guild_settings)
         self.config.register_global(**self.default_global_settings)
         self.config.register_member(**self.default_member_settings)
@@ -156,7 +153,7 @@ class Economy(commands.Cog):
             )
         )
 
-    @_bank.command()
+    @_bank.command(aliases=["simp"])
     async def transfer(self, ctx: commands.Context, to: discord.Member, amount: int):
         """Transfer currency to other users.
 
@@ -400,8 +397,11 @@ class Economy(commands.Cog):
                 await self.config.user(author).next_payday() + await self.config.PAYDAY_TIME()
             )
             if cur_time >= next_payday:
+                pdcredits = await self.config.PAYDAY_CREDITS()
+                if pdcredits == 250:
+                    pdcredits = randint(200, 400)
                 try:
-                    await bank.deposit_credits(author, await self.config.PAYDAY_CREDITS())
+                    await bank.deposit_credits(author, pdcredits)
                 except errors.BalanceTooHigh as exc:
                     await bank.set_balance(author, exc.max_balance)
                     await ctx.send(
@@ -427,7 +427,7 @@ class Economy(commands.Cog):
                     ).format(
                         author=author,
                         currency=credits_name,
-                        amount=humanize_number(await self.config.PAYDAY_CREDITS()),
+                        amount=humanize_number(pdcredits),
                         new_balance=humanize_number(await bank.get_balance(author)),
                         pos=humanize_number(pos) if pos else pos,
                     )
@@ -677,7 +677,7 @@ class Economy(commands.Cog):
             slot_max = await self.config.guild(guild).SLOT_MAX()
         if bid > slot_max:
             await ctx.send(
-                _(
+                (
                     "Warning: Minimum bid is greater than the maximum bid ({max_bid}). "
                     "Slots will not work."
                 ).format(max_bid=humanize_number(slot_max))
@@ -688,7 +688,7 @@ class Economy(commands.Cog):
             await self.config.guild(guild).SLOT_MIN.set(bid)
         credits_name = await bank.get_currency_name(guild)
         await ctx.send(
-            _("Minimum bid is now {bid} {currency}.").format(
+            ("Minimum bid is now {bid} {currency}.").format(
                 bid=humanize_number(bid), currency=credits_name
             )
         )
@@ -712,7 +712,7 @@ class Economy(commands.Cog):
             slot_min = await self.config.guild(guild).SLOT_MIN()
         if bid < slot_min:
             await ctx.send(
-                _(
+                (
                     "Warning: Maximum bid is less than the minimum bid ({min_bid}). "
                     "Slots will not work."
                 ).format(min_bid=humanize_number(slot_min))
@@ -723,7 +723,7 @@ class Economy(commands.Cog):
         else:
             await self.config.guild(guild).SLOT_MAX.set(bid)
         await ctx.send(
-            _("Maximum bid is now {bid} {currency}.").format(
+            ("Maximum bid is now {bid} {currency}.").format(
                 bid=humanize_number(bid), currency=credits_name
             )
         )
