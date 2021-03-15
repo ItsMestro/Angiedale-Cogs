@@ -534,8 +534,8 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
             await ctx.send(("Reporting is now disabled."))
 
     @is_support_guild()
-    @commands.command(aliases=["setup"])
-    async def support(self, ctx):
+    @commands.command()
+    async def setup(self, ctx):
         """Sends invite to support server with information on setting up the bot."""
         if not ctx.guild.id == 128856147162562560:
             await ctx.send("Join this server and run this command again in there.\n\nhttps://discord.gg/xxjdXmR")
