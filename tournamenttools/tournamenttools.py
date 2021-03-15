@@ -82,6 +82,7 @@ class TournamentTools(commands.Cog):
         else:
             await ctx.send(("Registrations are now open."))
 
+    @commands.max_concurrency(1, per=commands.BucketType.user)
     @commands.command(hidden=True)
     async def register(self, ctx, username):
         """"""
