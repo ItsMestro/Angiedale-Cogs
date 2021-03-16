@@ -1070,7 +1070,10 @@ class Embed(Data):
             if d["mode"] == "mania":
                 comboratio = "Combo / Ratio"
                 version = re.sub(r"^\S*\s", "", d["version"])
-                ratio = round(d["scoregeki"] / d["score300"],2)
+                try:
+                    ratio = round(d["scoregeki"] / d["score300"],2)
+                except:
+                    ratio = "Perfect"
                 combo = f'**{d["combo"]:,}x** / {ratio}'
                 hits = f'{humanize_number(d["scoregeki"])}/{humanize_number(d["score300"])}/{humanize_number(d["scorekatu"])}/{humanize_number(d["score100"])}/{humanize_number(d["score50"])}/{humanize_number(d["scoremiss"])}'
                 stats = f'OD: `{d["od"]}` | HP: `{d["hp"]}`'
@@ -1171,7 +1174,10 @@ class Embed(Data):
             if d["mode"] == "mania":
                 comboratio = "Combo / Ratio"
                 version = re.sub(r"^\S*\s", "", d["version"])
-                ratio = round(d["scoregeki"] / d["score300"],2)
+                try:
+                    ratio = round(d["scoregeki"] / d["score300"],2)
+                except:
+                    ratio = "Perfect"
                 combo = f'**{d["combo"]:,}x** / {ratio}'
                 hits = f'{humanize_number(d["scoregeki"])}/{humanize_number(d["score300"])}/{humanize_number(d["scorekatu"])}/{humanize_number(d["score100"])}/{humanize_number(d["score50"])}/{humanize_number(d["scoremiss"])}'
                 stats = f'OD: `{d["od"]}` | HP: `{d["hp"]}`'
