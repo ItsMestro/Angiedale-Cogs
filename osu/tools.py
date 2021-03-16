@@ -257,9 +257,11 @@ class Helper():
         if len(args) > 1:
             await del_message(ctx, "You seem to have used too many arguments.")
         else:
+            log.error(len(args))
+            log.error(args)
             userid = await self.user(ctx, (args[0] if len(args) > 0 else None))
             
-            if not userid:
+            if not userid and len(args) > 0:
                 await del_message(ctx, f"Could not find the user {args[0]}.")
 
         return userid, pp
