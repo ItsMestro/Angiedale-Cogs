@@ -974,7 +974,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
     async def update_tracking(self, a = True):
         """Checks for new top plays based on list of tracked users"""
         await self.bot.wait_until_ready()
-        log.error("Waited until ready")
+        log.error("Tracking waited until ready")
 
         while True:
             try:
@@ -990,13 +990,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
                         params = {"mode": mode, "limit": "50"}
                         newdata = await self.fetch_api(f'users/{user}/scores/best', params=params)
-                        if newdata == "525 Error":
-                            log.error("Tracking 525 Error")
-                            await asyncio.sleep(300)
-                        elif newdata == "502 Error":
-                            log.error("Tracking 502 Error")
-                            await asyncio.sleep(300)
-                        elif newdata:
+                        if newdata:
                             params["offset"] =  "50"
                             await asyncio.sleep(1)
                             newdata2 = await self.fetch_api(f'users/{user}/scores/best', params=params)
@@ -1033,7 +1027,6 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
                             await self.removetracking(user=user, mode=mode)
                 a = False
             except CancelledError:
-                log.error("CancelledError", exc_info=1)
                 break
             except:
                 log.error("Loop broke", exc_info=1)

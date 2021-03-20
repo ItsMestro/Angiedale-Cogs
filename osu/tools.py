@@ -79,21 +79,24 @@ class API():
         header = {"client_id": str(token)}
         if bearer is not None:
             header = {**header, "Authorization": f"Bearer {bearer}"}
-        
-        async with aiohttp.ClientSession() as session:
-            async with session.get(endpoint, headers=header, params=params) as r:
-                if r.status == 404:
-                    return
-                elif r.status == 525:
-                    return "525 Error"
-                elif r.status == 502:
-                    return "502 Error"
-                else:
-                    try:
-                        data = await r.json(encoding="utf-8")
-                        return data
-                    except:
+
+        while True:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(endpoint, headers=header, params=params) as r:
+                    if r.status == 404:
                         return
+                    elif r.status == 525:
+                        log.error("osu! api fetch 525 Error")
+                        asyncio.sleep(5)
+                    elif r.status == 502:
+                        log.error("osu! api fetch 502 Error")
+                        asyncio.sleep(5)
+                    else:
+                        try:
+                            data = await r.json(encoding="utf-8")
+                            return data
+                        except:
+                            return
 
 class Helper():
     """Helper class to find arguments."""
