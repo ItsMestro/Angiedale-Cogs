@@ -104,7 +104,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
     async def add(self, ctx, channel: discord.TextChannel, mode: str, *, username: str):
         """Track a players top scores.
         
-        Only 1 mode per player and max 20 players in a server.
+        Only 1 mode per player and max 15 players in a server.
         """
 
         mode = mode.lower()
@@ -123,11 +123,11 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
         if data:
             count = await self.counttracking(channel=channel)
-            if count <= 20:
+            if count <= 15:
                 await self.removetracking(user=str(data["id"]), channel=channel, mode=mode)
                 await ctx.maybe_send_embed(f'Now tracking top 100 plays for {data["username"]} in {channel.mention}')
             else:
-                await del_message(ctx, "Already tracking 20 users in this server. Please remove some before adding more.")
+                await del_message(ctx, "Already tracking 15 users in this server. Please remove some before adding more.")
         else:
             await del_message(ctx, f"Could not find the user {username}.")
 
