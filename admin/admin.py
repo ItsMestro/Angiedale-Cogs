@@ -166,7 +166,7 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
     @commands.guild_only()
     @checks.admin_or_permissions(manage_guild=True)
     async def filterset(self, ctx: commands.Context):
-        """Base command to manage filter settings."""
+        """Change filter settings."""
         pass
 
     @filterset.command(name="defaultname")
@@ -262,7 +262,7 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
     @commands.guild_only()
     @checks.admin_or_permissions(manage_roles=True)
     async def editrole(self, ctx: commands.Context):
-        """Edit role settings."""
+        """Edit roles."""
         pass
 
     @editrole.command(name="colour", aliases=["color"])
@@ -439,7 +439,7 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
     @commands.guild_only()
     @checks.guildowner_or_permissions(administrator=True)
     async def announceset(self, ctx):
-        """Change how announcements are sent in this guild."""
+        """Set a channel for bot update/maintenance announcements."""
         pass
 
     @announceset.command(name="channel")
@@ -536,7 +536,7 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
     @is_support_guild()
     @commands.command()
     async def setup(self, ctx):
-        """Sends invite to support server with information on setting up the bot."""
+        """Sends invite to support server."""
         if not ctx.guild.id == 128856147162562560:
             await ctx.send("Join this server and run this command again in there.\n\nhttps://discord.gg/xxjdXmR")
         else:

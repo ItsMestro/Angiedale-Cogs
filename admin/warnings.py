@@ -13,7 +13,7 @@ class Warnings():
     @commands.guild_only()
     @checks.admin_or_permissions(administrator=True)
     async def warnset(self, ctx: commands.Context):
-        """Manage settings for Warnings."""
+        """Manage warnings."""
         pass
 
     @warnset.command()

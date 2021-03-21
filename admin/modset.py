@@ -15,7 +15,7 @@ class ModSettings():
     @commands.group()
     @checks.guildowner_or_permissions(administrator=True)
     async def modset(self, ctx: commands.Context):
-        """Manage server administration settings."""
+        """Change server moderation settings."""
 
     @modset.command(name="showsettings")
     async def modset_showsettings(self, ctx: commands.Context):
