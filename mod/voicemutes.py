@@ -18,7 +18,7 @@ class VoiceMutes(MixinMeta):
     """
 
     @staticmethod
-    async def _voice_perm_check(
+    async def _voicemute_perm_check(
         ctx: commands.Context, user_voice_state: Optional[discord.VoiceState], **perms: bool
     ) -> Tuple[bool, Optional[str]]:
         """Check if the bot and user have sufficient permissions for voicebans.
@@ -90,7 +90,7 @@ class VoiceMutes(MixinMeta):
             issue_list = []
             for user in users:
                 user_voice_state = user.voice
-                can_move, perm_reason = await self._voice_perm_check(
+                can_move, perm_reason = await self._voicemute_perm_check(
                     ctx, user_voice_state, mute_members=True, manage_permissions=True
                 )
                 if not can_move:
@@ -185,7 +185,7 @@ class VoiceMutes(MixinMeta):
             success_list = []
             for user in users:
                 user_voice_state = user.voice
-                can_move, perm_reason = await self._voice_perm_check(
+                can_move, perm_reason = await self._voicemute_perm_check(
                     ctx, user_voice_state, mute_members=True, manage_permissions=True
                 )
                 if not can_move:
