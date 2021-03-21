@@ -333,7 +333,3 @@ class Interactions(commands.Cog):
             title=title, description=result_text, color=discord.Color.red(), url=url
         )
         await ctx.send(embed=em)
-
-    @commands.command(aliases=["dogan"], hidden=True)
-    async def logan(self, ctx):
-        await ctx.send("Loggy Woggy")
