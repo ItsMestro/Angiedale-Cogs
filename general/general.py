@@ -1265,7 +1265,7 @@ class General(Reports, commands.Cog):
                     box_lang=("Warnings for {user}").format(user=user),
                 )
 
-    @command.command()
+    @commands.command()
     async def support(self, ctx):
         """Sends invite to the support server."""
 
