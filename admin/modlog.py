@@ -11,7 +11,8 @@ class ModLog():
     """Manage log channels for moderation actions."""
 
     @commands.group()
-    @checks.guildowner_or_permissions(administrator=True)
+    @checks.admin_or_permissions(administrator=True)
+    @commands.guild_only()
     async def modlog(self, ctx: commands.Context):
         """Manage modlogs."""
         pass
@@ -24,7 +25,6 @@ class ModLog():
         await ctx.tick()
 
     @modlog.command(aliases=["channel"])
-    @commands.guild_only()
     async def logchannel(self, ctx: commands.Context, channel: discord.TextChannel = None):
         """Set a channel as the modlog.
 
@@ -53,7 +53,6 @@ class ModLog():
                 await ctx.send(("Mod log deactivated."))
 
     @modlog.command(name="cases")
-    @commands.guild_only()
     async def set_cases(self, ctx: commands.Context, action: str = None):
         """Enable or disable case creation for a mod action."""
         guild = ctx.guild
@@ -82,7 +81,6 @@ class ModLog():
             )
 
     @modlog.command()
-    @commands.guild_only()
     async def resetcases(self, ctx: commands.Context):
         """Reset all modlog cases in this server."""
         guild = ctx.guild
@@ -90,7 +88,6 @@ class ModLog():
         await ctx.send(("Cases have been reset."))
 
     @modlog.command()
-    @commands.guild_only()
     async def case(self, ctx: commands.Context, number: int):
         """Show the specified case."""
         try:
@@ -111,7 +108,6 @@ class ModLog():
                 await ctx.send(message)
 
     @modlog.command()
-    @commands.guild_only()
     async def casesfor(self, ctx: commands.Context, *, member: Union[discord.Member, int]):
         """Display cases for the specified member."""
         async with ctx.typing():
@@ -151,7 +147,6 @@ class ModLog():
         await menu(ctx, rendered_cases, DEFAULT_CONTROLS)
 
     @modlog.command()
-    @commands.guild_only()
     async def listcases(self, ctx: commands.Context, *, member: Union[discord.Member, int]):
         """List cases for the specified member."""
         async with ctx.typing():
@@ -187,7 +182,6 @@ class ModLog():
         await menu(ctx, rendered_cases, DEFAULT_CONTROLS)
 
     @modlog.command()
-    @commands.guild_only()
     async def reason(self, ctx: commands.Context, case: Optional[int], *, reason: str):
         """Specify a reason for a modlog case.
 

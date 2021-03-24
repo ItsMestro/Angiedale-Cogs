@@ -13,7 +13,7 @@ class ModSettings():
     """
 
     @commands.group()
-    @checks.guildowner_or_permissions(administrator=True)
+    @checks.admin_or_permissions(administrator=True)
     async def modset(self, ctx: commands.Context):
         """Change server moderation settings."""
 
