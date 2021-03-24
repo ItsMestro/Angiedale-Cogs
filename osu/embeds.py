@@ -128,6 +128,7 @@ class Data:
         data["submitted"] = d["beatmapset"]["submitted_date"]
         data["updated"] = d["beatmapset"]["last_updated"]
         data["playcount"] = d["beatmapset"]["play_count"]
+        data["hasvideo"] = d["beatmapset"]["video"]
 
         return data
 
@@ -514,6 +515,11 @@ class Embed(Data):
         else:
             length = time.strftime("%-M:%S", length)
 
+        if d["hasvideo"]:
+            download = f'[Link](https://osu.ppy.sh/d/{d["setid"]}) ([No Video](https://osu.ppy.sh/d/{d["setid"]}n))'
+        else:
+            download = f'[Link](https://osu.ppy.sh/d/{d["setid"]})'
+
         embed_list = []
         embed = discord.Embed(
             color=await self.bot.get_embed_color(ctx),
@@ -564,7 +570,7 @@ class Embed(Data):
         )
         embed.add_field(
             name="Download",
-            value=f'[Link](https://osu.ppy.sh/beatmapsets/{d["setid"]}/download) ([No Video](https://osu.ppy.sh/beatmapsets/{d["setid"]}/download?noVideo=1))',
+            value=download,
             inline=True
         )
         if not sum(d["ratings"]) == 0:
@@ -1064,7 +1070,10 @@ class Embed(Data):
             if d["mode"] == "mania":
                 comboratio = "Combo / Ratio"
                 version = re.sub(r"^\S*\s", "", d["version"])
-                ratio = round(d["scoregeki"] / d["score300"],2)
+                try:
+                    ratio = round(d["scoregeki"] / d["score300"],2)
+                except:
+                    ratio = "Perfect"
                 combo = f'**{d["combo"]:,}x** / {ratio}'
                 hits = f'{humanize_number(d["scoregeki"])}/{humanize_number(d["score300"])}/{humanize_number(d["scorekatu"])}/{humanize_number(d["score100"])}/{humanize_number(d["score50"])}/{humanize_number(d["scoremiss"])}'
                 stats = f'OD: `{d["od"]}` | HP: `{d["hp"]}`'
@@ -1165,7 +1174,10 @@ class Embed(Data):
             if d["mode"] == "mania":
                 comboratio = "Combo / Ratio"
                 version = re.sub(r"^\S*\s", "", d["version"])
-                ratio = round(d["scoregeki"] / d["score300"],2)
+                try:
+                    ratio = round(d["scoregeki"] / d["score300"],2)
+                except:
+                    ratio = "Perfect"
                 combo = f'**{d["combo"]:,}x** / {ratio}'
                 hits = f'{humanize_number(d["scoregeki"])}/{humanize_number(d["score300"])}/{humanize_number(d["scorekatu"])}/{humanize_number(d["score100"])}/{humanize_number(d["score50"])}/{humanize_number(d["scoremiss"])}'
                 stats = f'OD: `{d["od"]}` | HP: `{d["hp"]}`'

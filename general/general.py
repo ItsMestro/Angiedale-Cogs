@@ -10,6 +10,7 @@ import discord
 from dateutil.relativedelta import relativedelta
 from redbot.core import Config, commands
 from redbot.core.bot import Red
+from redbot.core.commands.commands import command
 from redbot.core.utils.chat_formatting import (
     bold, box, escape, humanize_number, humanize_timedelta, pagify
 )
@@ -1263,3 +1264,9 @@ class General(Reports, commands.Cog):
                     pagify(msg, shorten_by=58),
                     box_lang=("Warnings for {user}").format(user=user),
                 )
+
+    @commands.command()
+    async def support(self, ctx):
+        """Sends invite to the support server."""
+
+        await ctx.send("Here's an invite link. Mestro should be able to help you in there.\n\nhttps://discord.gg/xxjdXmR")

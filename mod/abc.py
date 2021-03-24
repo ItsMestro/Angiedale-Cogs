@@ -28,6 +28,13 @@ class MixinMeta(ABC):
     ) -> bool:
         raise NotImplementedError()
 
+    @staticmethod
+    @abstractmethod
+    async def _voicemute_perm_check(
+        ctx: commands.Context, user_voice_state: Optional[discord.VoiceState], **perms: bool
+    ) -> bool:
+        raise NotImplementedError()
+
     @abstractmethod
     async def _send_dm_notification(
         self,
