@@ -1,16 +1,38 @@
 import logging
+import os
 import re
+from datetime import datetime
+from random import choice
 
 import discord
 import gspread
+from PIL import Image, ImageDraw, ImageFont
 from redbot.core import Config, checks, commands
 from redbot.core.bot import Red
-from redbot.core.data_manager import bundled_data_path
-from redbot.core.utils.chat_formatting import humanize_number
+from redbot.core.data_manager import bundled_data_path, cog_data_path
+from redbot.core.utils.chat_formatting import (
+    humanize_number, humanize_timedelta
+)
 from redbot.core.utils.menus import menu
 
 log = logging.getLogger("red.angiedale.tournamenttools")
 
+pingphrase1 = [
+    "Get yourselves ready.",
+    "I hope you're warmed up.",
+    "You better be prepared.",
+    "The time has come.",
+    "I hope you're ready.",
+    "You better be ready."
+    ]
+
+pingphrase2 = [
+    "You have a match coming up in",
+    "You will face each other in",
+    "Your match starts in",
+    "The time of your match is in",
+    "You'll be playing in"
+    ]
 
 class TournamentTools(commands.Cog):
     """Tools for osu! Tournaments.
@@ -20,7 +42,7 @@ class TournamentTools(commands.Cog):
         self.bot = bot
 
         self.config: Config = Config.get_conf(self, identifier=1387000, cog_name="TTools", force_registration=True)
-        guild_defaults = {"sheet": None, "enabled": False, "regsopen": False, "mode": "osu"}
+        guild_defaults = {"sheet": None, "enabled": False, "regsopen": False, "mode": "osu", "referee": None, "useimg": False, "customimg": False}
         self.config.register_guild(**guild_defaults)
 
         self.gs = gspread.service_account(filename=f"{bundled_data_path(self)}/key.json")
@@ -50,7 +72,7 @@ class TournamentTools(commands.Cog):
 
     @ttools.command()
     @checks.is_owner()
-    async def sheet(self, ctx, key = None):
+    async def sheet(self, ctx, key: str = None):
         """"""
         await ctx.message.delete()
         if key:
@@ -71,8 +93,53 @@ class TournamentTools(commands.Cog):
         else:
             await ctx.send("Invalid mode. Please use one of: `osu, taiko, fruits, mania`")
 
-    @ttools.command(aliases=["openregistration"])
-    async def openregs(self, ctx):
+    @ttools.command(name="referee")
+    @checks.is_owner()
+    async def set_referee_role(self, ctx, role: discord.Role):
+        """"""
+        if role:
+            await self.config.guild(ctx.guild).referee.set(role.id)
+            await ctx.send("Referee role set.")
+        else:
+            await self.config.guild(ctx.guild).referee.set(None)
+            await ctx.send("Referee role removed.")
+
+    @ttools.command()
+    @checks.is_owner()
+    async def useimage(self, ctx):
+        """"""
+        useimg = await self.config.guild(ctx.guild).useimg()
+        useimg = not useimg
+        await self.config.guild(ctx.guild).useimg.set(useimg)
+        if useimg:
+            await ctx.send("Referee pings will now use images.")
+        else:
+            await ctx.send("Referee pings will no longer use images.")
+
+    @ttools.command()
+    @checks.is_owner()
+    async def setimage(self, ctx):
+        """"""
+        if len(ctx.message.attachments) == 1:
+            img = ctx.message.attachments[0]
+            if not img.filename.lower().endswith(".png") and not img.filename.lower().endswith(".jpg") and not img.filename.lower().endswith(".jpeg"):
+                return await ctx.send("Please provide a `.png` or `.jpg` image.")
+            if not img.width == 1600 and not img.height == 400:
+                return await ctx.send("Please use an image that is `1600x400` in size.")
+            with open(f"{cog_data_path(raw_name='TTools')}/{ctx.guild.id}.png", "wb") as f:
+                await img.save(f)
+            await ctx.send("Will now use the provided image for ref pings.")
+            await self.config.guild(ctx.guild).customimg.set(True)
+        else:
+            await ctx.send("Reverting to using the default image for ref pings.")
+            await self.config.guild(ctx.guild).customimg.set(False)
+            try:
+                os.remove(f"{cog_data_path(raw_name='TTools')}/{ctx.guild.id}.png")
+            except:
+                pass
+
+    @ttools.command(aliases=["toggleregistration"])
+    async def toggleregs(self, ctx):
         """"""
         regsopen = await self.config.guild(ctx.guild).regsopen()
         regsopen = not regsopen
@@ -80,7 +147,122 @@ class TournamentTools(commands.Cog):
         if regsopen:
             await ctx.send(("Registrations are now open."))
         else:
-            await ctx.send(("Registrations are now open."))
+            await ctx.send(("Registrations closed."))
+
+    @commands.group(hidden=True, aliases=["ref"])
+    @commands.guild_only()
+    async def referee(self, ctx):
+        """"""
+
+    @referee.command()
+    async def ping(self, ctx, matchid):
+        """"""
+        if not await self.isenabled(ctx):
+            return
+        if not await self.isref(ctx):
+            return
+        serverkey = await self.serverkey(ctx)
+        if not serverkey:
+            return
+
+        sh = self.gs.open_by_key(serverkey)
+
+        matches = sh.worksheet("Schedule").get("C6:I")
+
+        matchexists = False
+        for m in matches:
+            if m[3] == matchid:
+                redteam = m[5]
+                blueteam = m[6]
+                matchtime = m[1].split(":")
+                matchdate = datetime.strptime(m[0].split(", ")[1], "%d %b")
+                matchdatetime = matchdate.replace(year=datetime.utcnow().year, hour=int(matchtime[0]), minute=int(matchtime[1]))
+                matchexists = True
+                break
+
+        if not matchexists:
+            return await ctx.send(f"Found no match with the id: `{matchid}`")
+
+        teams = sh.worksheet("Signups").get("B2:F")
+        reduserid = None
+        blueuserid = None
+        for p in teams:
+            if reduserid and blueuserid:
+                break
+            if p[2] == redteam:
+                redreserve = p[0]
+                reduserid = p[1]
+                redflag = p[4]
+            elif p[2] == blueteam:
+                bluereserve = p[0]
+                blueuserid = p[1]
+                blueflag = p[4]
+        
+        reduser = ctx.guild.get_member(int(reduserid))
+        blueuser = ctx.guild.get_member(int(blueuserid))
+        if reduser:
+            redping = f"{reduser.mention} "
+        else:
+            redping = f"{redreserve} "
+        if blueuser:
+            blueping = f"{blueuser.mention} "
+        else:
+            blueping = f"{bluereserve} "
+
+        timenow = datetime.now().replace(second=59)
+
+        phrase1 = choice(pingphrase1)
+        phrase2 = choice(pingphrase2)
+
+        msg = f"{redping}{blueping}{phrase1}\n{phrase2}: **{humanize_timedelta(timedelta=(matchdatetime - timenow))}**"
+
+        if await self.pingimage(ctx):
+            if await self.config.guild(ctx.guild).customimg():
+                imgpath = f"{cog_data_path(raw_name='TTools')}/{ctx.guild.id}.png"
+            else:
+                imgpath = f"{bundled_data_path(self)}/image.png"
+            img = Image.open(imgpath).convert("RGBA")
+            imgred = Image.open(f"{bundled_data_path(self)}/flags/{redflag}.png", formats=["PNG"]).convert("RGBA")
+            imgblue = Image.open(f"{bundled_data_path(self)}/flags/{blueflag}.png", formats=["PNG"]).convert("RGBA")
+            imgred = imgred.resize((imgred.size[0] * 2, imgred.size[1] * 2))
+            imgblue = imgblue.resize((imgblue.size[0] * 2, imgblue.size[1] * 2))
+
+            width, height = img.size
+
+            matchtimetext = matchdatetime.strftime("%A, %-d %b | %-H:%M")
+
+            drawimage = ImageDraw.Draw(img)
+
+            font = ImageFont.truetype(f'{bundled_data_path(self)}/Exo2.0-Bold.otf', 52)
+            timefont = ImageFont.truetype(f'{bundled_data_path(self)}/Exo2.0-Bold.otf', 32)
+
+            redwidth, redheight = drawimage.textsize(redteam, font)
+            rx = (width / 2) / 2 - (redwidth / 2)
+            bluewidth, blueheight = drawimage.textsize(blueteam, font)
+            bx = (width / 2) / 2 - (bluewidth / 2) + (width / 2)
+            timewidth, timeheight = drawimage.textsize(matchtimetext, timefont)
+            tx = (width / 2) - (timewidth / 2)
+            rfx = (width / 2) / 2 - (imgred.size[0] / 2)
+            bfx = (width / 2) / 2 - (imgblue.size[0] / 2) + (width / 2)
+
+            drawimage.text((rx,220), redteam, font=font, fill=(255,255,255))
+            drawimage.text((bx,220), blueteam, font=font, fill=(255,255,255))
+            drawimage.text((tx,320), matchtimetext, font=timefont, fill=(160,160,160))
+
+            img.paste(imgred, (int(rfx), 100), imgred)
+            img.paste(imgblue, (int(bfx), 100), imgblue)
+
+            if not os.path.exists(f"{cog_data_path(raw_name='TTools')}/ping"):
+                os.makedirs(f"{cog_data_path(raw_name='TTools')}/ping")
+
+            img.save(f"{cog_data_path(raw_name='TTools')}/ping/{matchid}.png")
+
+            with open(f"{cog_data_path(raw_name='TTools')}/ping/{matchid}.png", "rb") as image:
+                await ctx.send(content=msg, file=discord.File(image, filename=f"{matchid}.png"))
+
+            os.remove(f"{cog_data_path(raw_name='TTools')}/ping/{matchid}.png")
+        else:
+            await ctx.send(content=msg)
 
     @commands.max_concurrency(1, per=commands.BucketType.user)
     @commands.command(hidden=True)
@@ -181,3 +363,14 @@ class TournamentTools(commands.Cog):
 
     async def isenabled(self, ctx):
         return await self.config.guild(ctx.guild).enabled()
+
+    async def isref(self, ctx):
+        referees = await self.config.guild(ctx.guild).referee()
+        refrole = ctx.guild.get_role(referees)
+        if refrole in ctx.author.roles:
+            return True
+        else:
+            return False
+
+    async def pingimage(self, ctx):
+        return await self.config.guild(ctx.guild).useimg()
