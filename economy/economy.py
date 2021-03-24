@@ -8,10 +8,10 @@ from typing import Literal, Union
 import discord
 from redbot.core import Config, bank, checks, commands, errors
 from redbot.core.bot import Red
-from redbot.core.commands.converter import TimedeltaConverter
 from redbot.core.utils import AsyncIter
 from redbot.core.utils.chat_formatting import box, humanize_number
 from redbot.core.utils.menus import DEFAULT_CONTROLS, close_menu, menu
+from redbot.core.utils.angiedale import patreon_tier
 
 from .converters import RawUserIds, positive_int
 
@@ -398,8 +398,16 @@ class Economy(commands.Cog):
             )
             if cur_time >= next_payday:
                 pdcredits = await self.config.PAYDAY_CREDITS()
+                patreontier = patreon_tier(ctx)
+                patreonbonus = 1
+                if patreontier == 2:
+                    patreonbonus = 1.5
+                elif patreontier >= 3:
+                    patreonbonus = 2
                 if pdcredits == 250:
-                    pdcredits = randint(200, 400)
+                    pdcredits = randint(200, round(400 * patreonbonus))
+                else:
+                    pdcredits = round(pdcredits * patreonbonus)
                 try:
                     await bank.deposit_credits(author, pdcredits)
                 except errors.BalanceTooHigh as exc:
