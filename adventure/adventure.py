@@ -23,6 +23,7 @@ from redbot.core.data_manager import bundled_data_path, cog_data_path
 from redbot.core.errors import BalanceTooHigh
 from redbot.core.i18n import Translator, cog_i18n
 from redbot.core.utils import AsyncIter
+from redbot.core.utils.angiedale import patreon_tier
 from redbot.core.utils.chat_formatting import (
     box, escape, humanize_list, humanize_number, humanize_timedelta, pagify
 )
@@ -8131,7 +8132,13 @@ class Adventure(commands.Cog):
         """Get some free bits."""
         author = ctx.author
         adventure_credits_name = await bank.get_currency_name(ctx.guild)
-        amount = random.randint(300, 400)  # Make Customizable?
+        patreontier = patreon_tier(ctx)
+        patreonbonus = 1
+        if patreontier == 2:
+            patreonbonus = 1.5
+        elif patreontier >= 3:
+            patreonbonus = 2
+        amount = random.randint(300, round(400 * patreonbonus))  # Make Customizable?
         try:
             await bank.deposit_credits(author, amount)
         except BalanceTooHigh as exc:
