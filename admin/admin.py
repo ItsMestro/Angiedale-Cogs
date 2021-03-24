@@ -1,5 +1,6 @@
-import logging
 import asyncio
+import logging
+from datetime import datetime
 from typing import Literal
 
 import discord
@@ -53,6 +54,10 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
         self.modconfig = Config.get_conf(self, identifier=1387000, force_registration=True, cog_name="Mod")
 
         self.mutesconfig = Config.get_conf(self, identifier=1387000, force_registration=True, cog_name="Mutes")
+
+        self.leaverconfig = Config.get_conf(self, identifier=1387000, force_registration=True, cog_name="Leaver")
+        leaverdefault_guild = {"channel": ""}
+        self.leaverconfig.register_guild(**leaverdefault_guild)
 
         self.warnconfig = Config.get_conf(self, identifier=1387000, force_registration=True, cog_name="Warnings")
         self.warnconfig.register_guild(**self.default_guild_warnings)
@@ -551,3 +556,35 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
                         return await ctx.send("You've now been given a support role with access to exclusive channels for information on the bot.")
             return await ctx.send((f"You're not the owner of any servers that I'm in. The support role is only for server owners.\n"
             f"Feel free to let me join one of your servers with `{ctx.clean_prefix}invite`"))
+
+    @commands.command()
+    @checks.admin_or_permissions(administrator=True)
+    @commands.guild_only()
+    async def leavers(self, ctx: commands.Context):
+        """"""
+        guild = ctx.guild
+        await self.leaverconfig.guild(guild).channel.set(ctx.channel.id)
+        await ctx.maybe_send_embed("Channel set to " + ctx.channel.name)
+
+    @commands.Cog.listener()
+    async def on_member_remove(self, member: discord.Member):
+        guild = member.guild
+
+        if await self.bot.cog_disabled_in_guild(self, guild):
+            return
+
+        channel = await self.leaverconfig.guild(guild).channel()
+
+        if channel != "":
+            channel = guild.get_channel(channel)
+            out = "{} {}".format(
+                member, member.nick if member.nick is not None else ""
+            )
+            if await self.bot.embed_requested(channel, member):
+                embed = discord.Embed(description=out, color=(await self.bot.get_embed_color(channel)))
+                embed.set_author(name="Member Left")
+                embed.set_footer(f"ID: {member.id}")
+                embed.timestamp = datetime.utcnow()
+                await channel.send(embed=embed)
+            else:
+                await channel.send(f"{out} left the server.")
