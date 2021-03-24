@@ -3,7 +3,7 @@ import logging
 import os
 import re
 import shutil
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from random import choice
 from typing import Optional
 from zipfile import ZipFile
@@ -16,7 +16,7 @@ from redbot.core.bot import Red
 from redbot.core.data_manager import cog_data_path
 from redbot.core.utils import AsyncIter
 from redbot.core.utils.chat_formatting import (
-    box, humanize_list, humanize_number, inline, pagify
+    box, humanize_list, humanize_number, humanize_timedelta, inline, pagify
 )
 from redbot.core.utils.menus import DEFAULT_CONTROLS, close_menu, menu
 from redbot.core.utils.tunnel import Tunnel
@@ -57,9 +57,15 @@ class Owner(commands.Cog):
 
         self.mutesconfig = Config.get_conf(self, identifier=1387000, force_registration=True, cog_name="Mutes")
 
+        self.statsconfig = Config.get_conf(self, identifier=1387000, force_registration=True, cog_name="Stats")
+        self.statsconfig.register_global(Channel=None, Message=None, bonk=0)
+
         self.__current_announcer = None
+        self.statschannel = None
+        self.statsmessage = None
+        self.statstask: Optional[asyncio.Task] = None
         self._ready = asyncio.Event()
-        asyncio.create_task(self.handle_migrations())
+        asyncio.create_task(self.initialize())
         # As this is a data migration, don't store this for cancelation.
 
         self.presence_task = asyncio.create_task(self.maybe_update_presence())
@@ -71,7 +77,13 @@ class Owner(commands.Cog):
         """ Nothing to delete """
         return
 
-    async def handle_migrations(self):
+    async def initialize(self):
+
+        async with self.statsconfig.all() as sconfig:
+            self.statschannel = sconfig["Channel"]
+            self.statsmessage = sconfig["Message"]
+        if self.statschannel:
+            self.statstask = self.bot.loop.create_task(self._update_stats())
 
         lock = self.adminconfig.get_guilds_lock()
         async with lock:
@@ -99,12 +111,99 @@ class Owner(commands.Cog):
 
     def cog_unload(self):
         self.presence_task.cancel()
+        if self.statstask:
+            self.statstask.cancel()
         try:
             self.__current_announcer.cancel()
         except AttributeError:
             pass
         for user in self.interaction:
             self.bot.loop.create_task(self.stop_interaction(user))
+
+    async def _update_stats(self):
+        await self.bot.wait_until_ready()
+        while True:
+            try:
+                await self.check_statsembed()
+            except asyncio.CancelledError:
+                break
+            await asyncio.sleep(60)
+
+    async def check_statsembed(self):
+        total_users = len(self.bot.users)
+        servers = len(self.bot.guilds)
+        commands = len(self.bot.commands)
+        emojis = len(self.bot.emojis)
+        bonkedusers = await self.statsconfig.bonk()
+        latencies = self.bot.latencies
+        uptime = humanize_timedelta(datetime.utcnow() - self.bot.uptime)
+
+        latencymsg = ""
+        for shard, pingt in latencies:
+            latencymsg += "Shard **{}/{}**: `{}ms`\n".format(shard + 1, len(latencies), round(pingt * 1000))
+
+        channel = self.bot.get_channel(self.statschannel)
+        message = await channel.fetch_message(self.statsmessage)
+        embed = message.embeds[0]
+
+        embed.set_field_at(0, name="Serving Users", value=total_users)
+        embed.set_field_at(1, name="In Servers", value=servers)
+        embed.set_field_at(2, name="Commands", value=commands)
+        embed.set_field_at(3, name="Emojis", value=emojis)
+        embed.set_field_at(4, name="Bonked Users", value=bonkedusers)
+        embed.set_field_at(5, name="Uptime", value=uptime, inline=False)
+        embed.set_field_at(6, name="Latency", value=latencymsg, inline=False)
+
+        embed.timestamp = datetime.utcnow()
+
+        await message.edit(embed=embed)
+
+    @commands.command()
+    @commands.guild_only()
+    @checks.is_owner()
+    async def setstatschannel(self, ctx, channel: discord.TextChannel = None):
+        """Set a channel for displaying bot stats."""
+        if not self.statsmessage and not channel:
+            return await ctx.send("Please provide a channel to start displaying bot stats in.")
+        response = []
+        if self.statsmessage:
+            if self.statstask:
+                self.statstask.cancel()
+            schannel = self.bot.get_channel(self.statschannel)
+            smessage = await schannel.fetch_message(self.statsmessage)
+            try:
+                await smessage.delete()
+            except:
+                pass
+            await self.statsconfig.clear_all()
+            response.append("deleted the previous stats message")
+        if channel:
+            embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
+            embed.title = f"Statistics for {self.bot.user.name}"
+            embed.set_thumbnail(url=self.bot.user.avatar_url)
+            embed.add_field(name="Serving Users", value=0)
+            embed.add_field(name="In Servers", value=0)
+            embed.add_field(name="Commands", value=0)
+            embed.add_field(name="Emojis", value=0)
+            embed.add_field(name="Bonked Users", value=0)
+            embed.add_field(name="Uptime", value=0, inline=False)
+            embed.add_field(name="Latency", value=0, inline=False)
+            embed.timestamp = datetime.utcnow()
+            embed.set_footer(text="Updated")
+
+            message = await channel.send(embed=embed)
+
+            await self.statsconfig.Channel.set(channel.id)
+            await self.statsconfig.Message.set(message.id)
+
+            self.statschannel = channel.id
+            self.statsmessage = message.id
+            self.statstask = self.bot.loop.create_task(self._update_stats())
+
+            response.append(f"started displaying stats for {self.bot.user.name} in {channel.name}")
+        
+        await ctx.send(" and ".join(response).capitalize())
+
 
     @commands.Cog.listener()
     async def on_reaction_add(self, reaction, user):
