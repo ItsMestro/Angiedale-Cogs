@@ -129,7 +129,7 @@ class Owner(commands.Cog):
                 break
             await asyncio.sleep(60 * 10)
 
-    async def check_statsembed(self, ctx):
+    async def check_statsembed(self):
         total_users = len(self.bot.users)
         servers = len(self.bot.guilds)
         commands = len(self.bot.commands)
