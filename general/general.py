@@ -10,9 +10,9 @@ import discord
 from dateutil.relativedelta import relativedelta
 from redbot.core import Config, commands
 from redbot.core.bot import Red
-from redbot.core.commands.commands import command
+from redbot.core.utils.angiedale import patreons_in_tier
 from redbot.core.utils.chat_formatting import (
-    bold, box, escape, humanize_number, humanize_timedelta, pagify
+    bold, box, escape, humanize_list, humanize_number, humanize_timedelta, pagify
 )
 from redbot.core.utils.common_filters import (
     escape_spoilers_and_mass_mentions, filter_invites, filter_mass_mentions
@@ -1270,3 +1270,60 @@ class General(Reports, commands.Cog):
         """Sends invite to the support server."""
 
         await ctx.send("Here's an invite link. Mestro should be able to help you in there.\n\nhttps://discord.gg/xxjdXmR")
+
+    @commands.command()
+    async def pledge(self, ctx):
+        """Help fund the bots servercosts."""
+
+        embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
+        embed.title = "Pledge on Patreon"
+        embed.url = "https://patreon.mestro.cc"
+        embed.set_thumbnail(url=self.bot.user.avatar_url)
+        embed.description = ("While I do enjoy working on Angiedale and will happily do so for free, "
+        "running her isn't. Feel free to drop off some money to help her run longer. You'll also"
+        " get some small benefits with more being added as I come up with them.")
+
+        embed.add_field(
+            name="Example Benefits",
+            value=("Higher payouts\n"
+            "Special Thanks!!")
+        )
+
+        await ctx.send(embed=embed)
+
+    @commands.command()
+    async def specialthanks(self, ctx):
+        """Thanks to all of you who keep Angiedale alive."""
+        tier2 = patreons_in_tier(self.bot, 2)
+        tier3 = patreons_in_tier(self.bot, 3)
+        tier4 = patreons_in_tier(self.bot, 4)
+
+        embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
+        if len(tier2) == 0 and len(tier3) == 0 and len(tier4) == 0:
+            embed.title = "Pledge on Patreon"
+            embed.url = "https://patreon.mestro.cc"
+            embed.description = "Be the first person on this list by pledging to the patreon and help Angiedale run!"
+            embed.set_thumbnail(url=self.bot.user.avatar_url)
+        else:
+            embed.title = "Special thanks to these awesome users"
+
+            embed.set_author(name="Pledge on Patreon", url="https://patreon.mestro.cc")
+            embed.set_thumbnail(url=self.bot.user.avatar_url)
+
+            if not len(tier4) == 0:
+                templist = []
+                for u in tier4:
+                    templist.append(u.name)
+                embed.add_field(name="SUPERFRESH (€25 Tier)", value=humanize_list(templist), inline=False)
+            if not len(tier3) == 0:
+                templist = []
+                for u in tier3:
+                    templist.append(u.name)
+                embed.add_field(name="Fresh (€10 Tier)", value=humanize_list(templist), inline=False)
+            if not len(tier2) == 0:
+                templist = []
+                for u in tier2:
+                    templist.append(u.name)
+                embed.add_field(name="Raw (€5 Tier)", value=humanize_list(templist), inline=False)
+
+        await ctx.send(embed=embed)
