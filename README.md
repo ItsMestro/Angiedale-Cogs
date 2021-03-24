@@ -19,4 +19,5 @@ tabulate
 beautifulsoup4
 gspread
 requests
+Pillow
 ```
