@@ -127,16 +127,16 @@ class Owner(commands.Cog):
                 await self.check_statsembed()
             except asyncio.CancelledError:
                 break
-            await asyncio.sleep(60)
+            await asyncio.sleep(60 * 10)
 
-    async def check_statsembed(self):
+    async def check_statsembed(self, ctx):
         total_users = len(self.bot.users)
         servers = len(self.bot.guilds)
         commands = len(self.bot.commands)
         emojis = len(self.bot.emojis)
         bonkedusers = await self.statsconfig.bonk()
         latencies = self.bot.latencies
-        uptime = humanize_timedelta(datetime.utcnow() - self.bot.uptime)
+        uptime = humanize_timedelta(timedelta=datetime.utcnow() - self.bot.uptime)
 
         latencymsg = ""
         for shard, pingt in latencies:
