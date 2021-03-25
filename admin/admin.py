@@ -56,7 +56,7 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
         self.mutesconfig = Config.get_conf(self, identifier=1387000, force_registration=True, cog_name="Mutes")
 
         self.leaverconfig = Config.get_conf(self, identifier=1387000, force_registration=True, cog_name="Leaver")
-        leaverdefault_guild = {"channel": ""}
+        leaverdefault_guild = {"channel": None}
         self.leaverconfig.register_guild(**leaverdefault_guild)
 
         self.warnconfig = Config.get_conf(self, identifier=1387000, force_registration=True, cog_name="Warnings")
@@ -560,11 +560,15 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
     @commands.command()
     @checks.admin_or_permissions(administrator=True)
     @commands.guild_only()
-    async def leavers(self, ctx: commands.Context):
-        """"""
-        guild = ctx.guild
-        await self.leaverconfig.guild(guild).channel.set(ctx.channel.id)
-        await ctx.maybe_send_embed("Channel set to " + ctx.channel.name)
+    async def leavers(self, ctx: commands.Context, channel: discord.TextChannel = None):
+        """Sets a channel that logs when users leave.
+        Leave blank to stop logging."""
+        if channel:
+            await self.leaverconfig.guild(ctx.guild).channel.set(channel.id)
+            await ctx.maybe_send_embed("Will now log when people leave in " + channel.name)
+        else:
+            await self.leaverconfig.guild(ctx.guild).channel.set(None)
+            await ctx.maybe_send_embed("Will no longer log people that leave")
 
     @commands.Cog.listener()
     async def on_member_remove(self, member: discord.Member):
@@ -575,7 +579,7 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
 
         channel = await self.leaverconfig.guild(guild).channel()
 
-        if channel != "":
+        if channel:
             channel = guild.get_channel(channel)
             out = "{} {}".format(
                 member, member.nick if member.nick is not None else ""
