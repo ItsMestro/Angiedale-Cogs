@@ -35,8 +35,7 @@ pingphrase2 = [
     ]
 
 class TTools(commands.Cog):
-    """Tools for osu! Tournaments.
-    """
+    """Tools for osu! Tournaments."""
 
     def __init__(self, bot: Red):
         self.bot = bot
