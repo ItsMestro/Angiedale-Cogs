@@ -476,8 +476,10 @@ class Owner(commands.Cog):
                 await asyncio.sleep(int(delay))
             except asyncio.CancelledError:
                 break
-            except Exception as e:
-                log.exception(e, exc_info=e)
+            except:
+                pass
+            # except Exception as e:
+            #     log.exception(e, exc_info=e)
 
     async def presence_updater(self):
         pattern = re.compile(rf"<@!?{self.bot.user.id}>")
