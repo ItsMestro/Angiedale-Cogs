@@ -87,10 +87,10 @@ class API():
                         return
                     elif r.status == 525:
                         log.error("osu! api fetch 525 Error")
-                        asyncio.sleep(5)
+                        await asyncio.sleep(5)
                     elif r.status == 502:
                         log.error("osu! api fetch 502 Error")
-                        asyncio.sleep(5)
+                        await asyncio.sleep(5)
                     else:
                         try:
                             data = await r.json(encoding="utf-8")
