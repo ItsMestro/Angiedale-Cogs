@@ -355,7 +355,7 @@ class Adventure(commands.Cog):
             "cooldown": 0,
             "cartroom": None,
             "cart_timeout": 10800,
-            "cooldown_timer_manual": 180,
+            "cooldown_timer_manual": 120,
             "rebirth_cost": 100.0,
             "disallow_withdraw": True,
             "max_allowed_withdraw": 50000,
@@ -372,7 +372,7 @@ class Adventure(commands.Cog):
             "rebirth_cost": 100.0,
             "themes": {},
             "daily_bonus": {"1": 0, "2": 0.25, "3": 0, "4": 0.25, "5": 0.5, "6": 1.0, "7": 1.0},
-            "tax_brackets": {},
+            "tax_brackets": {"10000": 0.01, "20000": 0.02, "30000": 0.05, "40000": 0.1, "50000": 0.15, "60000": 0.2, "70000": 0.25, "80000": 0.3, "90000": 0.4, "100000": 0.5},
             "separate_economy": True,
             "to_conversion_rate": 5,
             "from_conversion_rate": 10,
@@ -2250,82 +2250,82 @@ class Adventure(commands.Cog):
         table.rows.sort("Tax %", reverse=True)
         await smart_embed(ctx, box(str(table), lang="css",))
 
-    @commands.is_owner()
-    @commands_adventureset_economy.command(name="rate")
-    async def commands_adventureset_economy_conversion_rate(self, ctx: commands.Context, rate_in: int, rate_out: int):
-        """[Owner] Set how much 1 bank credit is worth in adventure.
+    # @commands.is_owner()
+    # @commands_adventureset_economy.command(name="rate")
+    # async def commands_adventureset_economy_conversion_rate(self, ctx: commands.Context, rate_in: int, rate_out: int):
+    #     """[Owner] Set how much 1 bank credit is worth in adventure.
 
-        **rate_in**: Is how much bits you will get for 1 bank credit. Default is 10
-        **rate_out**: Is how much bits is needed to convert to 1 bank credit. Default is 11
-        """
-        if rate_in < 0 or rate_out < 0:
-            return await smart_embed(ctx, _("You are evil ... please DM me your phone number we need to hangout."))
-        await self.config.to_conversion_rate.set(rate_in)
-        await self.config.from_conversion_rate.set(rate_out)
-        await smart_embed(
-            ctx,
-            _("1 {name} will be worth {rate_in} {a_name}.\n{rate_out} {a_name} will convert into 1 {name}").format(
-                name=await bank.get_currency_name(ctx.guild, _forced=True),
-                rate_in=humanize_number(rate_in),
-                rate_out=humanize_number(rate_out),
-                a_name=await bank.get_currency_name(ctx.guild),
-            ),
-        )
+    #     **rate_in**: Is how much bits you will get for 1 bank credit. Default is 10
+    #     **rate_out**: Is how much bits is needed to convert to 1 bank credit. Default is 11
+    #     """
+    #     if rate_in < 0 or rate_out < 0:
+    #         return await smart_embed(ctx, _("You are evil ... please DM me your phone number we need to hangout."))
+    #     await self.config.to_conversion_rate.set(rate_in)
+    #     await self.config.from_conversion_rate.set(rate_out)
+    #     await smart_embed(
+    #         ctx,
+    #         _("1 {name} will be worth {rate_in} {a_name}.\n{rate_out} {a_name} will convert into 1 {name}").format(
+    #             name=await bank.get_currency_name(ctx.guild, _forced=True),
+    #             rate_in=humanize_number(rate_in),
+    #             rate_out=humanize_number(rate_out),
+    #             a_name=await bank.get_currency_name(ctx.guild),
+    #         ),
+    #     )
 
-    @commands_adventureset_economy.command(name="maxwithdraw")
-    async def commands_adventureset_economy_maxwithdraw(self, ctx: commands.Context, *, amount: int):
-        """[Admin] Set how much players are allowed to withdraw."""
-        if amount < 0:
-            return await smart_embed(ctx, _("You are evil ... please DM me your phone number we need to hangout."))
-        if await bank.is_global(_forced=True):
-            await self.config.max_allowed_withdraw.set(amount)
-        else:
-            await self.config.guild(ctx.guild).max_allowed_withdraw.set(amount)
-        await smart_embed(
-            ctx,
-            _(
-                "Adventurers will be able to withdraw up to {amount} {name} from their adventure bank and deposit into their bot economy."
-            ).format(name=await bank.get_currency_name(ctx.guild, _forced=True), amount=humanize_number(amount),),
-        )
+    # @commands_adventureset_economy.command(name="maxwithdraw")
+    # async def commands_adventureset_economy_maxwithdraw(self, ctx: commands.Context, *, amount: int):
+    #     """[Admin] Set how much players are allowed to withdraw."""
+    #     if amount < 0:
+    #         return await smart_embed(ctx, _("You are evil ... please DM me your phone number we need to hangout."))
+    #     if await bank.is_global(_forced=True):
+    #         await self.config.max_allowed_withdraw.set(amount)
+    #     else:
+    #         await self.config.guild(ctx.guild).max_allowed_withdraw.set(amount)
+    #     await smart_embed(
+    #         ctx,
+    #         _(
+    #             "Adventurers will be able to withdraw up to {amount} {name} from their adventure bank and deposit into their bot economy."
+    #         ).format(name=await bank.get_currency_name(ctx.guild, _forced=True), amount=humanize_number(amount),),
+    #     )
 
-    @commands_adventureset_economy.command(name="withdraw")
-    async def commands_adventureset_economy_withdraw(self, ctx: commands.Context):
-        """[Admin] Toggle whether users are allowed to withdraw from adventure currency to main currency."""
+    # @commands_adventureset_economy.command(name="withdraw")
+    # async def commands_adventureset_economy_withdraw(self, ctx: commands.Context):
+    #     """[Admin] Toggle whether users are allowed to withdraw from adventure currency to main currency."""
 
-        if await bank.is_global(_forced=True):
-            state = await self.config.disallow_withdraw()
-            await self.config.disallow_withdraw.set(not state)
-        else:
-            state = await self.config.guild(ctx.guild).disallow_withdraw()
-            await self.config.guild(ctx.guild).disallow_withdraw.set(not state)
+    #     if await bank.is_global(_forced=True):
+    #         state = await self.config.disallow_withdraw()
+    #         await self.config.disallow_withdraw.set(not state)
+    #     else:
+    #         state = await self.config.guild(ctx.guild).disallow_withdraw()
+    #         await self.config.guild(ctx.guild).disallow_withdraw.set(not state)
 
-        await smart_embed(
-            ctx,
-            _("Adventurers are now {state} to withdraw money from adventure currency.").format(
-                state=_("allowed") if not state else _("disallowed")
-            ),
-        )
+    #     await smart_embed(
+    #         ctx,
+    #         _("Adventurers are now {state} to withdraw money from adventure currency.").format(
+    #             state=_("allowed") if not state else _("disallowed")
+    #         ),
+    #     )
 
-    @adventureset.command(name="advcooldown", hidden=True)
-    @commands.admin_or_permissions(administrator=True)
-    @commands.guild_only()
-    async def advcooldown(self, ctx: commands.Context, *, time_in_seconds: int):
-        """[Admin] Changes the cooldown/gather time after an adventure.
+    # @adventureset.command(name="advcooldown", hidden=True)
+    # @commands.admin_or_permissions(administrator=True)
+    # @commands.guild_only()
+    # async def advcooldown(self, ctx: commands.Context, *, time_in_seconds: int):
+    #     """[Admin] Changes the cooldown/gather time after an adventure.
 
-        Default is 120 seconds.
-        """
-        if time_in_seconds < 30:
-            return await smart_embed(ctx, _("Cooldown cannot be set to less than 30 seconds."))
+    #     Default is 120 seconds.
+    #     """
+    #     if time_in_seconds < 30:
+    #         return await smart_embed(ctx, _("Cooldown cannot be set to less than 30 seconds."))
 
-        await self.config.guild(ctx.guild).cooldown_timer_manual.set(time_in_seconds)
-        await smart_embed(
-            ctx, _("Adventure cooldown set to {cooldown} seconds.").format(cooldown=time_in_seconds),
-        )
+    #     await self.config.guild(ctx.guild).cooldown_timer_manual.set(time_in_seconds)
+    #     await smart_embed(
+    #         ctx, _("Adventure cooldown set to {cooldown} seconds.").format(cooldown=time_in_seconds),
+    #     )
 
-    @adventureset.command()
-    async def version(self, ctx: commands.Context):
-        """Display the version of adventure being used."""
-        await ctx.send(box(_("Adventure version: {}").format(self.__version__)))
+    # @adventureset.command()
+    # async def version(self, ctx: commands.Context):
+    #     """Display the version of adventure being used."""
+    #     await ctx.send(box(_("Adventure version: {}").format(self.__version__)))
 
     @adventureset.command()
     @commands.admin_or_permissions(administrator=True)
@@ -2334,35 +2334,35 @@ class Adventure(commands.Cog):
         await self.config.guild(ctx.guild).god_name.set(name)
         await ctx.tick()
 
-    @adventureset.command()
-    @commands.is_owner()
-    async def globalgod(self, ctx: commands.Context, *, name):
-        """[Owner] Set the default name of the god."""
-        await self.config.god_name.set(name)
-        await ctx.tick()
+    # @adventureset.command()
+    # @commands.is_owner()
+    # async def globalgod(self, ctx: commands.Context, *, name):
+    #     """[Owner] Set the default name of the god."""
+    #     await self.config.god_name.set(name)
+    #     await ctx.tick()
 
-    @adventureset.command(aliases=["embed"])
-    @commands.admin_or_permissions(administrator=True)
-    async def embeds(self, ctx: commands.Context):
-        """[Admin] Set whether or not to use embeds for the adventure game."""
-        toggle = await self.config.guild(ctx.guild).embed()
-        await self.config.guild(ctx.guild).embed.set(not toggle)
-        await smart_embed(ctx, _("Embeds: {}").format(not toggle))
+    # @adventureset.command(aliases=["embed"])
+    # @commands.admin_or_permissions(administrator=True)
+    # async def embeds(self, ctx: commands.Context):
+    #     """[Admin] Set whether or not to use embeds for the adventure game."""
+    #     toggle = await self.config.guild(ctx.guild).embed()
+    #     await self.config.guild(ctx.guild).embed.set(not toggle)
+    #     await smart_embed(ctx, _("Embeds: {}").format(not toggle))
 
-    @adventureset.command(aliases=["chests"], enabled=False, hidden=True)
-    @commands.is_owner()
-    async def cartchests(self, ctx: commands.Context):
-        """[Admin] Set whether or not to sell chests in the cart."""
-        toggle = await self.config.enable_chests()
-        await self.config.enable_chests.set(not toggle)
-        await smart_embed(ctx, _("Carts can sell chests: {}").format(not toggle))
+    # @adventureset.command(aliases=["chests"], enabled=False, hidden=True)
+    # @commands.is_owner()
+    # async def cartchests(self, ctx: commands.Context):
+    #     """[Admin] Set whether or not to sell chests in the cart."""
+    #     toggle = await self.config.enable_chests()
+    #     await self.config.enable_chests.set(not toggle)
+    #     await smart_embed(ctx, _("Carts can sell chests: {}").format(not toggle))
 
-    @adventureset.command()
-    @commands.admin_or_permissions(administrator=True)
-    async def cartname(self, ctx: commands.Context, *, name):
-        """[Admin] Set the server's name of the cart."""
-        await self.config.guild(ctx.guild).cart_name.set(name)
-        await ctx.tick()
+    # @adventureset.command()
+    # @commands.admin_or_permissions(administrator=True)
+    # async def cartname(self, ctx: commands.Context, *, name):
+    #     """[Admin] Set the server's name of the cart."""
+    #     await self.config.guild(ctx.guild).cart_name.set(name)
+    #     await ctx.tick()
 
     @adventureset.command()
     @commands.admin_or_permissions(administrator=True)
@@ -2426,245 +2426,245 @@ class Adventure(commands.Cog):
             await self.config.user(user).set(await c.to_json(self.config))
         await ctx.send(_("{item} removed from {user}.").format(item=box(str(item), lang="css"), user=user))
 
-    @adventureset.command()
-    @commands.is_owner()
-    async def globalcartname(self, ctx: commands.Context, *, name):
-        """[Owner] Set the default name of the cart."""
-        await self.config.cart_name.set(name)
-        await ctx.tick()
+    # @adventureset.command()
+    # @commands.is_owner()
+    # async def globalcartname(self, ctx: commands.Context, *, name):
+    #     """[Owner] Set the default name of the cart."""
+    #     await self.config.cart_name.set(name)
+    #     await ctx.tick()
 
-    @adventureset.command()
-    @commands.is_owner()
-    async def theme(self, ctx: commands.Context, *, theme):
-        """[Owner] Change the theme for adventure."""
-        if theme == "default":
-            await self.config.theme.set("default")
-            await smart_embed(ctx, _("Going back to the default theme."))
-            await self.initialize()
-            return
-        if theme not in os.listdir(cog_data_path(self)):
-            await smart_embed(ctx, _("That theme pack does not exist!"))
-            return
-        good_files = [
-            "as_monsters.json",
-            "attribs.json",
-            "locations.json",
-            "monsters.json",
-            "pets.json",
-            "raisins.json",
-            "threatee.json",
-            "tr_set.json",
-            "prefixes.json",
-            "materials.json",
-            "equipment.json",
-            "suffixes.json",
-            "set_bonuses.json",
-        ]
-        missing_files = set(good_files).difference(os.listdir(cog_data_path(self) / theme))
+    # @adventureset.command()
+    # @commands.is_owner()
+    # async def theme(self, ctx: commands.Context, *, theme):
+    #     """[Owner] Change the theme for adventure."""
+    #     if theme == "default":
+    #         await self.config.theme.set("default")
+    #         await smart_embed(ctx, _("Going back to the default theme."))
+    #         await self.initialize()
+    #         return
+    #     if theme not in os.listdir(cog_data_path(self)):
+    #         await smart_embed(ctx, _("That theme pack does not exist!"))
+    #         return
+    #     good_files = [
+    #         "as_monsters.json",
+    #         "attribs.json",
+    #         "locations.json",
+    #         "monsters.json",
+    #         "pets.json",
+    #         "raisins.json",
+    #         "threatee.json",
+    #         "tr_set.json",
+    #         "prefixes.json",
+    #         "materials.json",
+    #         "equipment.json",
+    #         "suffixes.json",
+    #         "set_bonuses.json",
+    #     ]
+    #     missing_files = set(good_files).difference(os.listdir(cog_data_path(self) / theme))
 
-        if missing_files:
-            await smart_embed(
-                ctx, _("That theme pack is missing the following files: {}.").format(humanize_list(missing_files)),
-            )
-            return
-        else:
-            await self.config.theme.set(theme)
-            await ctx.tick()
-        await self.initialize()
+    #     if missing_files:
+    #         await smart_embed(
+    #             ctx, _("That theme pack is missing the following files: {}.").format(humanize_list(missing_files)),
+    #         )
+    #         return
+    #     else:
+    #         await self.config.theme.set(theme)
+    #         await ctx.tick()
+    #     await self.initialize()
 
-    @commands.group()
-    @commands.guild_only()
-    @commands.is_owner()
-    async def themeset(self, ctx: commands.Context):
-        """[Admin] Modify themes."""
+    # @commands.group()
+    # @commands.guild_only()
+    # @commands.is_owner()
+    # async def themeset(self, ctx: commands.Context):
+    #     """[Admin] Modify themes."""
 
-    @commands.is_owner()
-    @themeset.group(name="add")
-    async def themeset_add(self, ctx: commands.Context):
-        """[Owner] Add/Update objects in the specified theme."""
+    # @commands.is_owner()
+    # @themeset.group(name="add")
+    # async def themeset_add(self, ctx: commands.Context):
+    #     """[Owner] Add/Update objects in the specified theme."""
 
-    @themeset_add.command(name="monster")
-    async def themeset_add_monster(self, ctx: commands.Context, *, theme_data: ThemeSetMonterConverter):
-        """[Owner] Add/Update a monster object in the specified theme.
+    # @themeset_add.command(name="monster")
+    # async def themeset_add_monster(self, ctx: commands.Context, *, theme_data: ThemeSetMonterConverter):
+    #     """[Owner] Add/Update a monster object in the specified theme.
 
-        Usage: `[p]themeset add monster theme++name++hp++dipl++pdef++mdef++cdef++boss++image`
-        """
-        assert isinstance(theme_data, dict)
-        theme = theme_data.pop("theme", None)
-        if theme != "default" and theme not in os.listdir(cog_data_path(self)):
-            await smart_embed(ctx, _("That theme pack does not exist!"))
-            return
-        updated = False
-        monster = theme_data.pop("name", None)
-        async with self.config.themes.all() as config_data:
-            if theme not in config_data:
-                config_data[theme] = {"monsters": {}}
-            if "monsters" not in config_data[theme]:
-                config_data[theme]["monsters"] = {}
-            if monster in config_data[theme]["monsters"]:
-                updated = True
-            config_data[theme]["monsters"][monster] = theme_data
-        image = theme_data.pop("image", None)
-        text = _(
-            "Monster: `{monster}` has been {status} the `{theme}` theme\n"
-            "```ini\n"
-            "HP:                  [{hp}]\n"
-            "Diplomacy:           [{dipl}]\n"
-            "Physical defence:    [{pdef}]\n"
-            "Magical defence:     [{mdef}]\n"
-            "Persuasion defence:  [{cdef}]\n"
-            "Is a boss:           [{boss}]```"
-        ).format(monster=monster, theme=theme, status=_("added to") if not updated else _("updated in"), **theme_data,)
+    #     Usage: `[p]themeset add monster theme++name++hp++dipl++pdef++mdef++cdef++boss++image`
+    #     """
+    #     assert isinstance(theme_data, dict)
+    #     theme = theme_data.pop("theme", None)
+    #     if theme != "default" and theme not in os.listdir(cog_data_path(self)):
+    #         await smart_embed(ctx, _("That theme pack does not exist!"))
+    #         return
+    #     updated = False
+    #     monster = theme_data.pop("name", None)
+    #     async with self.config.themes.all() as config_data:
+    #         if theme not in config_data:
+    #             config_data[theme] = {"monsters": {}}
+    #         if "monsters" not in config_data[theme]:
+    #             config_data[theme]["monsters"] = {}
+    #         if monster in config_data[theme]["monsters"]:
+    #             updated = True
+    #         config_data[theme]["monsters"][monster] = theme_data
+    #     image = theme_data.pop("image", None)
+    #     text = _(
+    #         "Monster: `{monster}` has been {status} the `{theme}` theme\n"
+    #         "```ini\n"
+    #         "HP:                  [{hp}]\n"
+    #         "Diplomacy:           [{dipl}]\n"
+    #         "Physical defence:    [{pdef}]\n"
+    #         "Magical defence:     [{mdef}]\n"
+    #         "Persuasion defence:  [{cdef}]\n"
+    #         "Is a boss:           [{boss}]```"
+    #     ).format(monster=monster, theme=theme, status=_("added to") if not updated else _("updated in"), **theme_data,)
 
-        embed = discord.Embed(description=text, colour=await ctx.embed_colour())
-        embed.set_image(url=image)
-        await ctx.send(embed=embed)
+    #     embed = discord.Embed(description=text, colour=await ctx.embed_colour())
+    #     embed.set_image(url=image)
+    #     await ctx.send(embed=embed)
 
-    @themeset_add.command(name="pet")
-    async def themeset_add_pet(self, ctx: commands.Context, *, pet_data: ThemeSetPetConverter):
-        """[Owner] Add/Update a pet object in the specified theme.
+    # @themeset_add.command(name="pet")
+    # async def themeset_add_pet(self, ctx: commands.Context, *, pet_data: ThemeSetPetConverter):
+    #     """[Owner] Add/Update a pet object in the specified theme.
 
-        Usage: `[p]themeset add pet theme++name++bonus_multiplier++required_cha++crit_chance++always_crit`
-        """
-        assert isinstance(pet_data, dict)
-        theme = pet_data.pop("theme", None)
-        if theme != "default" and theme not in os.listdir(cog_data_path(self)):
-            await smart_embed(ctx, _("That theme pack does not exist!"))
-            return
-        updated = False
-        pet = pet_data.pop("name", None)
-        async with self.config.themes.all() as config_data:
-            if theme not in config_data:
-                config_data[theme] = {"pet": {}}
-            if "pet" not in config_data[theme]:
-                config_data[theme]["pet"] = {}
-            if pet in config_data[theme]["pet"]:
-                updated = True
-            config_data[theme]["pet"][pet] = pet_data
+    #     Usage: `[p]themeset add pet theme++name++bonus_multiplier++required_cha++crit_chance++always_crit`
+    #     """
+    #     assert isinstance(pet_data, dict)
+    #     theme = pet_data.pop("theme", None)
+    #     if theme != "default" and theme not in os.listdir(cog_data_path(self)):
+    #         await smart_embed(ctx, _("That theme pack does not exist!"))
+    #         return
+    #     updated = False
+    #     pet = pet_data.pop("name", None)
+    #     async with self.config.themes.all() as config_data:
+    #         if theme not in config_data:
+    #             config_data[theme] = {"pet": {}}
+    #         if "pet" not in config_data[theme]:
+    #             config_data[theme]["pet"] = {}
+    #         if pet in config_data[theme]["pet"]:
+    #             updated = True
+    #         config_data[theme]["pet"][pet] = pet_data
 
-        pet_bonuses = pet_data.pop("bonuses", {})
-        text = _(
-            "Pet: `{pet}` has been {status} the `{theme}` theme\n"
-            "```ini\n"
-            "Bonus Multiplier:  [{bonus}]\n"
-            "Required Charisma: [{cha}]\n"
-            "Pet always crits:  [{always}]\n"
-            "Critical Chance:   [{crit}/100]```"
-        ).format(
-            pet=pet, theme=theme, status=_("added to") if not updated else _("updated in"), **pet_data, **pet_bonuses,
-        )
+    #     pet_bonuses = pet_data.pop("bonuses", {})
+    #     text = _(
+    #         "Pet: `{pet}` has been {status} the `{theme}` theme\n"
+    #         "```ini\n"
+    #         "Bonus Multiplier:  [{bonus}]\n"
+    #         "Required Charisma: [{cha}]\n"
+    #         "Pet always crits:  [{always}]\n"
+    #         "Critical Chance:   [{crit}/100]```"
+    #     ).format(
+    #         pet=pet, theme=theme, status=_("added to") if not updated else _("updated in"), **pet_data, **pet_bonuses,
+    #     )
 
-        embed = discord.Embed(description=text, colour=await ctx.embed_colour())
-        await ctx.send(embed=embed)
+    #     embed = discord.Embed(description=text, colour=await ctx.embed_colour())
+    #     await ctx.send(embed=embed)
 
-    @commands.is_owner()
-    @themeset.group(name="delete", aliases=["del", "rem", "remove"])
-    async def themeset_delete(self, ctx: commands.Context):
-        """[Owner] Remove objects in the specified theme."""
+    # @commands.is_owner()
+    # @themeset.group(name="delete", aliases=["del", "rem", "remove"])
+    # async def themeset_delete(self, ctx: commands.Context):
+    #     """[Owner] Remove objects in the specified theme."""
 
-    @themeset_delete.command(name="monster")
-    async def themeset_delete_monster(self, ctx: commands.Context, theme: str, *, monster: str):
-        """[Owner] Remove a monster object in the specified theme."""
-        if theme != "default" and theme not in os.listdir(cog_data_path(self)):
-            await smart_embed(ctx, _("That theme pack does not exist!"))
-            return
-        async with self.config.themes.all() as config_data:
-            if theme not in config_data:
-                config_data[theme] = {"monsters": {}}
-            if "monsters" not in config_data[theme]:
-                config_data[theme]["monsters"] = {}
-            if monster in config_data[theme]["monsters"]:
-                del config_data[theme]["monsters"][monster]
-            else:
-                text = _("Monster: `{monster}` does not exist in `{theme}` theme").format(monster=monster, theme=theme)
-                await smart_embed(ctx, text)
-                return
+    # @themeset_delete.command(name="monster")
+    # async def themeset_delete_monster(self, ctx: commands.Context, theme: str, *, monster: str):
+    #     """[Owner] Remove a monster object in the specified theme."""
+    #     if theme != "default" and theme not in os.listdir(cog_data_path(self)):
+    #         await smart_embed(ctx, _("That theme pack does not exist!"))
+    #         return
+    #     async with self.config.themes.all() as config_data:
+    #         if theme not in config_data:
+    #             config_data[theme] = {"monsters": {}}
+    #         if "monsters" not in config_data[theme]:
+    #             config_data[theme]["monsters"] = {}
+    #         if monster in config_data[theme]["monsters"]:
+    #             del config_data[theme]["monsters"][monster]
+    #         else:
+    #             text = _("Monster: `{monster}` does not exist in `{theme}` theme").format(monster=monster, theme=theme)
+    #             await smart_embed(ctx, text)
+    #             return
 
-        text = _("Monster: `{monster}` has been deleted from the `{theme}` theme").format(monster=monster, theme=theme)
-        await smart_embed(ctx, text)
+    #     text = _("Monster: `{monster}` has been deleted from the `{theme}` theme").format(monster=monster, theme=theme)
+    #     await smart_embed(ctx, text)
 
-    @themeset_delete.command(name="pet")
-    async def themeset_delete_pet(self, ctx: commands.Context, theme: str, *, pet: str):
-        """[Owner] Remove a pet object in the specified theme."""
-        if theme != "default" and theme not in os.listdir(cog_data_path(self)):
-            await smart_embed(ctx, _("That theme pack does not exist!"))
-            return
-        async with self.config.themes.all() as config_data:
-            if theme not in config_data:
-                config_data[theme] = {"pet": {}}
-            if "pet" not in config_data[theme]:
-                config_data[theme]["pet"] = {}
-            if pet in config_data[theme]["pet"]:
-                del config_data[theme]["pet"][pet]
-            else:
-                text = _("Pet: `{pet}` does not exist in `{theme}` theme").format(pet=pet, theme=theme)
-                await smart_embed(ctx, text)
-                return
+    # @themeset_delete.command(name="pet")
+    # async def themeset_delete_pet(self, ctx: commands.Context, theme: str, *, pet: str):
+    #     """[Owner] Remove a pet object in the specified theme."""
+    #     if theme != "default" and theme not in os.listdir(cog_data_path(self)):
+    #         await smart_embed(ctx, _("That theme pack does not exist!"))
+    #         return
+    #     async with self.config.themes.all() as config_data:
+    #         if theme not in config_data:
+    #             config_data[theme] = {"pet": {}}
+    #         if "pet" not in config_data[theme]:
+    #             config_data[theme]["pet"] = {}
+    #         if pet in config_data[theme]["pet"]:
+    #             del config_data[theme]["pet"][pet]
+    #         else:
+    #             text = _("Pet: `{pet}` does not exist in `{theme}` theme").format(pet=pet, theme=theme)
+    #             await smart_embed(ctx, text)
+    #             return
 
-        text = _("Pet: `{pet}` has been deleted from the `{theme}` theme").format(pet=pet, theme=theme)
-        await smart_embed(ctx, text)
+    #     text = _("Pet: `{pet}` has been deleted from the `{theme}` theme").format(pet=pet, theme=theme)
+    #     await smart_embed(ctx, text)
 
-    @themeset.group(name="list", aliases=["show"])
-    async def themeset_list(self, ctx: commands.Context):
-        """[Admin] Show custom objects in the specified theme."""
+    # @themeset.group(name="list", aliases=["show"])
+    # async def themeset_list(self, ctx: commands.Context):
+    #     """[Admin] Show custom objects in the specified theme."""
 
-    @themeset_list.command(name="monster")
-    async def themeset_list_monster(self, ctx: commands.Context, *, theme: str):
-        """[Admin] Show monster objects in the specified theme."""
-        if theme != "default" and theme not in os.listdir(cog_data_path(self)):
-            await smart_embed(ctx, _("That theme pack does not exist!"))
-            return
-        async with self.config.themes.all() as config_data:
-            if theme not in config_data:
-                return await smart_embed(ctx, _("No custom monsters exist in this theme"))
-            monster_data = config_data.get(theme, {}).get("monsters", {})
-        embed_list = []
-        for monster, monster_stats in monster_data.items():
-            image = monster_stats.get("image")
-            monster_stats["cdef"] = monster_stats.get("cdef", 1.0)
-            text = _(
-                "```ini\n"
-                "HP:                  [{hp}]\n"
-                "Diplomacy:           [{dipl}]\n"
-                "Physical defence:    [{pdef}]\n"
-                "Magical defence:     [{mdef}]\n"
-                "Persuasion defence:  [{cdef}]\n"
-                "Is a boss:           [{boss}]```"
-            ).format(**monster_stats)
-            embed = discord.Embed(title=monster, description=text)
-            embed.set_image(url=image)
-            embed_list.append(embed)
-        if embed_list:
-            await BaseMenu(
-                source=SimpleSource(embed_list), delete_message_after=True, clear_reactions_after=True, timeout=60,
-            ).start(ctx=ctx)
+    # @themeset_list.command(name="monster")
+    # async def themeset_list_monster(self, ctx: commands.Context, *, theme: str):
+    #     """[Admin] Show monster objects in the specified theme."""
+    #     if theme != "default" and theme not in os.listdir(cog_data_path(self)):
+    #         await smart_embed(ctx, _("That theme pack does not exist!"))
+    #         return
+    #     async with self.config.themes.all() as config_data:
+    #         if theme not in config_data:
+    #             return await smart_embed(ctx, _("No custom monsters exist in this theme"))
+    #         monster_data = config_data.get(theme, {}).get("monsters", {})
+    #     embed_list = []
+    #     for monster, monster_stats in monster_data.items():
+    #         image = monster_stats.get("image")
+    #         monster_stats["cdef"] = monster_stats.get("cdef", 1.0)
+    #         text = _(
+    #             "```ini\n"
+    #             "HP:                  [{hp}]\n"
+    #             "Diplomacy:           [{dipl}]\n"
+    #             "Physical defence:    [{pdef}]\n"
+    #             "Magical defence:     [{mdef}]\n"
+    #             "Persuasion defence:  [{cdef}]\n"
+    #             "Is a boss:           [{boss}]```"
+    #         ).format(**monster_stats)
+    #         embed = discord.Embed(title=monster, description=text)
+    #         embed.set_image(url=image)
+    #         embed_list.append(embed)
+    #     if embed_list:
+    #         await BaseMenu(
+    #             source=SimpleSource(embed_list), delete_message_after=True, clear_reactions_after=True, timeout=60,
+    #         ).start(ctx=ctx)
 
-    @themeset_list.command(name="pet")
-    async def themeset_list_pet(self, ctx: commands.Context, *, theme: str):
-        """[Admin] Show pet objects in the specified theme."""
-        if theme != "default" and theme not in os.listdir(cog_data_path(self)):
-            await smart_embed(ctx, _("That theme pack does not exist!"))
-            return
-        async with self.config.themes.all() as config_data:
-            if theme not in config_data:
-                return await smart_embed(ctx, _("No custom monsters exist in this theme"))
-            monster_data = config_data.get(theme, {}).get("pet", {})
-        embed_list = []
-        for pet, pet_stats in monster_data.items():
-            pet_bonuses = pet_stats.pop("bonuses", {})
-            text = _(
-                "```ini\n"
-                "Bonus Multiplier:  [{bonus}]\n"
-                "Required Charisma: [{cha}]\n"
-                "Pet always crits:  [{always}]\n"
-                "Critical Chance:   [{crit}/100]```"
-            ).format(theme=theme, **pet_stats, **pet_bonuses)
-            embed = discord.Embed(title=pet, description=text)
-            embed_list.append(embed)
-        if embed_list:
-            await BaseMenu(
-                source=SimpleSource(embed_list), delete_message_after=True, clear_reactions_after=True, timeout=60,
-            ).start(ctx=ctx)
+    # @themeset_list.command(name="pet")
+    # async def themeset_list_pet(self, ctx: commands.Context, *, theme: str):
+    #     """[Admin] Show pet objects in the specified theme."""
+    #     if theme != "default" and theme not in os.listdir(cog_data_path(self)):
+    #         await smart_embed(ctx, _("That theme pack does not exist!"))
+    #         return
+    #     async with self.config.themes.all() as config_data:
+    #         if theme not in config_data:
+    #             return await smart_embed(ctx, _("No custom monsters exist in this theme"))
+    #         monster_data = config_data.get(theme, {}).get("pet", {})
+    #     embed_list = []
+    #     for pet, pet_stats in monster_data.items():
+    #         pet_bonuses = pet_stats.pop("bonuses", {})
+    #         text = _(
+    #             "```ini\n"
+    #             "Bonus Multiplier:  [{bonus}]\n"
+    #             "Required Charisma: [{cha}]\n"
+    #             "Pet always crits:  [{always}]\n"
+    #             "Critical Chance:   [{crit}/100]```"
+    #         ).format(theme=theme, **pet_stats, **pet_bonuses)
+    #         embed = discord.Embed(title=pet, description=text)
+    #         embed_list.append(embed)
+    #     if embed_list:
+    #         await BaseMenu(
+    #             source=SimpleSource(embed_list), delete_message_after=True, clear_reactions_after=True, timeout=60,
+    #         ).start(ctx=ctx)
 
     @adventureset.command()
     @commands.admin_or_permissions(administrator=True)
@@ -2736,7 +2736,8 @@ class Adventure(commands.Cog):
 
         single_adventure_restrict = _("Restricted") if global_data["restrict"] else _("Unlimited")
         adventure_in_embed = _("Allow embeds") if guild_data["embed"] else _("No embeds")
-        time_after_adventure = parse_timedelta(f"{guild_data['cooldown_timer_manual']} seconds")
+        # time_after_adventure = parse_timedelta(f"{guild_data['cooldown_timer_manual']} seconds")
+        time_after_adventure = parse_timedelta(f"120 seconds") #Angiedale: Override for now
 
         separate_economy = global_data["separate_economy"]
         economy_string = _("\n# Economy Settings\n")
@@ -4415,7 +4416,7 @@ class Adventure(commands.Cog):
                     )
                 )
                 return
-            cooldown_time = max(1800, (7200 - max((c.luck + c.total_int) * 2, 0)))
+            cooldown_time = max(1800, (14400 - max((c.luck + c.total_int) * 2, 0)))
             if "cooldown" not in c.heroclass:
                 c.heroclass["cooldown"] = cooldown_time + 1
             if c.heroclass["cooldown"] <= time.time():
@@ -5332,7 +5333,8 @@ class Adventure(commands.Cog):
         guild_settings = await self.config.guild(ctx.guild).all()
         cooldown = guild_settings["cooldown"]
 
-        cooldown_time = guild_settings["cooldown_timer_manual"]
+        # cooldown_time = guild_settings["cooldown_timer_manual"]
+        cooldown_time = 120 #Angiedale: Override for now
 
         if cooldown + cooldown_time > time.time():
             cooldown_time = cooldown + cooldown_time - time.time()
@@ -6062,15 +6064,15 @@ class Adventure(commands.Cog):
         )
         if session.no_monster:
             avaliable_loot = [
-                [0, 2, 0, 0, 1, 1],
+                [0, 1, 0, 0, 1, 1],
                 [0, 0, 1, 0, 1, 1],
-                [0, 0, 0, 1, 0, 1],
-                [2, 0, 1, 0, 0, 1],
-                [1, 0, 0, 1, 1, 0],
-                [0, 1, 2, 1, 0, 0],
-                [1, 0, 0, 1, 0, 0],
-                [1, 2, 1, 0, 0, 0],
-                [0, 1, 0, 0, 0, 0],
+                [1, 0, 0, 1, 0, 1],
+                [0, 1, 1, 1, 0, 0],
+                [1, 0, 1, 0, 1, 0],
+                [1, 0, 1, 1, 0, 0],
+                [1, 1, 0, 1, 0, 0],
+                [1, 1, 1, 0, 0, 0],
+                [0, 0, 0, 0, 1, 0],
             ]
             treasure = random.choice(avaliable_loot)
 
@@ -6174,7 +6176,7 @@ class Adventure(commands.Cog):
         treasure = [0, 0, 0, 0, 0, 0]
         if (slain or persuaded) and not failed:
             success = True
-            roll = random.randint(1, 24)
+            roll = random.randint(1, 32)
             monster_amount = hp + dipl if slain and persuaded else hp if slain else dipl
             if session.transcended:
                 if session.boss and "Trancended" in session.challenge:
@@ -6184,29 +6186,32 @@ class Adventure(commands.Cog):
                     ]
                 else:
                     avaliable_loot = [
-                        [0, 0, 0, 2, 1, 1],
-                        [0, 0, 0, 1, 0, 1],
-                        [0, 0, 0, 0, 1, 1],
+                        [0, 0, 0, 1, 1, 1],
+                        [0, 0, 1, 1, 0, 1],
+                        [1, 0, 0, 0, 1, 1],
                         [0, 0, 0, 0, 0, 1],
                     ]
                 treasure = random.choice(avaliable_loot)
             elif session.boss:  # rewards 60:30:10 Epic Legendary Gear Set items
-                avaliable_loot = [[0, 1, 1, 1, 0, 0], [0, 0, 1, 1, 1, 0], [0, 0, 1, 2, 1, 0]]
+                avaliable_loot = [[0, 0, 1, 1, 0, 0], [0, 0, 0, 1, 1, 0], [0, 0, 0, 1, 0, 1]]
                 treasure = random.choice(avaliable_loot)
             elif session.miniboss:  # rewards 50:50 rare:normal chest for killing something like the basilisk
                 treasure = random.choice(
-                    [[1, 1, 1, 0, 0, 0], [0, 1, 1, 1, 0, 0], [0, 0, 1, 2, 0, 0], [0, 1, 0, 2, 1, 0]]
+                    [[1, 1, 1, 0, 0, 0], [0, 1, 1, 1, 0, 0], [0, 0, 1, 1, 1, 0]]
                 )
             elif monster_amount >= 800:  # super hard stuff
-                if roll <= 8:
-                    treasure = random.choice([[0, 0, 1, 0, 0, 0], [0, 1, 0, 0, 0, 0], [0, 0, 0, 1, 1, 0]])
+                if roll <= 6:
+                    treasure = random.choice([[0, 0, 0, 1, 0, 0], [0, 0, 0, 0, 1, 0], [0, 0, 0, 0, 0, 1]])
             elif monster_amount >= 560:  # rewards 50:50 rare:epic chest for killing hard stuff.
-                if roll <= 5:
-                    treasure = random.choice([[0, 0, 1, 0, 0, 0], [0, 1, 0, 0, 0, 0], [0, 1, 1, 0, 0, 0]])
+                if roll <= 4:
+                    treasure = random.choice([[0, 0, 1, 0, 0, 0], [0, 0, 0, 1, 0, 0], [0, 0, 0, 0, 1, 0]])
             elif monster_amount >= 320:  # rewards 50:50 rare:normal chest for killing hardish stuff
+                if roll <= 3:
+                    treasure = random.choice([[0, 1, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0], [0, 0, 0, 1, 0, 0]])
+            elif monster_amount >= 200:  # rewards 50:50 rare:normal chest for killing hardish stuff
                 if roll <= 2:
-                    treasure = random.choice([[1, 0, 0, 0, 0, 0], [0, 1, 0, 0, 0, 0], [1, 1, 0, 0, 0, 0]])
-            elif monster_amount >= 100:  # small chance of a normal chest on killing stuff that's not terribly weak
+                    treasure = random.choice([[1, 0, 0, 0, 0, 0], [0, 1, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0]])
+            elif monster_amount >= 80:  # small chance of a normal chest on killing stuff that's not terribly weak
                 if roll == 1:
                     treasure = [1, 0, 0, 0, 0, 0]
 
@@ -6312,7 +6317,7 @@ class Adventure(commands.Cog):
             ).format(miniboss=miniboss, special=special)
         amount = 1 * session.monster_stats
         amount *= (hp + dipl) if slain and persuaded else hp if slain else dipl
-        amount += int(amount * (0.25 * people))
+        amount += int(amount * (0.2 * people))
         currency_name = await bank.get_currency_name(ctx.guild)
         if people == 1:
             if slain:
@@ -6351,7 +6356,7 @@ class Adventure(commands.Cog):
                         log.exception("Error with the new character sheet", exc_info=exc)
                         continue
                     if c.bal > 0:
-                        multiplier = 1 / 3 if c.rebirths >= 5 else 0.01
+                        multiplier = 1 / 3 if c.rebirths >= 5 else 0.1
                         if c._dex < 0:
                             dex = min(1 / abs(c._dex), 1)
                         else:
@@ -6536,7 +6541,7 @@ class Adventure(commands.Cog):
                         log.exception("Error with the new character sheet", exc_info=exc)
                         continue
                     if c.bal > 0:
-                        multiplier = 1 / 3 if c.rebirths >= 5 else 0.01
+                        multiplier = 1 / 3 if c.rebirths >= 5 else 0.1
                         if c._dex < 0:
                             dex = min(1 / abs(c._dex), 1)
                         else:
