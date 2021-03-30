@@ -15,7 +15,7 @@ from redbot.core.utils.chat_formatting import (
 )
 from redbot.core.utils.menus import menu
 
-log = logging.getLogger("red.angiedale.tournamenttools")
+log = logging.getLogger("red.angiedale.ttools")
 
 pingphrase1 = [
     "Get yourselves ready.",
@@ -34,7 +34,7 @@ pingphrase2 = [
     "You'll be playing in"
     ]
 
-class TournamentTools(commands.Cog):
+class TTools(commands.Cog):
     """Tools for osu! Tournaments.
     """
 
