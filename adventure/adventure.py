@@ -6176,7 +6176,7 @@ class Adventure(commands.Cog):
         treasure = [0, 0, 0, 0, 0, 0]
         if (slain or persuaded) and not failed:
             success = True
-            roll = random.randint(1, 32)
+            roll = random.randint(1, 24)
             monster_amount = hp + dipl if slain and persuaded else hp if slain else dipl
             if session.transcended:
                 if session.boss and "Trancended" in session.challenge:
