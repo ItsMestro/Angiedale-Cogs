@@ -79,12 +79,6 @@ class Owner(commands.Cog):
 
     async def initialize(self):
 
-        async with self.statsconfig.all() as sconfig:
-            self.statschannel = sconfig["Channel"]
-            self.statsmessage = sconfig["Message"]
-        if self.statschannel:
-            self.statstask = self.bot.loop.create_task(self._update_stats())
-
         lock = self.adminconfig.get_guilds_lock()
         async with lock:
             # This prevents the edge case of someone loading admin,
@@ -94,6 +88,14 @@ class Owner(commands.Cog):
             if current_schema == 0:
                 await self.migrate_config_from_0_to_1()
                 await self.adminconfig.schema_version.set(1)
+
+        await self.bot.wait_until_ready()
+        
+        async with self.statsconfig.all() as sconfig:
+            self.statschannel = sconfig["Channel"]
+            self.statsmessage = sconfig["Message"]
+        if self.statschannel:
+            self.statstask = self.bot.loop.create_task(self._update_stats())
 
         self._ready.set()
 
@@ -121,7 +123,6 @@ class Owner(commands.Cog):
             self.bot.loop.create_task(self.stop_interaction(user))
 
     async def _update_stats(self):
-        await self.bot.wait_until_ready()
         while True:
             try:
                 await self.check_statsembed()
