@@ -95,7 +95,7 @@ class Owner(commands.Cog):
             self.statschannel = sconfig["Channel"]
             self.statsmessage = sconfig["Message"]
         if self.statschannel:
-            self.statstask = self.bot.loop.create_task(self._update_stats())
+            self.statstask = asyncio.create_task(self._update_stats())
 
         self._ready.set()
 
@@ -123,11 +123,14 @@ class Owner(commands.Cog):
             self.bot.loop.create_task(self.stop_interaction(user))
 
     async def _update_stats(self):
+        await asyncio.sleep(30 * 1)
         while True:
             try:
                 await self.check_statsembed()
             except asyncio.CancelledError:
                 break
+            except Exception as e:
+                log.exception(e, exc_info=e)
             await asyncio.sleep(60 * 10)
 
     async def check_statsembed(self):

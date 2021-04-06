@@ -35,13 +35,12 @@ class Interactions(commands.Cog):
         """Should be called straight after cog instantiation."""
         await self.bot.wait_until_ready()
 
-        self.statstask = self.bot.loop.create_task(self.updatestats())
+        self.statstask = asyncio.create_task(self.updatestats())
 
         self._ready_event.set()
 
     def cog_unload(self):
-        if self.statstask:
-            self.statstask.cancel()
+        self.statstask.cancel()
 
     async def updatestats(self):
         while True:
@@ -52,6 +51,8 @@ class Interactions(commands.Cog):
                     self.bonks = 0
             except asyncio.CancelledError:
                 break
+            except Exception as e:
+                log.exception(e, exc_info=e)
             await asyncio.sleep(60 * 10)
 
     @commands.command()
