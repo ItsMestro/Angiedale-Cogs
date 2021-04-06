@@ -73,14 +73,14 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         if service_name == "osu":
             await self.get_osu_bearer_token(api_tokens)
 
-    async def cog_before_invoke(self, ctx):
+    async def cog_before_invoke(self, ctx: commands.Context):
         await self._ready_event.wait()
 
     def cog_unload(self):
         self.tracking_task.cancel()
 
     @commands.command()
-    async def osulink(self, ctx, *, username: str):
+    async def osulink(self, ctx: commands.Context, *, username: str):
         """Link your account with an osu! user profile."""
 
         data = await self.fetch_api(f"users/{username}")
@@ -97,7 +97,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
     @checks.guildowner()
     @commands.guild_only()
     @commands.group()
-    async def osutrack(self, ctx):
+    async def osutrack(self, ctx: commands.Context):
         """Top play tracking"""
 
     @osutrack.command()
@@ -132,7 +132,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
             await del_message(ctx, f"Could not find the user {username}.")
 
     @osutrack.command()
-    async def remove(self, ctx, username: str):
+    async def remove(self, ctx: commands.Context, username: str):
         """Remove a tracked player."""
 
         data = await self.fetch_api(f"users/{username}")
@@ -148,7 +148,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
             await del_message(ctx, f"Could not find the user {username}.")
 
     @osutrack.command()
-    async def list(self, ctx):
+    async def list(self, ctx: commands.Context):
         """Lists currently tracked users in this server."""
         count = await self.counttracking(guild=ctx.guild.id)
 
@@ -172,7 +172,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
     @checks.is_owner()
     @osutrack.command()
-    async def dev(self, ctx, channel: discord.TextChannel, mode: str, *, username: str):
+    async def dev(self, ctx: commands.Context, channel: discord.TextChannel, mode: str, *, username: str):
         """Track a players top scores."""
 
         mode = mode.lower()
@@ -197,7 +197,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
     @commands.command()
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def map(self, ctx, beatmap: str):
+    async def map(self, ctx: commands.Context, beatmap: str):
         """Get info about a osu! map."""
 
         mapid = self.findmap(beatmap)
@@ -215,7 +215,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
     @commands.command()
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def osunews(self, ctx):
+    async def osunews(self, ctx: commands.Context):
         """Shows the news from the osu! front page."""
 
         data = await self.fetch_api("news")
@@ -225,7 +225,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
     @commands.command(aliases=["osucl"])
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def osuchangelog(self, ctx, release_stream = "stable"):
+    async def osuchangelog(self, ctx: commands.Context, release_stream = "stable"):
         """Gets the changelog for different parts of osu!.
         
         Supported Release Streams:
@@ -250,7 +250,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
     @commands.command(aliases=["osur"])
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def osurankings(self, ctx, *arguments):
+    async def osurankings(self, ctx: commands.Context, *arguments):
         """Show the top players from each leaderboard.
 
         Examples:
@@ -291,7 +291,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
     @commands.command(aliases=["osuc", "oc"])
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def osucompare(self, ctx, *, user = None):
+    async def osucompare(self, ctx: commands.Context, *, user = None):
         """Compare your or someone elses score with the last one sent in the channel.
         """
 
@@ -329,7 +329,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
     @commands.command(aliases=["osus", "os"])
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def osuscore(self, ctx, beatmap, *, user = None):
+    async def osuscore(self, ctx: commands.Context, beatmap, *, user = None):
         """Get your or another users score for a specified map."""
         
         userid = await self.user(ctx, user)
@@ -358,7 +358,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
     @commands.command(aliases=["osu", "std"])
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def standard(self, ctx, *, user = None):
+    async def standard(self, ctx: commands.Context, *, user = None):
         """Get a players osu! profile."""
 
         userid = await self.user(ctx, user)
@@ -377,7 +377,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
     @commands.command(hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def taiko(self, ctx, *, user = None):
+    async def taiko(self, ctx: commands.Context, *, user = None):
         """Get a players osu! profile."""
 
         userid = await self.user(ctx, user)
@@ -395,7 +395,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
     @commands.command(aliases=["catch", "ctb"], hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def fruits(self, ctx, *, user = None):
+    async def fruits(self, ctx: commands.Context, *, user = None):
         """Get a players osu! profile."""
 
         userid = await self.user(ctx, user)
@@ -413,7 +413,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
     @commands.command(hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def mania(self, ctx, *, user = None):
+    async def mania(self, ctx: commands.Context, *, user = None):
         """Get a players osu! profile."""
 
         userid = await self.user(ctx, user)
@@ -431,7 +431,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
     @commands.command(aliases=["rsstd", "recentosu", "rsosu", "rsstandard", "recentstd", "rso", "recento"])
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def recentstandard(self, ctx, *, user = None):
+    async def recentstandard(self, ctx: commands.Context, *, user = None):
         """Get a players recent osu! plays.
         
         Includes failed plays.
@@ -454,7 +454,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
     @commands.command(aliases=["rst", "rstaiko", "recentt"], hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def recenttaiko(self, ctx, *, user = None):
+    async def recenttaiko(self, ctx: commands.Context, *, user = None):
         """Get a players recent osu! plays.
         
         Includes failed plays.
@@ -477,7 +477,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
     @commands.command(aliases=["rsctb", "recentcatch", "recentctb", "rscatch", "rsfruits", "recentf", "rsf"], hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def recentfruits(self, ctx, *, user = None):
+    async def recentfruits(self, ctx: commands.Context, *, user = None):
         """Get a players recent osu! plays.
         
         Includes failed plays.
@@ -500,7 +500,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
     @commands.command(aliases=["rsm", "recentm", "rsmania"], hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def recentmania(self, ctx, *, user = None):
+    async def recentmania(self, ctx: commands.Context, *, user = None):
         """Get a players recent osu! plays.
         
         Includes failed plays.
@@ -523,7 +523,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
     @commands.command(aliases=["topstd", "toposu", "topo"], usage="[user] [args]")
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def topstandard(self, ctx, *user_or_args):
+    async def topstandard(self, ctx: commands.Context, *user_or_args):
         """Get a players osu! top plays.
 
         **Arguments:**
@@ -553,7 +553,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
     @commands.command(aliases=["topt"], hidden=True, usage="[user] [args]")
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def toptaiko(self, ctx, *user_or_args):
+    async def toptaiko(self, ctx: commands.Context, *user_or_args):
         """Get a players osu! top plays.
 
         **Arguments:**
@@ -583,7 +583,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
     @commands.command(aliases=["topcatch", "topctb", "topf"], hidden=True, usage="[user] [args]")
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def topfruits(self, ctx, *user_or_args):
+    async def topfruits(self, ctx: commands.Context, *user_or_args):
         """Get a players osu! top plays.
 
         **Arguments:**
@@ -613,7 +613,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
     @commands.command(aliases=["topm"], hidden=True, usage="[user] [args]")
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def topmania(self, ctx, *user_or_args):
+    async def topmania(self, ctx: commands.Context, *user_or_args):
         """Get a players osu! top plays.
 
         **Arguments:**
@@ -643,7 +643,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
     @commands.command(aliases=["ppstd", "pposu", "ppo"], usage="[user] [args]")
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def ppstandard(self, ctx, *user_or_args):
+    async def ppstandard(self, ctx: commands.Context, *user_or_args):
         """Shows pp info for osu!.
         
         **Arguments:**
@@ -672,7 +672,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
     @commands.command(aliases=["ppt"], hidden=True, usage="[user] [args]")
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def pptaiko(self, ctx, *user_or_args):
+    async def pptaiko(self, ctx: commands.Context, *user_or_args):
         """Shows pp info for osu!.
         
         **Arguments:**
@@ -701,7 +701,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
     @commands.command(aliases=["ppf", "ppcatch", "ppctb"], hidden=True, usage="[user] [args]")
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def ppfruits(self, ctx, *user_or_args):
+    async def ppfruits(self, ctx: commands.Context, *user_or_args):
         """Shows pp info for osu!.
         
         **Arguments:**
@@ -730,7 +730,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
     @commands.command(aliases=["ppm"], hidden=True, usage="[user] [args]")
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def ppmania(self, ctx, *user_or_args):
+    async def ppmania(self, ctx: commands.Context, *user_or_args):
         """Shows pp info for osu!.
         
         **Arguments:**
@@ -759,7 +759,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
     @commands.command(aliases=["tco", "tcstd", "tcosu", "topcompareosu", "topcomparestd", "topcompareo"], usage="[user] [args]")
     @commands.cooldown(1, 20, commands.BucketType.user)
-    async def topcomparestandard(self, ctx, *user_or_args):
+    async def topcomparestandard(self, ctx: commands.Context, *user_or_args):
         """Returns a list of unique maps between you and another user.
 
         Requires to have your account linked with the bot.
@@ -769,6 +769,8 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         - `-p <rank>` will compare you with the person at `<rank>` rank. Can not be higher than 10,000.
         - `<user>` compares you with the specific user.
         """
+        if not user_or_args:
+            return await ctx.send_help()
 
         author = await self.osuconfig.user(ctx.author).userid()
 
@@ -811,7 +813,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
     @commands.command(aliases=["tct", "tctaiko", "topcomparet"], hidden=True, usage="[user] [args]")
     @commands.cooldown(1, 20, commands.BucketType.user)
-    async def topcomparetaiko(self, ctx, *user_or_args):
+    async def topcomparetaiko(self, ctx: commands.Context, *user_or_args):
         """Returns a list of unique maps between you and another user.
 
         Requires to have your account linked with the bot.
@@ -821,6 +823,8 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         - `-p <rank>` will compare you with the person at `<rank>` rank. Can not be higher than 10,000.
         - `<user>` compares you with the specific user.
         """
+        if not user_or_args:
+            return await ctx.send_help()
 
         author = await self.osuconfig.user(ctx.author).userid()
 
@@ -863,7 +867,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
     @commands.command(aliases=["tcf", "tcctb", "topcomparecatch", "topcomparectb", "tcfruits", "tccatch", "topcomparef"], hidden=True, usage="[user] [args]")
     @commands.cooldown(1, 20, commands.BucketType.user)
-    async def topcomparefruits(self, ctx, *user_or_args):
+    async def topcomparefruits(self, ctx: commands.Context, *user_or_args):
         """Returns a list of unique maps between you and another user.
 
         Requires to have your account linked with the bot.
@@ -873,6 +877,8 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         - `-p <rank>` will compare you with the person at `<rank>` rank. Can not be higher than 10,000.
         - `<user>` compares you with the specific user.
         """
+        if not user_or_args:
+            return await ctx.send_help()
 
         author = await self.osuconfig.user(ctx.author).userid()
 
@@ -915,7 +921,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
     @commands.command(aliases=["tcm", "tcmania", "topcomparem"], hidden=True, usage="[user] [args]")
     @commands.cooldown(1, 20, commands.BucketType.user)
-    async def topcomparemania(self, ctx, *user_or_args):
+    async def topcomparemania(self, ctx: commands.Context, *user_or_args):
         """Returns a list of unique maps between you and another user.
 
         Requires to have your account linked with the bot.
@@ -925,6 +931,8 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         - `-p <rank>` will compare you with the person at `<rank>` rank. Can not be higher than 10,000.
         - `<user>` compares you with the specific user.
         """
+        if not user_or_args:
+            return await ctx.send_help()
 
         author = await self.osuconfig.user(ctx.author).userid()
 
@@ -967,7 +975,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
     @commands.command()
     @checks.is_owner()
-    async def debugtracking(self, ctx):
+    async def debugtracking(self, ctx: commands.Context):
         await self.update_tracking(False)
         log.error("Manually debugging tracking.")
 
