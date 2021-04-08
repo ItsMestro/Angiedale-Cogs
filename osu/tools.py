@@ -15,7 +15,8 @@ from redbot.core.utils.menus import DEFAULT_CONTROLS, close_menu, next_page
 log = logging.getLogger("red.angiedale.osu")
 
 class API():
-    """Class for handling OAuth."""
+    """Class for handling OAuth.
+    """
 
     def __init__(self):
         self.osu_bearer_cache: dict = {}
@@ -70,7 +71,7 @@ class API():
         self.osu_bearer_cache = data
         self.osu_bearer_cache["expires_at"] = datetime.now().timestamp() + data.get("expires_in")
 
-    async def fetch_api(self, url, params = None):
+    async def fetch_api(self, url, ctx: commands.Context = None, params = None):
         await self.maybe_renew_osu_bearer_token()
 
         endpoint = f"https://osu.ppy.sh/api/v2/{url}"
@@ -80,6 +81,8 @@ class API():
         if bearer is not None:
             header = {**header, "Authorization": f"Bearer {bearer}"}
 
+        message = None
+
         while True:
             async with aiohttp.ClientSession() as session:
                 async with session.get(endpoint, headers=header, params=params) as r:
@@ -87,11 +90,24 @@ class API():
                         return
                     elif r.status == 525:
                         log.error("osu! api fetch 525 Error")
-                        await asyncio.sleep(5)
+                        if ctx and not message:
+                            message = await ctx.send("API is either slow or unavaliable atm. I will keep trying to process your command.")
+                        await asyncio.sleep(10)
                     elif r.status == 502:
                         log.error("osu! api fetch 502 Error")
-                        await asyncio.sleep(5)
+                        if ctx and not message:
+                            message = await ctx.send("API is either slow or unavaliable atm. I will keep trying to process your command.")
+                        await asyncio.sleep(10)
+                    elif r.status == 503:
+                        log.error("osu! api fetch 503 Error")
+                        if ctx and not message:
+                            message = await ctx.send("API is either slow or unavaliable atm. I will keep trying to process your command.")
+                        await asyncio.sleep(10)
                     else:
+                        try:
+                            await message.delete()
+                        except:
+                            pass
                         try:
                             data = await r.json(encoding="utf-8")
                             return data
@@ -99,7 +115,8 @@ class API():
                             return
 
 class Helper():
-    """Helper class to find arguments."""
+    """Helper class to find arguments.
+    """
 
     def __init__(self):
         self.osuconfig: Config = Config.get_conf(self, identifier=1387000, cog_name="Osu")
@@ -172,7 +189,7 @@ class Helper():
     def ttol(self, args):
         return [(x.lower()) for x in args]
 
-    async def user(self, ctx, user):
+    async def user(self, ctx: commands.Context, user):
         userid = None
         if not user:
             userid = await self.osuconfig.user(ctx.author).userid()
@@ -185,15 +202,12 @@ class Helper():
 
             if not userid:
                 if not str(user).isnumeric():
-                    data = await self.fetch_api(f"users/{user}/osu")
-                    if data == "html error":
-                        await ctx.send("A rare know about bug has been documented. Please let Mestro know immediately so they can fix it.")
-                        return None
+                    data = await self.fetch_api(f"users/{user}/osu", ctx)
                     await asyncio.sleep(0.5)
                     if data:
                         userid = data["id"]
                 elif user.startswith("https://osu.ppy.sh/users") or user.startswith("http://osu.ppy.sh/users") or user.startswith("https://osu.ppy.sh/u/") or user.startswith("http://osu.ppy.sh/u/"):
-                    data = await self.fetch_api(f'users/{re.sub("[^0-9]", "", user.rsplit("/", 1)[-1])}/osu')
+                    data = await self.fetch_api(f'users/{re.sub("[^0-9]", "", user.rsplit("/", 1)[-1])}/osu', ctx)
                     if data:
                         userid = data["id"]
                 else:
@@ -208,7 +222,7 @@ class Helper():
 
         return userid
 
-    async def top(self, ctx, args):
+    async def top(self, ctx: commands.Context, args):
         args = self.ttol(args)
 
         recent = False
@@ -242,7 +256,7 @@ class Helper():
         else:
             return None, None, None
 
-    async def pp(self, ctx, args):
+    async def pp(self, ctx: commands.Context, args):
         args = self.ttol(args)
 
         pp = None
@@ -269,7 +283,7 @@ class Helper():
 
         return userid, pp
 
-    async def history(self, ctx):
+    async def history(self, ctx: commands.Context):
         params = None
         messages = []
         mapid = None
@@ -310,7 +324,7 @@ class Helper():
 
         return mapid, params
 
-    async def topcompare(self, ctx, args):
+    async def topcompare(self, ctx: commands.Context, args):
         args = self.ttol(args)
 
         userid = None
@@ -339,7 +353,9 @@ class Helper():
             return userid, rank
 
     async def removetracking(self, user = None, channel = None, mode = None, dev = False):
-        """Finds unnecessary tracking entries"""
+        """Finds unnecessary tracking entries
+        """
+
         if dev == True:
             async with self.osuconfig.tracking() as modes:
                 try:
@@ -392,7 +408,9 @@ class Helper():
                             pass
 
     async def counttracking(self, channel = None, user = None, guild = None):
-        """Helper for getting tracked users for guilds"""
+        """Helper for getting tracked users for guilds.
+        """
+
         if channel:
             count = 0
             async with self.osuconfig.tracking() as modes:
@@ -419,12 +437,13 @@ class Helper():
                                 count.append({"id": u, "channel": i, "mode": m})
         return count
 
-async def profilelinking(ctx):
+async def profilelinking(ctx: commands.Context):
     await ctx.maybe_send_embed(f"Looks like you haven't linked an account.\nYou can do so using `{ctx.clean_prefix}osulink <username>`"
         "\n\nAlternatively you can use the command\nwith a username or id after it.")
 
-async def del_message(ctx, message_text):
-    """Simple function to sends a small embed that auto-deletes"""
+async def del_message(ctx, message_text: str):
+    """Simple function to sends a small embed that auto-deletes.
+    """
 
     message = await ctx.maybe_send_embed(message_text)
     await asyncio.sleep(10)
@@ -434,7 +453,8 @@ async def del_message(ctx, message_text):
         pass
 
 def multipage(embeds):
-    """Dumb mini function for checking what emojis to use."""
+    """Dumb mini function for checking what emojis to use.
+    """
 
     if len(embeds) > 1:
         return DEFAULT_CONTROLS
@@ -442,11 +462,13 @@ def multipage(embeds):
         return {"\N{CROSS MARK}": close_menu}
 
 def singlepage():
-    """Even dumber function that just returns the single page version."""
+    """Even dumber function that just returns the single page version.
+    """
 
     return {"\N{CROSS MARK}": close_menu}
 
 def togglepage(bot):
-    """Another one for two page embeds"""
+    """Another one for two page embeds.
+    """
 
     return {bot.get_emoji(755808377959088159): next_page, "\N{CROSS MARK}": close_menu}

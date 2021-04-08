@@ -26,10 +26,12 @@ EMOJI = {
 
 
 class Data:
-    """Simplifies api data handling."""
+    """Simplifies api data handling.
+    """
 
     def topdata(self, d):
-        """/users/{user}/scores"""
+        """/users/{user}/scores
+        """
 
         data = []
         index = 0
@@ -94,7 +96,8 @@ class Data:
         return data
 
     def mapdata(self, d):
-        """/beatmaps/{map}"""
+        """/beatmaps/{map}
+        """
 
         data = {}
 
@@ -133,7 +136,8 @@ class Data:
         return data
 
     def changelogdata(self, d):
-        """/changelog"""
+        """/changelog
+        """
 
         data = []
 
@@ -170,7 +174,8 @@ class Data:
         return data
 
     def rankingsdata(self, d):
-        """/users"""
+        """/users
+        """
 
         data = {}
 
@@ -257,7 +262,8 @@ class Data:
         return data
 
 class Embed(Data):
-    """Puts data into embeds. Because why not."""
+    """Puts data into embeds. Because why not.
+    """
 
     async def ppembed(self, ctx, data, pp_num):
         d = self.topdata(data)
