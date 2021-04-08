@@ -388,12 +388,24 @@ class Info(MixinMeta):
         await menu(ctx, page, {"\N{CROSS MARK}": close_menu})
 
     @guild.command()
-    async def inviteinfo(self, ctx: commands.Context, invite: str = None):
+    async def inviteinfo(self, ctx: commands.Context, invite: Union[discord.Member, discord.TextChannel, str] = None):
         """Show invite info for specific invite or for all."""
         if not ctx.me.permissions_in(ctx.channel).manage_guild:
             return await ctx.maybe_send_embed('I need the "Manage Server" permission to use this command.')
 
-        if invite:
+        if isinstance(invite, discord.Member):
+            invites = []
+            allinvites = await ctx.guild.invites()
+            for inv in allinvites:
+                if inv.inviter == invite:
+                    invites.append(inv)
+        elif isinstance(invite, discord.TextChannel):
+            invites = []
+            allinvites = await ctx.guild.invites()
+            for inv in allinvites:
+                if inv.channel == invite:
+                    invites.append(inv)
+        elif invite:
             if "/" in invite:
                 invite = invite.rsplit("/", 1)[1]
 
@@ -581,6 +593,9 @@ class Info(MixinMeta):
     async def invites(self, ctx: commands.Context):
         """List the servers invites."""
         invites =  await ctx.guild.invites()
+
+        if len(invites) < 1:
+            return await ctx.maybe_send_embed("Can't find any invites to show.")
 
         invitedetails = ""
         i = 1
