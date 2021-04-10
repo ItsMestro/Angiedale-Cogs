@@ -11,8 +11,8 @@ log = logging.getLogger("red.angiedale.mod.converter")
 SNOWFLAKE_THRESHOLD = 2 ** 63
 
 
-_id_regex = re.compile(r"([0-9]{15,21})$")
-_mention_regex = re.compile(r"<@!?([0-9]{15,21})>$")
+_id_regex = re.compile(r"([0-9]{15,20})$")
+_mention_regex = re.compile(r"<@!?([0-9]{15,20})>$")
 
 # the following regex is slightly modified from Red
 # it's changed to be slightly more strict on matching with finditer

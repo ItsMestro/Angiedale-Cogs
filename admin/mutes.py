@@ -109,7 +109,7 @@ class Mutes():
         """
         if channel is None:
             await self.mutesconfig.guild(ctx.guild).notification_channel.clear()
-            await ctx.send(("Notification channel for unmute issues has been cleard."))
+            await ctx.send(("Notification channel for unmute issues has been cleared."))
         else:
             await self.mutesconfig.guild(ctx.guild).notification_channel.set(channel.id)
             await ctx.send(

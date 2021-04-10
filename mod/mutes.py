@@ -185,37 +185,32 @@ class Mutes(MixinMeta):
         """This is where the logic for handling channel unmutes is taken care of"""
         log.debug("Checking channel unmutes")
         multiple_mutes = {}
-        for c_id in self._channel_mutes:
-            channel = self.bot.get_channel(c_id)
-            if channel is None or await self.bot.cog_disabled_in_guild(self, channel.guild):
-                continue
-            for u_id in self._channel_mutes[channel.id]:
+        for c_id, c_data in self._channel_mutes.items():
+            for u_id in self._channel_mutes[c_id]:
                 if (
-                    not self._channel_mutes[channel.id][u_id]
-                    or not self._channel_mutes[channel.id][u_id]["until"]
+                    not self._channel_mutes[c_id][u_id]
+                    or not self._channel_mutes[c_id][u_id]["until"]
                 ):
                     continue
+                guild = self.bot.get_guild(self._channel_mutes[c_id][u_id]["guild"])
+                if guild is None or await self.bot.cog_disabled_in_guild(self, guild):
+                    continue
                 time_to_unmute = (
-                    self._channel_mutes[channel.id][u_id]["until"]
+                    self._channel_mutes[c_id][u_id]["until"]
                     - datetime.now(timezone.utc).timestamp()
                 )
                 if time_to_unmute < 60.0:
-                    if channel.guild.id not in multiple_mutes:
-                        multiple_mutes[channel.guild.id] = {}
-                    if u_id not in multiple_mutes[channel.guild.id]:
-                        multiple_mutes[channel.guild.id][u_id] = {
-                            channel.id: self._channel_mutes[channel.id][u_id]
-                        }
+                    if guild not in multiple_mutes:
+                        multiple_mutes[guild] = {}
+                    if u_id not in multiple_mutes[guild]:
+                        multiple_mutes[guild][u_id] = {c_id: self._channel_mutes[c_id][u_id]}
                     else:
-                        multiple_mutes[channel.guild.id][u_id][channel.id] = self._channel_mutes[
-                            channel.id
-                        ][u_id]
+                        multiple_mutes[guild][u_id][c_id] = self._channel_mutes[c_id][u_id]
 
-        for guild_id, users in multiple_mutes.items():
-            guild = self.bot.get_guild(guild_id)
+        for guild, users in multiple_mutes.items():
             for user, channels in users.items():
                 if len(channels) > 1:
-                    task_name = f"server-unmute-channels-{guild_id}-{user}"
+                    task_name = f"server-unmute-channels-{guild.id}-{user}"
                     if task_name in self._unmute_tasks:
                         continue
                     log.debug(f"Creating task: {task_name}")
@@ -233,6 +228,8 @@ class Mutes(MixinMeta):
                         self._unmute_tasks[task_name] = asyncio.create_task(
                             self._auto_channel_unmute_user(guild.get_channel(channel), mute_data)
                         )
+
+        del multiple_mutes
 
     async def _auto_channel_unmute_user_multi(
         self, member: discord.Member, guild: discord.Guild, channels: Dict[int, dict]
