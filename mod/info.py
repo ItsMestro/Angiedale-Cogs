@@ -37,9 +37,13 @@ class Info(MixinMeta):
             tcs = guild.text_channels
             vcs = guild.voice_channels
         except AttributeError:
-            return await ctx.send("User is not in that guild or I do not have access to that guild.")
+            return await ctx.send(
+                "User is not in that guild or I do not have access to that guild."
+            )
 
-        author_text_channels = [c for c in tcs if c.permissions_for(ctx.author).read_messages is True]
+        author_text_channels = [
+            c for c in tcs if c.permissions_for(ctx.author).read_messages is True
+        ]
         author_voice_channels = [c for c in vcs if c.permissions_for(ctx.author).connect is True]
 
         user_text_channels = [c for c in tcs if c.permissions_for(user).read_messages is True]
@@ -52,7 +56,9 @@ class Info(MixinMeta):
             user_voice_channels
         )  # voice channels only the author has access to
 
-        user_only_t = set(user_text_channels) - set(author_text_channels)  # text channels only the user has access to
+        user_only_t = set(user_text_channels) - set(
+            author_text_channels
+        )  # text channels only the user has access to
         user_only_v = set(user_voice_channels) - set(
             author_voice_channels
         )  # voice channels only the user has access to
@@ -67,39 +73,36 @@ class Info(MixinMeta):
         theembed = []
 
         embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
-        embed.set_author(
-            name=f"Comparing {ctx.author} with {user}",
-            icon_url=user.avatar_url
-        )
+        embed.set_author(name=f"Comparing {ctx.author} with {user}", icon_url=user.avatar_url)
         embed.add_field(
             name=f"Text channels in common ◈ {len(common_t)}",
             value=(f"{' ◈ '.join([c.name for c in common_t])}" if common_t else "~"),
-            inline=False
+            inline=False,
         )
         embed.add_field(
             name=f"Text channels {user} can exclusively access ◈ {len(user_only_t)}",
             value=(f"{' ◈ '.join([c.name for c in user_only_t])}" if user_only_t else "~"),
-            inline=False
+            inline=False,
         )
         embed.add_field(
             name=f"Text channels you can exclusively access ◈ {len(author_only_t)}",
             value=(f"{' ◈ '.join([c.name for c in author_only_t])}" if author_only_t else "~"),
-            inline=False
+            inline=False,
         )
         embed.add_field(
             name=f"Voice channels in common ◈ {len(common_v)}",
             value=(f"{' ◈ '.join([c.name for c in common_v])}" if common_v else "~"),
-            inline=False
+            inline=False,
         )
         embed.add_field(
             name=f"Voice channels {user} can exclusively access ◈ {len(user_only_v)}",
             value=(f"{' ◈ '.join([c.name for c in user_only_v])}" if user_only_v else "~"),
-            inline=False
+            inline=False,
         )
         embed.add_field(
             name=f"Voice channels you can exclusively access ◈ {len(author_only_v)}",
             value=(f"{' ◈ '.join([c.name for c in author_only_v])}" if author_only_v else "~"),
-            inline=False
+            inline=False,
         )
 
         theembed.append(embed)
@@ -117,27 +120,37 @@ class Info(MixinMeta):
             guild = self.bot.get_guild(guild)
 
         try:
-            can_access = [c.name for c in guild.text_channels if c.permissions_for(user).read_messages == True]
+            can_access = [
+                c.name
+                for c in guild.text_channels
+                if c.permissions_for(user).read_messages == True
+            ]
             text_channels = [c.name for c in guild.text_channels]
         except AttributeError:
-            return await ctx.send("User is not in that guild or I do not have access to that guild.")
+            return await ctx.send(
+                "User is not in that guild or I do not have access to that guild."
+            )
 
         theembed = []
 
         embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
         embed.set_author(
             name=f'{("You have" if user.id == ctx.author.id else str(user) + " has")} access to {len(can_access)} out of {len(text_channels)} text channels',
-            icon_url=user.avatar_url
+            icon_url=user.avatar_url,
         )
         embed.add_field(
             name="Can Access",
             value=(f"{' ◈ '.join(can_access)}" if can_access else "~"),
-            inline=False
+            inline=False,
         )
         embed.add_field(
             name="Can Not Access",
-            value=(f"{' ◈ '.join(list(set(text_channels) - set(can_access)))}" if not len(list(set(text_channels) - set(can_access))) == 0 else "~"),
-            inline=False
+            value=(
+                f"{' ◈ '.join(list(set(text_channels) - set(can_access)))}"
+                if not len(list(set(text_channels) - set(can_access))) == 0
+                else "~"
+            ),
+            inline=False,
         )
 
         theembed.append(embed)
@@ -155,27 +168,35 @@ class Info(MixinMeta):
             guild = self.bot.get_guild(guild)
 
         try:
-            can_access = [c.name for c in guild.voice_channels if c.permissions_for(user).connect is True]
+            can_access = [
+                c.name for c in guild.voice_channels if c.permissions_for(user).connect is True
+            ]
             voice_channels = [c.name for c in guild.voice_channels]
         except AttributeError:
-            return await ctx.send("User is not in that guild or I do not have access to that guild.")
+            return await ctx.send(
+                "User is not in that guild or I do not have access to that guild."
+            )
 
         theembed = []
 
         embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
         embed.set_author(
             name=f'{("You have" if user.id == ctx.author.id else str(user) + " has")} access to {len(can_access)} out of {len(voice_channels)} voice channels',
-            icon_url=user.avatar_url
+            icon_url=user.avatar_url,
         )
         embed.add_field(
             name="Can Access",
             value=(f"{' ◈ '.join(can_access)}" if can_access else "~"),
-            inline=False
+            inline=False,
         )
         embed.add_field(
             name="Can Not Access",
-            value=(f"{' ◈ '.join(list(set(voice_channels) - set(can_access)))}" if not len(list(set(voice_channels) - set(can_access))) == 0 else "~"),
-            inline=False
+            value=(
+                f"{' ◈ '.join(list(set(voice_channels) - set(can_access)))}"
+                if not len(list(set(voice_channels) - set(can_access))) == 0
+                else "~"
+            ),
+            inline=False,
         )
 
         theembed.append(embed)
@@ -199,11 +220,13 @@ class Info(MixinMeta):
 
         if len(users_in_role) == 0:
             embed = base_embed.copy()
-            embed.description=bold(f"0 users found with the {role.mention} role")
+            embed.description = bold(f"0 users found with the {role.mention} role")
             embed_list.append(embed)
             await menu(ctx, embed_list, {"\N{CROSS MARK}": close_menu})
         else:
-            base_embed.description=bold(f"{len([m for m in guild.members if role in m.roles])} users found with the {role.mention} role\n")
+            base_embed.description = bold(
+                f"{len([m for m in guild.members if role in m.roles])} users found with the {role.mention} role\n"
+            )
             for page in pagify(users_in_role, delims=["\n"], page_length=200):
                 embed = base_embed.copy()
                 embed.add_field(name="Users", value=page)
@@ -213,7 +236,11 @@ class Info(MixinMeta):
                 embed.set_footer(text=f"Page {i + 1}/{len(embed_list)}")
                 final_embed_list.append(embed)
 
-            await menu(ctx, final_embed_list, DEFAULT_CONTROLS if len(final_embed_list) > 1 else {"\N{CROSS MARK}": close_menu})
+            await menu(
+                ctx,
+                final_embed_list,
+                DEFAULT_CONTROLS if len(final_embed_list) > 1 else {"\N{CROSS MARK}": close_menu},
+            )
 
     @_user.command()
     async def joined(self, ctx: commands.Context, user: discord.Member = None):
@@ -229,14 +256,20 @@ class Info(MixinMeta):
 
         if ctx.channel.permissions_for(ctx.guild.me).embed_links:
             embed = discord.Embed(
-                description=f"{user.mention} joined this guild on {joined_on}.", color=await ctx.embed_colour(),
+                description=f"{user.mention} joined this guild on {joined_on}.",
+                color=await ctx.embed_colour(),
             )
             await ctx.send(embed=embed)
         else:
             await ctx.send(f"{user.display_name} joined this guild on {joined_on}.")
 
     @_user.command()
-    async def perms(self, ctx: commands.Context, user: Optional[discord.Member] = None, channel: Union[discord.TextChannel, discord.VoiceChannel, discord.CategoryChannel] = None):
+    async def perms(
+        self,
+        ctx: commands.Context,
+        user: Optional[discord.Member] = None,
+        channel: Union[discord.TextChannel, discord.VoiceChannel, discord.CategoryChannel] = None,
+    ):
         """Fetch a specific user's permissions."""
         if user is None:
             user = ctx.author
@@ -268,15 +301,10 @@ class Info(MixinMeta):
         page = []
         embed = discord.Embed(color=await ctx.embed_colour())
         embed.set_author(
-            name=f"Permissions for {user.name} in {channel.name}",
-            icon_url=user.avatar_url
+            name=f"Permissions for {user.name} in {channel.name}", icon_url=user.avatar_url
         )
-        embed.add_field(
-            name="\N{WHITE HEAVY CHECK MARK}", value=hasperms, inline=True
-        )
-        embed.add_field(
-            name="\N{CROSS MARK}", value=nothasperms, inline=True
-        )
+        embed.add_field(name="\N{WHITE HEAVY CHECK MARK}", value=hasperms, inline=True)
+        embed.add_field(name="\N{CROSS MARK}", value=nothasperms, inline=True)
         page.append(embed)
 
         await menu(ctx, page, {"\N{CROSS MARK}": close_menu})
@@ -290,8 +318,7 @@ class Info(MixinMeta):
 
         base_embed = discord.Embed(color=await ctx.embed_colour())
         base_embed.set_author(
-            name=f"{count} newest members in {ctx.guild.name}",
-            icon_url=self.bot.user.avatar_url
+            name=f"{count} newest members in {ctx.guild.name}", icon_url=self.bot.user.avatar_url
         )
         base_embed.set_thumbnail(url=ctx.guild.icon_url)
 
@@ -302,21 +329,33 @@ class Info(MixinMeta):
         for m in members:
             jlist = humanize_timedelta(timedelta=timenow - m.joined_at).split(", ")
             clist = humanize_timedelta(timedelta=timenow - m.created_at).split(", ")
-            joined = (f"{jlist[0]}, {jlist[1]}" if len(jlist) > 1 else jlist[0])
-            created = (f"{clist[0]}, {clist[1]}" if len(clist) > 1 else clist[0])
+            joined = f"{jlist[0]}, {jlist[1]}" if len(jlist) > 1 else jlist[0]
+            created = f"{clist[0]}, {clist[1]}" if len(clist) > 1 else clist[0]
             if n == 0:
                 embed = base_embed.copy()
                 p += 1
                 embed.set_footer(text=f"Page {p}/{ceil(len(members) / 5)}")
             if n < 4:
-                embed.add_field(name=f"{m.name} ({m.id})", value=f"Joined Server: {joined} ago\nJoined Discord: {created}\n\u200B", inline=False)
+                embed.add_field(
+                    name=f"{m.name} ({m.id})",
+                    value=f"Joined Server: {joined} ago\nJoined Discord: {created}\n\u200B",
+                    inline=False,
+                )
                 n += 1
             else:
-                embed.add_field(name=f"{m.name} ({m.id})", value=f"Joined Server: {joined} ago\nJoined Discord: {created}", inline=False)
+                embed.add_field(
+                    name=f"{m.name} ({m.id})",
+                    value=f"Joined Server: {joined} ago\nJoined Discord: {created}",
+                    inline=False,
+                )
                 embed_list.append(embed)
                 n = 0
 
-        await menu(ctx, embed_list, DEFAULT_CONTROLS if len(embed_list) > 1 else {"\N{CROSS MARK}": close_menu})
+        await menu(
+            ctx,
+            embed_list,
+            DEFAULT_CONTROLS if len(embed_list) > 1 else {"\N{CROSS MARK}": close_menu},
+        )
 
     @commands.group(aliases=["server"])
     @commands.guild_only()
@@ -330,8 +369,7 @@ class Info(MixinMeta):
         page = []
         embed = discord.Embed(color=(role.color if role.color else await ctx.embed_colour()))
         embed.set_author(
-            name=f"Role info for role ◈ {role.name}",
-            icon_url=self.bot.user.avatar_url
+            name=f"Role info for role ◈ {role.name}", icon_url=self.bot.user.avatar_url
         )
         embed.set_thumbnail(url=role.guild.icon_url)
 
@@ -361,24 +399,36 @@ class Info(MixinMeta):
             if role.is_integration():
                 embed.description = "This role is managed by an integration."
             elif role.is_premium_subscriber():
-                embed.description = f"This is the {self.bot.get_emoji(810817144824004608)} nitro booster role."
+                embed.description = (
+                    f"This is the {self.bot.get_emoji(810817144824004608)} nitro booster role."
+                )
             elif role.is_bot_managed():
                 embed.description = "This role is related to a bot."
 
         embed.add_field(
-            name="ID", value=role.id, inline=True,
+            name="ID",
+            value=role.id,
+            inline=True,
         )
         embed.add_field(
-            name="Color", value=role.color, inline=True,
+            name="Color",
+            value=role.color,
+            inline=True,
         )
         embed.add_field(
-            name="Users", value=len(role.members), inline=True,
+            name="Users",
+            value=len(role.members),
+            inline=True,
         )
         embed.add_field(
-            name="Permissions \N{WHITE HEAVY CHECK MARK}", value=hasperms, inline=True,
+            name="Permissions \N{WHITE HEAVY CHECK MARK}",
+            value=hasperms,
+            inline=True,
         )
         embed.add_field(
-            name="Permissions \N{CROSS MARK}", value=nothasperms, inline=True,
+            name="Permissions \N{CROSS MARK}",
+            value=nothasperms,
+            inline=True,
         )
         embed.set_footer(text=f"Position in role list: {int(role.position) + 1} ◈ Created")
         embed.timestamp = role.created_at
@@ -388,10 +438,14 @@ class Info(MixinMeta):
         await menu(ctx, page, {"\N{CROSS MARK}": close_menu})
 
     @guild.command()
-    async def inviteinfo(self, ctx: commands.Context, invite: Union[discord.Member, discord.TextChannel, str] = None):
+    async def inviteinfo(
+        self, ctx: commands.Context, invite: Union[discord.Member, discord.TextChannel, str] = None
+    ):
         """Show invite info for specific invite or for all."""
         if not ctx.me.permissions_in(ctx.channel).manage_guild:
-            return await ctx.maybe_send_embed('I need the "Manage Server" permission to use this command.')
+            return await ctx.maybe_send_embed(
+                'I need the "Manage Server" permission to use this command.'
+            )
 
         if isinstance(invite, discord.Member):
             invites = []
@@ -433,11 +487,11 @@ class Info(MixinMeta):
             else:
                 maxage = re.split(r",\s", humanize_timedelta(seconds=i.max_age))
                 try:
-                    maxage = f'Expires: {maxage[0]} {maxage[1]}'
+                    maxage = f"Expires: {maxage[0]} {maxage[1]}"
                 except ValueError:
                     pass
                 except IndexError:
-                    maxage = f'Expires: {maxage[0]}'
+                    maxage = f"Expires: {maxage[0]}"
 
             embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
             embed.title = f"Invites for {ctx.guild.name}"
@@ -451,12 +505,14 @@ class Info(MixinMeta):
             msg += maxage
             embed.description = msg
             if len(invites) > 1:
-                embed.set_footer(text=f'Page {p}/{len(invites)}')
+                embed.set_footer(text=f"Page {p}/{len(invites)}")
                 p += 1
 
             embeds.append(embed)
 
-        await menu(ctx, embeds, DEFAULT_CONTROLS if len(embeds) > 1 else {"\N{CROSS MARK}": close_menu})
+        await menu(
+            ctx, embeds, DEFAULT_CONTROLS if len(embeds) > 1 else {"\N{CROSS MARK}": close_menu}
+        )
 
     @guild.group()
     async def list(self, ctx: commands.Context):
@@ -484,10 +540,15 @@ class Info(MixinMeta):
         embed_list = []
         for page in pagify(msg, shorten_by=1400):
             embed = discord.Embed(
-                description="**Total bans:** {}\n\n{}".format(bancount, page), color=await self.bot.get_embed_color(ctx),
+                description="**Total bans:** {}\n\n{}".format(bancount, page),
+                color=await self.bot.get_embed_color(ctx),
             )
             embed_list.append(embed)
-        await menu(ctx, embed_list, DEFAULT_CONTROLS if len(embed_list) > 1 else {"\N{CROSS MARK}": close_menu})
+        await menu(
+            ctx,
+            embed_list,
+            DEFAULT_CONTROLS if len(embed_list) > 1 else {"\N{CROSS MARK}": close_menu},
+        )
 
     @list.command()
     async def channels(self, ctx: commands.Context):
@@ -521,7 +582,9 @@ class Info(MixinMeta):
         for t in category_channels:
             newlinelist = ""
             for f in t[1]:
-                newlinelist += f'\n{f.name.replace("-", " ").title()} ◈ **{str(f.type).title()}** ◈ {f.id}'
+                newlinelist += (
+                    f'\n{f.name.replace("-", " ").title()} ◈ **{str(f.type).title()}** ◈ {f.id}'
+                )
             thing.append(f"{t[0].name} ◈ {t[0].id}\n" + newlinelist)
         categories_formed = "\a\a\a".join(thing)
         if channels_desc:
@@ -534,7 +597,7 @@ class Info(MixinMeta):
         base_embed = discord.Embed(color=await ctx.embed_colour())
         base_embed.set_author(
             name=f"{ctx.guild.name} has {len(ctx.guild.channels)} channel{'s' if len(ctx.guild.channels) > 1 else ''}",
-            icon_url=self.bot.user.avatar_url
+            icon_url=self.bot.user.avatar_url,
         )
         base_embed.set_thumbnail(url=ctx.guild.icon_url)
 
@@ -560,7 +623,11 @@ class Info(MixinMeta):
             embed_list.append(embed)
             i += 1
 
-        await menu(ctx, embed_list, DEFAULT_CONTROLS if len(embed_list) > 1 else {"\N{CROSS MARK}": close_menu})
+        await menu(
+            ctx,
+            embed_list,
+            DEFAULT_CONTROLS if len(embed_list) > 1 else {"\N{CROSS MARK}": close_menu},
+        )
 
     @list.command()
     async def roles(self, ctx: commands.Context):
@@ -568,7 +635,9 @@ class Info(MixinMeta):
         form = "`{rpos:0{zpadding}}` ◈ `{rid}` ◈ `{rcolor}` ◈ {rment}"
         max_zpadding = max([len(str(r.position)) for r in ctx.guild.roles])
         rolelist = [
-            form.format(rpos=r.position, zpadding=max_zpadding, rid=r.id, rment=r.mention, rcolor=r.color)
+            form.format(
+                rpos=r.position, zpadding=max_zpadding, rid=r.id, rment=r.mention, rcolor=r.color
+            )
             for r in ctx.guild.roles
         ]
 
@@ -581,18 +650,23 @@ class Info(MixinMeta):
             if page.startswith("\n"):
                 page = page[1:]
             embed = discord.Embed(
-                description=f"**Total roles:** {len(ctx.guild.roles)}\n\n{page}", colour=await ctx.embed_colour(),
+                description=f"**Total roles:** {len(ctx.guild.roles)}\n\n{page}",
+                colour=await ctx.embed_colour(),
             )
             embed.set_footer(text=f"Page {i}/{len(pages)}")
             embed_list.append(embed)
-            i +=1
+            i += 1
 
-        await menu(ctx, embed_list, DEFAULT_CONTROLS if len(embed_list) > 1 else {"\N{CROSS MARK}": close_menu})
+        await menu(
+            ctx,
+            embed_list,
+            DEFAULT_CONTROLS if len(embed_list) > 1 else {"\N{CROSS MARK}": close_menu},
+        )
 
     @list.command()
     async def invites(self, ctx: commands.Context):
         """List the servers invites."""
-        invites =  await ctx.guild.invites()
+        invites = await ctx.guild.invites()
 
         if len(invites) < 1:
             return await ctx.maybe_send_embed("Can't find any invites to show.")
@@ -605,16 +679,18 @@ class Info(MixinMeta):
                 maxuses = "\N{INFINITY}"
             invitedetails += f"{i}. {inv.url} [ {inv.uses} uses / {maxuses} max ]\n"
             i += 1
-            
+
         p = 1
         embeds = []
         pages = list(pagify(invitedetails, delims=["\n"], shorten_by=16))
         for page in pages:
             embed = discord.Embed(title=f"Invites for {ctx.guild.name}", description=page)
             if len(pages) > 1:
-                embed.set_footer(text=f'Page {p}/{len(pages)}')
+                embed.set_footer(text=f"Page {p}/{len(pages)}")
                 p += 1
 
             embeds.append(embed)
 
-        await menu(ctx, embeds, DEFAULT_CONTROLS if len(embeds) > 1 else {"\N{CROSS MARK}": close_menu})
+        await menu(
+            ctx, embeds, DEFAULT_CONTROLS if len(embeds) > 1 else {"\N{CROSS MARK}": close_menu}
+        )

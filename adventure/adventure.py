@@ -25,7 +25,12 @@ from redbot.core.i18n import Translator, cog_i18n
 from redbot.core.utils import AsyncIter
 from redbot.core.utils.angiedale import patreon_tier
 from redbot.core.utils.chat_formatting import (
-    box, escape, humanize_list, humanize_number, humanize_timedelta, pagify
+    box,
+    escape,
+    humanize_list,
+    humanize_number,
+    humanize_timedelta,
+    pagify,
 )
 from redbot.core.utils.common_filters import filter_various_mentions
 from redbot.core.utils.menus import menu, start_adding_reactions
@@ -35,17 +40,41 @@ import adventure.charsheet
 
 from . import bank
 from .charsheet import (
-    DEV_LIST, ORDER, RARITIES, BackpackFilterParser, Character,
-    DayConverter, EquipableItemConverter, EquipmentConverter,
-    GameSession, Item, ItemConverter, ItemsConverter,
-    PercentageConverter, RarityConverter, SlotConverter, Stats,
-    ThemeSetMonterConverter, ThemeSetPetConverter, calculate_sp,
-    can_equip, equip_level, has_funds, no_dev_prompt, parse_timedelta
+    DEV_LIST,
+    ORDER,
+    RARITIES,
+    BackpackFilterParser,
+    Character,
+    DayConverter,
+    EquipableItemConverter,
+    EquipmentConverter,
+    GameSession,
+    Item,
+    ItemConverter,
+    ItemsConverter,
+    PercentageConverter,
+    RarityConverter,
+    SlotConverter,
+    Stats,
+    ThemeSetMonterConverter,
+    ThemeSetPetConverter,
+    calculate_sp,
+    can_equip,
+    equip_level,
+    has_funds,
+    no_dev_prompt,
+    parse_timedelta,
 )
 from .menus import (
-    BackpackMenu, BaseMenu, LeaderboardMenu,
-    LeaderboardSource, NVScoreboardSource, ScoreBoardMenu,
-    ScoreboardSource, SimpleSource, WeeklyScoreboardSource
+    BackpackMenu,
+    BaseMenu,
+    LeaderboardMenu,
+    LeaderboardSource,
+    NVScoreboardSource,
+    ScoreBoardMenu,
+    ScoreboardSource,
+    SimpleSource,
+    WeeklyScoreboardSource,
 )
 
 _ = Translator("Adventure", __file__)

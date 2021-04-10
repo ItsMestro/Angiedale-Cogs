@@ -9,6 +9,7 @@ __red_end_user_data_statement__ = (
     "per request to prevent rule evasion."
 )
 
+
 async def setup(bot):
     cog = Admin(bot)
     bot.add_cog(cog)

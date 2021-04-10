@@ -10,9 +10,7 @@ from collections import defaultdict
 from copy import copy
 from datetime import date, datetime, timedelta
 from string import ascii_letters, digits
-from typing import (
-    Any, Dict, List, Mapping, MutableMapping, Optional, Set, Tuple, Union
-)
+from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Set, Tuple, Union
 
 import discord
 from beautifultable import ALIGN_LEFT, BeautifulTable

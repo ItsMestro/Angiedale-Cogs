@@ -16,12 +16,18 @@ from redbot.core.bot import Red
 from redbot.core.data_manager import cog_data_path
 from redbot.core.utils import AsyncIter
 from redbot.core.utils.chat_formatting import (
-    box, humanize_list, humanize_number, humanize_timedelta, inline, pagify
+    box,
+    humanize_list,
+    humanize_number,
+    humanize_timedelta,
+    inline,
+    pagify,
 )
 from redbot.core.utils.menus import DEFAULT_CONTROLS, close_menu, menu
 from redbot.core.utils.tunnel import Tunnel
 
 log = logging.getLogger("red.angiedale.owner")
+
 
 def is_owner_if_bank_global():
     """
@@ -52,12 +58,18 @@ class Owner(commands.Cog):
         self.bot = bot
         self.interaction = []
 
-        self.adminconfig = Config.get_conf(self, identifier=1387000, force_registration=True, cog_name="OwnerAdmin")
+        self.adminconfig = Config.get_conf(
+            self, identifier=1387000, force_registration=True, cog_name="OwnerAdmin"
+        )
         self.adminconfig.register_global(serverlocked=False, schema_version=0)
 
-        self.mutesconfig = Config.get_conf(self, identifier=1387000, force_registration=True, cog_name="Mutes")
+        self.mutesconfig = Config.get_conf(
+            self, identifier=1387000, force_registration=True, cog_name="Mutes"
+        )
 
-        self.statsconfig = Config.get_conf(self, identifier=1387000, force_registration=True, cog_name="Stats")
+        self.statsconfig = Config.get_conf(
+            self, identifier=1387000, force_registration=True, cog_name="Stats"
+        )
         self.statsconfig.register_global(Channel=None, Message=None, bonk=0)
 
         self.__current_announcer = None
@@ -90,7 +102,7 @@ class Owner(commands.Cog):
                 await self.adminconfig.schema_version.set(1)
 
         await self.bot.wait_until_ready()
-        
+
         async with self.statsconfig.all() as sconfig:
             self.statschannel = sconfig["Channel"]
             self.statsmessage = sconfig["Message"]
@@ -144,7 +156,9 @@ class Owner(commands.Cog):
 
         latencymsg = ""
         for shard, pingt in latencies:
-            latencymsg += "Shard **{}/{}**: `{}ms`\n".format(shard + 1, len(latencies), round(pingt * 1000))
+            latencymsg += "Shard **{}/{}**: `{}ms`\n".format(
+                shard + 1, len(latencies), round(pingt * 1000)
+            )
 
         channel = self.bot.get_channel(self.statschannel)
         message = await channel.fetch_message(self.statsmessage)
@@ -205,9 +219,8 @@ class Owner(commands.Cog):
             self.statstask = self.bot.loop.create_task(self._update_stats())
 
             response.append(f"started displaying stats for {self.bot.user.name} in {channel.name}")
-        
-        await ctx.send(" and ".join(response).capitalize())
 
+        await ctx.send(" and ".join(response).capitalize())
 
     @commands.Cog.listener()
     async def on_reaction_add(self, reaction, user):
@@ -243,11 +256,13 @@ class Owner(commands.Cog):
             await ctx.send(("The announcement has begun."))
         else:
             prefix = ctx.clean_prefix
-            await ctx.send((
-                "I am already announcing something. If you would like to make a"
-                " different announcement please use `{prefix}announce cancel`"
-                " first."
-                ).format(prefix=prefix))
+            await ctx.send(
+                (
+                    "I am already announcing something. If you would like to make a"
+                    " different announcement please use `{prefix}announce cancel`"
+                    " first."
+                ).format(prefix=prefix)
+            )
 
     @announce.command(name="cancel")
     async def announce_cancel(self, ctx):
@@ -442,7 +457,7 @@ class Owner(commands.Cog):
 
         base_embed.set_author(
             name=f"{self.bot.user.name} is in {len(guilds)} servers",
-            icon_url=self.bot.user.avatar_url
+            icon_url=self.bot.user.avatar_url,
         )
 
         guild_list = []
@@ -464,7 +479,11 @@ class Owner(commands.Cog):
             page_list.append(embed)
             i += 1
 
-        await menu(ctx, page_list, DEFAULT_CONTROLS if len(page_list) > 1 else {"\N{CROSS MARK}": close_menu})
+        await menu(
+            ctx,
+            page_list,
+            DEFAULT_CONTROLS if len(page_list) > 1 else {"\N{CROSS MARK}": close_menu},
+        )
 
     @commands.Cog.listener()
     async def on_guild_join(self, guild: discord.Guild):
@@ -509,17 +528,114 @@ class Owner(commands.Cog):
         datetoday = date.today()
         wheneaster = easter(datetoday.year)
         if datetoday >= wheneaster and datetoday <= wheneaster + timedelta(days=7):
-            statuses = ["with you <3", "with things", "with ink", "Splatoon", "in the bot channel", "with my owner", "Happy Easter", "Happy Easter", "with colored eggs", "with bunnies", "egghunt", usersstatus, serversstatus,]
+            statuses = [
+                "with you <3",
+                "with things",
+                "with ink",
+                "Splatoon",
+                "in the bot channel",
+                "with my owner",
+                "Happy Easter",
+                "Happy Easter",
+                "with colored eggs",
+                "with bunnies",
+                "egghunt",
+                usersstatus,
+                serversstatus,
+            ]
         elif datetoday.month == 2 and datetoday.day >= 14 and datetoday.day <= 15:
-            statuses = ["with you <3", "with things", "with ink", "Splatoon", "in the bot channel", "with my owner", "Happy Valentine", "Happy Valentine", "cupid", "with love", "with a box of heart chocolate", "with my lover", "with my valentine", usersstatus, serversstatus,]
+            statuses = [
+                "with you <3",
+                "with things",
+                "with ink",
+                "Splatoon",
+                "in the bot channel",
+                "with my owner",
+                "Happy Valentine",
+                "Happy Valentine",
+                "cupid",
+                "with love",
+                "with a box of heart chocolate",
+                "with my lover",
+                "with my valentine",
+                usersstatus,
+                serversstatus,
+            ]
         elif datetoday.month == 12 and datetoday.day >= 24 and datetoday.day < 31:
-            statuses = ["with you <3", "with things", "with ink", "Splatoon", "in the bot channel", "with my owner", "Merry Christmas", "Happy Holidays" "Merry Squidmas", "the christmas tree", "with santa", "with gifts", "in the snow", usersstatus, serversstatus,]
-        elif datetoday.month == 12 and datetoday.day == 31 or datetoday.month == 1 and datetoday.day <= 7:
-            statuses = ["with you <3", "with things", "with ink", "Splatoon", "in the bot channel", "with my owner", "Happy New Year", "Happy New Year", "with fireworks", usersstatus, serversstatus,]
-        elif datetoday.month == 11 and datetoday.day == 31 or datetoday.month == 11 and datetoday.day <= 7:
-            statuses = ["with you <3", "with things", "with ink", "Splatoon", "in the bot channel", "with my owner", "Happy Halloween", "Happy Splatoween", "trick or treat", "with candy", "spooky", "with pumpkins", usersstatus, serversstatus,]
+            statuses = [
+                "with you <3",
+                "with things",
+                "with ink",
+                "Splatoon",
+                "in the bot channel",
+                "with my owner",
+                "Merry Christmas",
+                "Happy Holidays" "Merry Squidmas",
+                "the christmas tree",
+                "with santa",
+                "with gifts",
+                "in the snow",
+                usersstatus,
+                serversstatus,
+            ]
+        elif (
+            datetoday.month == 12
+            and datetoday.day == 31
+            or datetoday.month == 1
+            and datetoday.day <= 7
+        ):
+            statuses = [
+                "with you <3",
+                "with things",
+                "with ink",
+                "Splatoon",
+                "in the bot channel",
+                "with my owner",
+                "Happy New Year",
+                "Happy New Year",
+                "with fireworks",
+                usersstatus,
+                serversstatus,
+            ]
+        elif (
+            datetoday.month == 11
+            and datetoday.day == 31
+            or datetoday.month == 11
+            and datetoday.day <= 7
+        ):
+            statuses = [
+                "with you <3",
+                "with things",
+                "with ink",
+                "Splatoon",
+                "in the bot channel",
+                "with my owner",
+                "Happy Halloween",
+                "Happy Splatoween",
+                "trick or treat",
+                "with candy",
+                "spooky",
+                "with pumpkins",
+                usersstatus,
+                serversstatus,
+            ]
         else:
-            statuses = ["with you <3", "with things", "with ink", "Splatoon", "in the bot channel", "with my owner", "with Pearl", "with Marina", "with Callie", "with Marie", "with Agent 3", "with Agent 4", usersstatus, serversstatus,]
+            statuses = [
+                "with you <3",
+                "with things",
+                "with ink",
+                "Splatoon",
+                "in the bot channel",
+                "with my owner",
+                "with Pearl",
+                "with Marina",
+                "with Callie",
+                "with Marie",
+                "with Agent 3",
+                "with Agent 4",
+                usersstatus,
+                serversstatus,
+            ]
         new_status = self.random_status(guild, statuses)
         if (current_game != new_status) or (current_game is None):
             new_status = " | ".join((new_status, helpaddon))
@@ -676,10 +792,13 @@ class Owner(commands.Cog):
                 zip.write(f"{path}/{file}", file)
 
         with open(f"{path}.zip", "rb") as fp:
-            await ctx.send(content="Here's your emotes!",file=discord.File(fp, f"{g.name} Emotes.zip"))
-        
+            await ctx.send(
+                content="Here's your emotes!", file=discord.File(fp, f"{g.name} Emotes.zip")
+            )
+
         os.remove(f"{path}.zip")
         shutil.rmtree(path)
+
 
 class Announcer:
     def __init__(self, ctx: commands.Context, message: str, config=None):

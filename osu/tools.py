@@ -14,9 +14,9 @@ from redbot.core.utils.menus import DEFAULT_CONTROLS, close_menu, next_page
 
 log = logging.getLogger("red.angiedale.osu")
 
-class API():
-    """Class for handling OAuth.
-    """
+
+class API:
+    """Class for handling OAuth."""
 
     def __init__(self):
         self.osu_bearer_cache: dict = {}
@@ -27,9 +27,7 @@ class API():
                 await self.get_osu_bearer_token()
 
     async def get_osu_bearer_token(self, api_tokens: Optional[Dict] = None) -> None:
-        tokens = (
-            await self.bot.get_shared_api_tokens("osu") if api_tokens is None else api_tokens
-        )
+        tokens = await self.bot.get_shared_api_tokens("osu") if api_tokens is None else api_tokens
         try:
             tokens.get("client_id")
         except KeyError:
@@ -41,12 +39,9 @@ class API():
                     "grant_type": "client_credentials",
                     "client_id": tokens.get("client_id"),
                     "client_secret": tokens.get("client_secret"),
-                    "scope": "public"
+                    "scope": "public",
                 },
-                headers={
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                },
+                headers={"Accept": "application/json", "Content-Type": "application/json"},
             ) as req:
                 try:
                     data = await req.json()
@@ -71,7 +66,7 @@ class API():
         self.osu_bearer_cache = data
         self.osu_bearer_cache["expires_at"] = datetime.now().timestamp() + data.get("expires_in")
 
-    async def fetch_api(self, url, ctx: commands.Context = None, params = None):
+    async def fetch_api(self, url, ctx: commands.Context = None, params=None):
         await self.maybe_renew_osu_bearer_token()
 
         endpoint = f"https://osu.ppy.sh/api/v2/{url}"
@@ -91,17 +86,23 @@ class API():
                     elif r.status == 525:
                         log.error("osu! api fetch 525 Error")
                         if ctx and not message:
-                            message = await ctx.send("API is either slow or unavaliable atm. I will keep trying to process your command.")
+                            message = await ctx.send(
+                                "API is either slow or unavaliable atm. I will keep trying to process your command."
+                            )
                         await asyncio.sleep(10)
                     elif r.status == 502:
                         log.error("osu! api fetch 502 Error")
                         if ctx and not message:
-                            message = await ctx.send("API is either slow or unavaliable atm. I will keep trying to process your command.")
+                            message = await ctx.send(
+                                "API is either slow or unavaliable atm. I will keep trying to process your command."
+                            )
                         await asyncio.sleep(10)
                     elif r.status == 503:
                         log.error("osu! api fetch 503 Error")
                         if ctx and not message:
-                            message = await ctx.send("API is either slow or unavaliable atm. I will keep trying to process your command.")
+                            message = await ctx.send(
+                                "API is either slow or unavaliable atm. I will keep trying to process your command."
+                            )
                         await asyncio.sleep(10)
                     else:
                         try:
@@ -114,16 +115,21 @@ class API():
                         except:
                             return
 
-class Helper():
-    """Helper class to find arguments.
-    """
+
+class Helper:
+    """Helper class to find arguments."""
 
     def __init__(self):
         self.osuconfig: Config = Config.get_conf(self, identifier=1387000, cog_name="Osu")
 
     def findmap(self, map):
-        if map.startswith("https://osu.ppy.sh/b/") or map.startswith("http://osu.ppy.sh/b/") or map.startswith("https://osu.ppy.sh/beatmap") or map.startswith("http://osu.ppy.sh/beatmap"):
-            return re.sub("[^0-9]", "", map.rsplit('/', 1)[-1])
+        if (
+            map.startswith("https://osu.ppy.sh/b/")
+            or map.startswith("http://osu.ppy.sh/b/")
+            or map.startswith("https://osu.ppy.sh/beatmap")
+            or map.startswith("http://osu.ppy.sh/beatmap")
+        ):
+            return re.sub("[^0-9]", "", map.rsplit("/", 1)[-1])
         elif map.isdigit():
             return map
         else:
@@ -148,7 +154,12 @@ class Helper():
     def ranking(self, args):
         args = self.ttol(args)
 
-        modes = {"osu": ["osu", "standard", "std"], "taiko": ["taiko"], "fruits": ["catch", "fruits", "ctb"], "mania": ["mania"]}
+        modes = {
+            "osu": ["osu", "standard", "std"],
+            "taiko": ["taiko"],
+            "fruits": ["catch", "fruits", "ctb"],
+            "mania": ["mania"],
+        }
         mode = None
         variant = None
         type = "performance"
@@ -162,7 +173,7 @@ class Helper():
                     mode = modelist[0]
                     args.remove(m)
                     break
-        
+
         if not mode:
             mode = "osu"
         elif mode == "mania":
@@ -206,13 +217,20 @@ class Helper():
                     await asyncio.sleep(0.5)
                     if data:
                         userid = data["id"]
-                elif user.startswith("https://osu.ppy.sh/users") or user.startswith("http://osu.ppy.sh/users") or user.startswith("https://osu.ppy.sh/u/") or user.startswith("http://osu.ppy.sh/u/"):
-                    data = await self.fetch_api(f'users/{re.sub("[^0-9]", "", user.rsplit("/", 1)[-1])}/osu', ctx)
+                elif (
+                    user.startswith("https://osu.ppy.sh/users")
+                    or user.startswith("http://osu.ppy.sh/users")
+                    or user.startswith("https://osu.ppy.sh/u/")
+                    or user.startswith("http://osu.ppy.sh/u/")
+                ):
+                    data = await self.fetch_api(
+                        f'users/{re.sub("[^0-9]", "", user.rsplit("/", 1)[-1])}/osu', ctx
+                    )
                     if data:
                         userid = data["id"]
                 else:
                     userid = user
-        
+
             if not userid:
                 try:
                     member = await commands.MemberConverter().convert(ctx, str(user))
@@ -250,7 +268,7 @@ class Helper():
                 return None, None, None
 
         userid = await self.user(ctx, (args[0] if len(args) > 0 else None))
-        
+
         if userid:
             return userid, recent, pos
         else:
@@ -277,7 +295,7 @@ class Helper():
             log.error(len(args))
             log.error(args)
             userid = await self.user(ctx, (args[0] if len(args) > 0 else None))
-            
+
             if not userid and len(args) > 0:
                 await del_message(ctx, f"Could not find the user {args[0]}.")
 
@@ -305,21 +323,21 @@ class Helper():
                     description = re.search(r"beatmaps/(.*?)\)", e.description)
                 if author_url:
                     if "beatmaps" in author_url:
-                        mapid = author_url.rsplit('/', 1)[-1]
+                        mapid = author_url.rsplit("/", 1)[-1]
                         if "+" in e.fields[0].value:
                             mods = e.fields[0].value.split("+")[1]
-                            params = {"mods": [mods[i:i+2] for i in range(0, len(mods), 2)]}
+                            params = {"mods": [mods[i : i + 2] for i in range(0, len(mods), 2)]}
                         break
                 if title_url:
                     if "beatmaps" in title_url:
-                        mapid = title_url.rsplit('/', 1)[-1]
+                        mapid = title_url.rsplit("/", 1)[-1]
                         break
                 if description:
                     mapid = description.group(1)
                     firstrow = e.description.split("\n")[0]
                     if "**+" in firstrow:
                         mods = firstrow.split("**+")[1].split("** [")[0]
-                        params = {"mods": [mods[i:i+2] for i in range(0, len(mods), 2)]}
+                        params = {"mods": [mods[i : i + 2] for i in range(0, len(mods), 2)]}
                     break
 
         return mapid, params
@@ -352,9 +370,8 @@ class Helper():
             userid = await self.user(ctx, args[0])
             return userid, rank
 
-    async def removetracking(self, user = None, channel = None, mode = None, dev = False):
-        """Finds unnecessary tracking entries
-        """
+    async def removetracking(self, user=None, channel=None, mode=None, dev=False):
+        """Finds unnecessary tracking entries"""
 
         if dev == True:
             async with self.osuconfig.tracking() as modes:
@@ -380,7 +397,7 @@ class Helper():
                         if len(ch) < 1:
                             us.pop(id)
                             try:
-                                os.remove(f'{bundled_data_path(self)}/{id}{m}.json')
+                                os.remove(f"{bundled_data_path(self)}/{id}{m}.json")
                             except:
                                 pass
                         if done == True:
@@ -403,13 +420,12 @@ class Helper():
                     if mode == m:
                         try:
                             us.pop(user)
-                            os.remove(f'{bundled_data_path(self)}/{user}{m}.json')
+                            os.remove(f"{bundled_data_path(self)}/{user}{m}.json")
                         except KeyError:
                             pass
 
-    async def counttracking(self, channel = None, user = None, guild = None):
-        """Helper for getting tracked users for guilds.
-        """
+    async def counttracking(self, channel=None, user=None, guild=None):
+        """Helper for getting tracked users for guilds."""
 
         if channel:
             count = 0
@@ -437,13 +453,16 @@ class Helper():
                                 count.append({"id": u, "channel": i, "mode": m})
         return count
 
+
 async def profilelinking(ctx: commands.Context):
-    await ctx.maybe_send_embed(f"Looks like you haven't linked an account.\nYou can do so using `{ctx.clean_prefix}osulink <username>`"
-        "\n\nAlternatively you can use the command\nwith a username or id after it.")
+    await ctx.maybe_send_embed(
+        f"Looks like you haven't linked an account.\nYou can do so using `{ctx.clean_prefix}osulink <username>`"
+        "\n\nAlternatively you can use the command\nwith a username or id after it."
+    )
+
 
 async def del_message(ctx, message_text: str):
-    """Simple function to sends a small embed that auto-deletes.
-    """
+    """Simple function to sends a small embed that auto-deletes."""
 
     message = await ctx.maybe_send_embed(message_text)
     await asyncio.sleep(10)
@@ -452,23 +471,23 @@ async def del_message(ctx, message_text: str):
     except (discord.errors.NotFound, discord.errors.Forbidden):
         pass
 
+
 def multipage(embeds):
-    """Dumb mini function for checking what emojis to use.
-    """
+    """Dumb mini function for checking what emojis to use."""
 
     if len(embeds) > 1:
         return DEFAULT_CONTROLS
     else:
         return {"\N{CROSS MARK}": close_menu}
 
+
 def singlepage():
-    """Even dumber function that just returns the single page version.
-    """
+    """Even dumber function that just returns the single page version."""
 
     return {"\N{CROSS MARK}": close_menu}
 
+
 def togglepage(bot):
-    """Another one for two page embeds.
-    """
+    """Another one for two page embeds."""
 
     return {bot.get_emoji(755808377959088159): next_page, "\N{CROSS MARK}": close_menu}

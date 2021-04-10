@@ -7,7 +7,7 @@ from redbot.core.utils.chat_formatting import box, pagify
 from redbot.core.utils.menus import DEFAULT_CONTROLS, menu
 
 
-class ModLog():
+class ModLog:
     """Manage log channels for moderation actions."""
 
     @commands.group()

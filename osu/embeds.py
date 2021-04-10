@@ -7,7 +7,9 @@ from math import ceil
 
 import discord
 from redbot.core.utils.chat_formatting import (
-    humanize_number, humanize_timedelta, inline
+    humanize_number,
+    humanize_timedelta,
+    inline,
 )
 
 log = logging.getLogger("red.angiedale.osu.embeds")
@@ -21,17 +23,15 @@ EMOJI = {
     "B": "<:B_Rank:794823687446593557>",
     "C": "<:C_Rank:794823687488012308>",
     "D": "<:F_Rank:794823687781613609>",
-    "F": "<:F_Rank:794823687781613609>"
+    "F": "<:F_Rank:794823687781613609>",
 }
 
 
 class Data:
-    """Simplifies api data handling.
-    """
+    """Simplifies api data handling."""
 
     def topdata(self, d):
-        """/users/{user}/scores
-        """
+        """/users/{user}/scores"""
 
         data = []
         index = 0
@@ -92,12 +92,11 @@ class Data:
 
             data.append(score)
             index += 1
-        
+
         return data
 
     def mapdata(self, d):
-        """/beatmaps/{map}
-        """
+        """/beatmaps/{map}"""
 
         data = {}
 
@@ -136,8 +135,7 @@ class Data:
         return data
 
     def changelogdata(self, d):
-        """/changelog
-        """
+        """/changelog"""
 
         data = []
 
@@ -174,8 +172,7 @@ class Data:
         return data
 
     def rankingsdata(self, d):
-        """/users
-        """
+        """/users"""
 
         data = {}
 
@@ -261,9 +258,9 @@ class Data:
 
         return data
 
+
 class Embed(Data):
-    """Puts data into embeds. Because why not.
-    """
+    """Puts data into embeds. Because why not."""
 
     async def ppembed(self, ctx, data, pp_num):
         d = self.topdata(data)
@@ -289,30 +286,26 @@ class Embed(Data):
             for s in d:
                 if s["scorepp"] > pp_num:
                     count += 1
-            embed.title = f'You have {count} plays above {round(pp_num, 2)}pp'
+            embed.title = f"You have {count} plays above {round(pp_num, 2)}pp"
 
         embed.set_author(
             name=f'{d[0]["username"]} | osu!{mode}',
             url=f'https://osu.ppy.sh/users/{d[0]["userid"]}',
-            icon_url=f'https://osu.ppy.sh/images/flags/{d[0]["userflag"]}.png'
+            icon_url=f'https://osu.ppy.sh/images/flags/{d[0]["userflag"]}.png',
         )
 
         embed.set_thumbnail(url=f'https://a.ppy.sh/{d[0]["userid"]}')
-        
+
         embed.add_field(
-            name='Highest pp Play',
-            value=humanize_number(round(d[0]["scorepp"],2)),
-            inline=True
+            name="Highest pp Play", value=humanize_number(round(d[0]["scorepp"], 2)), inline=True
         )
         embed.add_field(
-            name='Lowest pp Play',
-            value=humanize_number(round(d[-1]["scorepp"],2)),
-            inline=True
+            name="Lowest pp Play", value=humanize_number(round(d[-1]["scorepp"], 2)), inline=True
         )
         embed.add_field(
             name="Average / Median",
-            value=f'{humanize_number(round(pp_average,2))} / {humanize_number(round(pp_median,2))}',
-            inline=True
+            value=f"{humanize_number(round(pp_average,2))} / {humanize_number(round(pp_median,2))}",
+            inline=True,
         )
 
         embed_list.append(embed)
@@ -337,7 +330,7 @@ class Embed(Data):
         base_embed.set_author(
             name=f'{recent_text} {author_text} for {d[0]["username"]} | osu!{d[0]["mode"].capitalize()}',
             url=f'https://osu.ppy.sh/users/{d[0]["userid"]}',
-            icon_url=f'https://osu.ppy.sh/images/flags/{d[0]["userflag"]}.png'
+            icon_url=f'https://osu.ppy.sh/images/flags/{d[0]["userflag"]}.png',
         )
 
         base_embed.set_thumbnail(url=f'https://a.ppy.sh/{d[0]["userid"]}')
@@ -349,10 +342,12 @@ class Embed(Data):
             if map["mods"]:
                 mods = f' +{mods.join(map["mods"])}'
 
-            date = datetime.now() - datetime.strptime(map["played"], "%Y-%m-%dT%H:%M:%S%z").replace(tzinfo=None)
+            date = datetime.now() - datetime.strptime(
+                map["played"], "%Y-%m-%dT%H:%M:%S%z"
+            ).replace(tzinfo=None)
             time = re.split(r",\s", humanize_timedelta(timedelta=date))
             try:
-                time = f'{time[0]} {time[1]}'
+                time = f"{time[0]} {time[1]}"
             except ValueError:
                 pass
             except IndexError:
@@ -373,24 +368,28 @@ class Embed(Data):
                 f'**{humanize_number(map["combo"])}x** ◈ [{hits}] ◈ {time} ago'
             )
 
-            embed.set_footer(text=f'Weighted pp | {round(map["weightpp"],1)}pp ({round(map["weightpercentage"],1)}%)')
+            embed.set_footer(
+                text=f'Weighted pp | {round(map["weightpp"],1)}pp ({round(map["weightpercentage"],1)}%)'
+            )
 
             embed_list.append(embed)
         else:
             page_num = 1
             while page_num <= ceil(len(d) / 5):
                 start_index = (page_num - 1) * 5
-                end_index = (page_num - 1 ) * 5 + 5
+                end_index = (page_num - 1) * 5 + 5
                 maps = ""
                 for map in d[start_index:end_index]:
                     mods = ""
                     if map["mods"]:
                         mods = f' +{mods.join(map["mods"])}'
 
-                    date = datetime.now() - datetime.strptime(map["played"], "%Y-%m-%dT%H:%M:%S%z").replace(tzinfo=None)
+                    date = datetime.now() - datetime.strptime(
+                        map["played"], "%Y-%m-%dT%H:%M:%S%z"
+                    ).replace(tzinfo=None)
                     time = re.split(r",\s", humanize_timedelta(timedelta=date))
                     try:
-                        time = f'{time[0]} {time[1]}'
+                        time = f"{time[0]} {time[1]}"
                     except ValueError:
                         pass
                     except IndexError:
@@ -409,16 +408,15 @@ class Embed(Data):
                         f'**{humanize_number(map["combo"])}x** ◈ [{hits}] ◈ {time} ago\n\n'
                     )
 
-                
                 embed = base_embed.copy()
-                
+
                 embed.description = maps
 
                 embed.set_footer(text=f"Page {page_num}/{ceil(len(d) / 5)}")
 
                 embed_list.append(embed)
                 page_num += 1
-        
+
         return embed_list
 
     async def topcompareembed(self, ctx, adata, udata):
@@ -439,7 +437,7 @@ class Embed(Data):
             base_embed.set_author(
                 name=f'Comparing unique top plays for {d[0]["username"]} | osu!{d[0]["mode"].capitalize()}',
                 url=f'https://osu.ppy.sh/users/{d[0]["userid"]}',
-                icon_url=f'https://osu.ppy.sh/images/flags/{d[0]["userflag"]}.png'
+                icon_url=f'https://osu.ppy.sh/images/flags/{d[0]["userflag"]}.png',
             )
 
             base_embed.set_thumbnail(url=f'https://a.ppy.sh/{d[0]["userid"]}')
@@ -447,17 +445,19 @@ class Embed(Data):
             page_num = 1
             while page_num <= ceil(len(d) / 5):
                 start_index = (page_num - 1) * 5
-                end_index = (page_num - 1 ) * 5 + 5
+                end_index = (page_num - 1) * 5 + 5
                 maps = ""
                 for map in d[start_index:end_index]:
                     mods = ""
                     if map["mods"]:
                         mods = f' +{mods.join(map["mods"])}'
 
-                    date = datetime.now() - datetime.strptime(map["played"], "%Y-%m-%dT%H:%M:%S%z").replace(tzinfo=None)
+                    date = datetime.now() - datetime.strptime(
+                        map["played"], "%Y-%m-%dT%H:%M:%S%z"
+                    ).replace(tzinfo=None)
                     time = re.split(r",\s", humanize_timedelta(timedelta=date))
                     try:
-                        time = f'{time[0]} {time[1]}'
+                        time = f"{time[0]} {time[1]}"
                     except ValueError:
                         pass
                     except IndexError:
@@ -476,12 +476,13 @@ class Embed(Data):
                         f'**{humanize_number(map["combo"])}x** ◈ [{hits}] ◈ {time} ago\n\n'
                     )
 
-                
                 embed = base_embed.copy()
-                
+
                 embed.description = maps
 
-                embed.set_footer(text=f'Page {page_num}/{ceil(len(d) / 5)} ◈ Found {len(d)} unique plays not in top 100 for {ad[0]["username"]}')
+                embed.set_footer(
+                    text=f'Page {page_num}/{ceil(len(d) / 5)} ◈ Found {len(d)} unique plays not in top 100 for {ad[0]["username"]}'
+                )
 
                 embed_list.append(embed)
                 page_num += 1
@@ -530,13 +531,13 @@ class Embed(Data):
         embed = discord.Embed(
             color=await self.bot.get_embed_color(ctx),
             title=f'{d["artist"]} - {d["title"]} [{version}]',
-            url=d["mapurl"]
+            url=d["mapurl"],
         )
 
         embed.set_author(
             name=f'Mapped by {d["creator"]} | osu!{d["mode"].capitalize()}',
             url=f'https://osu.ppy.sh/users/{d["creatorid"]}',
-            icon_url=f'https://a.ppy.sh/{d["creatorid"]}'
+            icon_url=f'https://a.ppy.sh/{d["creatorid"]}',
         )
 
         embed.set_footer(text=f'Status: {d["status"]}')
@@ -547,38 +548,14 @@ class Embed(Data):
             name="Stats",
             value=f'SR: `{d["sr"]}★` | {stats2}\n'
             f'{stats} | Total: `{d["circles"] + d["sliders"] + d["spinners"]}`',
-            inline=False
+            inline=False,
         )
-        embed.add_field(
-            name="Length / Drain",
-            value=f'{length} / {draintime}',
-            inline=True
-        )
-        embed.add_field(
-            name="BPM",
-            value=d["bpm"],
-            inline=True
-        )
-        embed.add_field(
-            name=max_combo_text,
-            value=max_combo,
-            inline=True
-        )
-        embed.add_field(
-            name="Playcount",
-            value=humanize_number(d["playcount"]),
-            inline=True
-        )
-        embed.add_field(
-            name="Favorites",
-            value=humanize_number(d["favouritecount"]),
-            inline=True
-        )
-        embed.add_field(
-            name="Download",
-            value=download,
-            inline=True
-        )
+        embed.add_field(name="Length / Drain", value=f"{length} / {draintime}", inline=True)
+        embed.add_field(name="BPM", value=d["bpm"], inline=True)
+        embed.add_field(name=max_combo_text, value=max_combo, inline=True)
+        embed.add_field(name="Playcount", value=humanize_number(d["playcount"]), inline=True)
+        embed.add_field(name="Favorites", value=humanize_number(d["favouritecount"]), inline=True)
+        embed.add_field(name="Download", value=download, inline=True)
         if not sum(d["ratings"]) == 0:
             rating = 0
             p = 0
@@ -596,49 +573,33 @@ class Embed(Data):
             embed.add_field(
                 name="Rating",
                 value=f'{star_emojis} {round(rating / sum(d["ratings"]), 1)} / 10',
-                inline=False
+                inline=False,
             )
-        embed.add_field(
-            name="Submitted",
-            value=submitted,
-            inline=True
-        )
-        embed.add_field(
-            name="Last Update",
-            value=updated,
-            inline=True
-        )
+        embed.add_field(name="Submitted", value=submitted, inline=True)
+        embed.add_field(name="Last Update", value=updated, inline=True)
         if d["source"]:
-            embed.add_field(
-                name="Source",
-                value=d["source"],
-                inline=True
-            )
+            embed.add_field(name="Source", value=d["source"], inline=True)
         else:
-            embed.add_field(
-                name="Source",
-                value="None",
-                inline=True
-            )
+            embed.add_field(name="Source", value="None", inline=True)
         if d["tags"]:
-            embed.add_field(
-                name="Tags",
-                value=f'`{d["tags"].replace(" ", "` `")}`',
-                inline=False
-            )
+            embed.add_field(name="Tags", value=f'`{d["tags"].replace(" ", "` `")}`', inline=False)
 
         if d["status"] == "ranked":
             status = "Ranked on"
-            embed.timestamp = datetime.strptime(data["beatmapset"]["ranked_date"], "%Y-%m-%dT%H:%M:%S%z")
+            embed.timestamp = datetime.strptime(
+                data["beatmapset"]["ranked_date"], "%Y-%m-%dT%H:%M:%S%z"
+            )
         elif d["status"] == "loved":
             status = "Loved on"
-            embed.timestamp = datetime.strptime(data["beatmapset"]["ranked_date"], "%Y-%m-%dT%H:%M:%S%z")
+            embed.timestamp = datetime.strptime(
+                data["beatmapset"]["ranked_date"], "%Y-%m-%dT%H:%M:%S%z"
+            )
         elif d["status"] == "wip":
             status = d["status"].upper()
         else:
             status = d["status"].capitalize()
 
-        embed.set_footer(text=f'Status: {status}')
+        embed.set_footer(text=f"Status: {status}")
 
         embed_list.append(embed)
 
@@ -654,16 +615,18 @@ class Embed(Data):
         for i in range(count):
             postimage = posts[i]["first_image"]
             if postimage.startswith("/"):
-                postimage = f'https://osu.ppy.sh/{postimage}'
+                postimage = f"https://osu.ppy.sh/{postimage}"
 
             embed = base_embed.copy()
             embed.set_image(url=postimage)
-            embed.set_author(name=posts[i]["author"], icon_url=f'https://osu.ppy.sh/favicon-32x32.png')
+            embed.set_author(
+                name=posts[i]["author"], icon_url=f"https://osu.ppy.sh/favicon-32x32.png"
+            )
             embed.url = f'https://osu.ppy.sh/home/news/{posts[i]["slug"]}'
             embed.timestamp = datetime.strptime(posts[i]["published_at"], "%Y-%m-%dT%H:%M:%S%z")
             embed.title = posts[i]["title"]
             embed.description = posts[i]["preview"]
-            embed.set_footer(text=f'Post {i + 1}/{len(posts)}')
+            embed.set_footer(text=f"Post {i + 1}/{len(posts)}")
 
             embed_list.append(embed)
 
@@ -681,7 +644,7 @@ class Embed(Data):
 
         base_embed.set_author(
             name=f'Changelog | {d[0]["builddisplayname"]}{activeusers}',
-            icon_url="https://osu.ppy.sh/favicon-32x32.png"
+            icon_url="https://osu.ppy.sh/favicon-32x32.png",
         )
 
         page_num = 1
@@ -710,10 +673,9 @@ class Embed(Data):
                 titleshort = f'{e["title"]}{dev}'
                 titlemini = f'{e["title"]}'
                 if e["major"] == True:
-                    titlefull = f'**{titlefull}**'
-                    titleshort = f'**{titleshort}**'
-                    titlemini = f'**{titlemini}**'
-
+                    titlefull = f"**{titlefull}**"
+                    titleshort = f"**{titleshort}**"
+                    titlemini = f"**{titlemini}**"
 
                 if e["category"] in catfull:
                     catfull[e["category"]].append(titlefull)
@@ -748,7 +710,7 @@ class Embed(Data):
 
             total = ""
             for item in fields:
-                total += str(item) if str(item) != 'Embed.Empty' else ''
+                total += str(item) if str(item) != "Embed.Empty" else ""
 
             if len(total) >= 6000:
                 embed.clear_fields()
@@ -772,7 +734,7 @@ class Embed(Data):
 
                 total = ""
                 for item in fields:
-                    total += str(item) if str(item) != 'Embed.Empty' else ''
+                    total += str(item) if str(item) != "Embed.Empty" else ""
 
                 if len(total) >= 6000:
                     embed.clear_fields()
@@ -781,7 +743,7 @@ class Embed(Data):
 
             embed.timestamp = datetime.strptime(b["posted"], "%Y-%m-%dT%H:%M:%S%z")
 
-            embed.set_footer(text=f'Page {page_num}/{len(d)}')
+            embed.set_footer(text=f"Page {page_num}/{len(d)}")
 
             embed_list.append(embed)
             page_num += 1
@@ -798,9 +760,9 @@ class Embed(Data):
         elif mode == "fruits":
             mode = "catch"
         mode = mode.capitalize()
-        
+
         if variant:
-            variant = f'{variant} '
+            variant = f"{variant} "
         else:
             variant = ""
 
@@ -810,11 +772,11 @@ class Embed(Data):
         if country:
             type = d[0]["countryname"]
 
-            base_embed.set_thumbnail(url=f'https://osu.ppy.sh/images/flags/{country}.png')
+            base_embed.set_thumbnail(url=f"https://osu.ppy.sh/images/flags/{country}.png")
 
         base_embed.set_author(
-            name=f'{type.capitalize()} {variant}ranking | osu!{mode}',
-            icon_url="https://osu.ppy.sh/favicon-32x32.png"
+            name=f"{type.capitalize()} {variant}ranking | osu!{mode}",
+            icon_url="https://osu.ppy.sh/favicon-32x32.png",
         )
 
         page_num = 1
@@ -830,22 +792,26 @@ class Embed(Data):
                 else:
                     user = f'{user}\n**{i+1}.** | :flag_{d[i]["userflag"].lower()}: **{d[i]["username"]}** ◈ {humanize_number(d[i]["pp"])}pp ◈ {round(d[i]["accuracy"],2)}% ◈ {humanize_number(d[i]["playcount"])}\n'
                 i += 1
-            
+
             embed = base_embed.copy()
 
             embed.description = user
 
             if type == "score":
-                embed.set_footer(text=f'Page {page_num}/{int(len(d) / 10)} | Username ◈ Score ◈ Accuracy ◈ pp')
+                embed.set_footer(
+                    text=f"Page {page_num}/{int(len(d) / 10)} | Username ◈ Score ◈ Accuracy ◈ pp"
+                )
             else:
-                embed.set_footer(text=f'Page {page_num}/{int(len(d) / 10)} | Username ◈ pp ◈ Accuracy ◈ Play Count')
+                embed.set_footer(
+                    text=f"Page {page_num}/{int(len(d) / 10)} | Username ◈ pp ◈ Accuracy ◈ Play Count"
+                )
 
             embed_list.append(embed)
             page_num += 1
 
         return embed_list
 
-    async def profileembed(self, ctx, data, mode = "osu"):
+    async def profileembed(self, ctx, data, mode="osu"):
         d = self.userdata(data)
 
         if mode == "osu":
@@ -863,12 +829,16 @@ class Embed(Data):
             if d["pp4k"] == 0 and d["pp7k"] == 0:
                 performancevalue = f'{humanize_number(d["pp"])}pp'
             elif d["pp4k"] == 0:
-                performancevalue = f'{humanize_number(d["pp"])}pp\n{humanize_number(d["pp7k"])}pp | **7k**'
+                performancevalue = (
+                    f'{humanize_number(d["pp"])}pp\n{humanize_number(d["pp7k"])}pp | **7k**'
+                )
             elif d["pp7k"] == 0:
-                performancevalue = f'{humanize_number(d["pp"])}pp\n{humanize_number(d["pp4k"])}pp | **4k**'
+                performancevalue = (
+                    f'{humanize_number(d["pp"])}pp\n{humanize_number(d["pp4k"])}pp | **4k**'
+                )
             else:
                 performancevalue = f'{humanize_number(d["pp"])}pp\n{humanize_number(d["pp4k"])}pp | **4k**\n{humanize_number(d["pp7k"])}pp | **7k**'
-            
+
             if d["globalrank4k"] == None and d["globalrank7k"] == None:
                 rankingvalue = f'#{globalrank} ({d["userflag"].upper()} #{countryrank})'
             elif d["globalrank4k"] == None:
@@ -882,7 +852,9 @@ class Embed(Data):
             rankingvalue = f'#{globalrank} ({d["userflag"].upper()} #{countryrank})'
 
         if d["playtime"]:
-            playtime = re.split(r",\s", humanize_timedelta(timedelta=timedelta(seconds=d["playtime"])))
+            playtime = re.split(
+                r",\s", humanize_timedelta(timedelta=timedelta(seconds=d["playtime"]))
+            )
             try:
                 playtime = f"{playtime[0]}, {playtime[1]}, {playtime[2]}"
             except IndexError:
@@ -901,15 +873,17 @@ class Embed(Data):
 
         try:
             rankhistory = list(map(int, d["rankhistory"]))
-            rankhistory = ( f'``` Delta |   Rank   | Date\n'
-            f'-----------------------\n'
-            f'   -   |{"{0:^10}".format(humanize_number(rankhistory[0]))}| -90d\n'
-            f'{"{0:^7}".format(humanize_number(rankhistory[0] - rankhistory[14]))}|{"{0:^10}".format(humanize_number(rankhistory[14]))}| -75d\n'
-            f'{"{0:^7}".format(humanize_number(rankhistory[14] - rankhistory[29]))}|{"{0:^10}".format(humanize_number(rankhistory[29]))}| -60d\n'
-            f'{"{0:^7}".format(humanize_number(rankhistory[29] - rankhistory[44]))}|{"{0:^10}".format(humanize_number(rankhistory[44]))}| -45d\n'
-            f'{"{0:^7}".format(humanize_number(rankhistory[44] - rankhistory[59]))}|{"{0:^10}".format(humanize_number(rankhistory[59]))}| -30d\n'
-            f'{"{0:^7}".format(humanize_number(rankhistory[59] - rankhistory[74]))}|{"{0:^10}".format(humanize_number(rankhistory[74]))}| -15d\n'
-            f'{"{0:^7}".format(humanize_number(rankhistory[74] - rankhistory[89]))}|{"{0:^10}".format(humanize_number(rankhistory[89]))}|  Now```' )
+            rankhistory = (
+                f"``` Delta |   Rank   | Date\n"
+                f"-----------------------\n"
+                f'   -   |{"{0:^10}".format(humanize_number(rankhistory[0]))}| -90d\n'
+                f'{"{0:^7}".format(humanize_number(rankhistory[0] - rankhistory[14]))}|{"{0:^10}".format(humanize_number(rankhistory[14]))}| -75d\n'
+                f'{"{0:^7}".format(humanize_number(rankhistory[14] - rankhistory[29]))}|{"{0:^10}".format(humanize_number(rankhistory[29]))}| -60d\n'
+                f'{"{0:^7}".format(humanize_number(rankhistory[29] - rankhistory[44]))}|{"{0:^10}".format(humanize_number(rankhistory[44]))}| -45d\n'
+                f'{"{0:^7}".format(humanize_number(rankhistory[44] - rankhistory[59]))}|{"{0:^10}".format(humanize_number(rankhistory[59]))}| -30d\n'
+                f'{"{0:^7}".format(humanize_number(rankhistory[59] - rankhistory[74]))}|{"{0:^10}".format(humanize_number(rankhistory[74]))}| -15d\n'
+                f'{"{0:^7}".format(humanize_number(rankhistory[74] - rankhistory[89]))}|{"{0:^10}".format(humanize_number(rankhistory[89]))}|  Now```'
+            )
         except (TypeError, KeyError):
             rankhistory = "This user doesn't have any rank history."
 
@@ -919,9 +893,9 @@ class Embed(Data):
         base_embed.set_author(
             name=f'{d["username"]} | osu!{mode.capitalize()}',
             url=f'https://osu.ppy.sh/users/{d["userid"]}',
-            icon_url=f'https://osu.ppy.sh/images/flags/{d["userflag"]}.png'
+            icon_url=f'https://osu.ppy.sh/images/flags/{d["userflag"]}.png',
         )
-        
+
         base_embed.set_thumbnail(url=f'https://a.ppy.sh/{d["userid"]}')
 
         page = 1
@@ -931,112 +905,60 @@ class Embed(Data):
 
             embed.clear_fields()
 
+            embed.add_field(name="Ranking", value=rankingvalue, inline=True)
+            embed.add_field(name="Performance", value=performancevalue, inline=True)
+            embed.add_field(name="Accuracy", value=f'{round(d["accuracy"], 2)}%', inline=True)
             embed.add_field(
-                name="Ranking",
-                value=rankingvalue,
-                inline=True
+                name="Level", value=f'{d["levelcurrent"]} ({d["levelprogress"]}%)', inline=True
             )
-            embed.add_field(
-                name="Performance",
-                value=performancevalue,
-                inline=True
-            )
-            embed.add_field(
-                name="Accuracy",
-                value=f'{round(d["accuracy"], 2)}%',
-                inline=True
-            )
-            embed.add_field(
-                name="Level",
-                value=f'{d["levelcurrent"]} ({d["levelprogress"]}%)',
-                inline=True
-            )
-            embed.add_field(
-                name="Max Combo",
-                value=humanize_number(d["maxcombo"]),
-                inline=True
-            )
-            embed.add_field(
-                name="Playcount",
-                value=humanize_number(d["playcount"]),
-                inline=True
-            )
+            embed.add_field(name="Max Combo", value=humanize_number(d["maxcombo"]), inline=True)
+            embed.add_field(name="Playcount", value=humanize_number(d["playcount"]), inline=True)
             embed.add_field(
                 name="Grades",
                 value=f'{EMOJI["XH"]} {d["gradessh"]} {EMOJI["X"]} {d["gradess"]} {EMOJI["SH"]} {d["gradesh"]} {EMOJI["S"]} {d["grades"]} {EMOJI["A"]} {d["gradea"]}',
-                inline=False
+                inline=False,
             )
 
             if page >= 2:
                 embed.add_field(
-                    name="Ranked Score",
-                    value=humanize_number(d["rankedscore"]),
-                    inline=True
+                    name="Ranked Score", value=humanize_number(d["rankedscore"]), inline=True
                 )
                 embed.add_field(
-                    name="#1 Scores",
-                    value=humanize_number(d["firstscores"]),
-                    inline=True
+                    name="#1 Scores", value=humanize_number(d["firstscores"]), inline=True
+                )
+                embed.add_field(name="Play Time", value=playtime, inline=True)
+                embed.add_field(
+                    name="Total Score", value=humanize_number(d["totalscore"]), inline=True
                 )
                 embed.add_field(
-                    name="Play Time",
-                    value=playtime,
-                    inline=True
+                    name="Replays Watched", value=humanize_number(d["replayswatched"]), inline=True
                 )
+                embed.add_field(name="Joined osu!", value=joindate, inline=True)
+                embed.add_field(name="Rank Change", value=rankhistory, inline=False)
                 embed.add_field(
-                    name="Total Score",
-                    value=humanize_number(d["totalscore"]),
-                    inline=True
+                    name="Total Hits", value=humanize_number(d["totalhits"]), inline=True
                 )
-                embed.add_field(
-                    name="Replays Watched",
-                    value=humanize_number(d["replayswatched"]),
-                    inline=True
-                )
-                embed.add_field(
-                    name="Joined osu!",
-                    value=joindate,
-                    inline=True
-                )
-                embed.add_field(
-                    name="Rank Change",
-                    value=rankhistory,
-                    inline=False
-                )
-                embed.add_field(
-                    name="Total Hits",
-                    value=humanize_number(d["totalhits"]),
-                    inline=True
-                )
-                embed.add_field(
-                    name="Medals",
-                    value=len(d["achievements"]),
-                    inline=True
-                )
+                embed.add_field(name="Medals", value=len(d["achievements"]), inline=True)
                 embed.add_field(
                     name="Favorite Beatmaps",
                     value=humanize_number(d["favouritemaps"]),
-                    inline=True
+                    inline=True,
                 )
                 embed.add_field(
-                    name="Followers",
-                    value=humanize_number(d["followers"]),
-                    inline=True
+                    name="Followers", value=humanize_number(d["followers"]), inline=True
                 )
                 embed.add_field(
                     name="Mapping Followers",
                     value=humanize_number(d["mappingfollowers"]),
-                    inline=True
+                    inline=True,
                 )
                 embed.add_field(
-                    name="Kudoso Total",
-                    value=humanize_number(d["kudosutotal"]),
-                    inline=True
+                    name="Kudoso Total", value=humanize_number(d["kudosutotal"]), inline=True
                 )
                 embed.add_field(
                     name="Uploaded Beatmaps",
                     value=f'Ranked: **{d["rankedapprovedmaps"]}** ◈ Loved: **{d["lovedmaps"]}** ◈ Unranked: **{d["unrankedmaps"]}** ◈ Graveyarded: **{d["graveyardedmaps"]}**',
-                    inline=False
+                    inline=False,
                 )
 
             if data["is_online"] == True:
@@ -1049,10 +971,10 @@ class Embed(Data):
 
             embed_list.append(embed)
             page += 1
-            
+
         return embed_list
 
-    async def recentembed(self, ctx, data, mapdata = None):
+    async def recentembed(self, ctx, data, mapdata=None):
         if mapdata:
             m = self.mapdata(mapdata)
             da = self.topdata(data)
@@ -1062,7 +984,7 @@ class Embed(Data):
                 s.append(c)
         else:
             s = self.topdata(data)
-        
+
         embed_list = []
         p = 1
         for d in s:
@@ -1077,7 +999,7 @@ class Embed(Data):
                 comboratio = "Combo / Ratio"
                 version = re.sub(r"^\S*\s", "", d["version"])
                 try:
-                    ratio = round(d["scoregeki"] / d["score300"],2)
+                    ratio = round(d["scoregeki"] / d["score300"], 2)
                 except:
                     ratio = "Perfect"
                 combo = f'**{d["combo"]:,}x** / {ratio}'
@@ -1096,65 +1018,42 @@ class Embed(Data):
                 mods = f" +{mods}"
 
             try:
-                performance = humanize_number(round(d["scorepp"],2))
+                performance = humanize_number(round(d["scorepp"], 2))
             except TypeError:
                 performance = 0
-
 
             embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
 
             embed.set_author(
                 name=f'{d["artist"]} - {d["title"]} [{version}] [{str(d["sr"])}★]',
                 url=d["mapurl"],
-                icon_url=f'https://a.ppy.sh/{d["userid"]}'
+                icon_url=f'https://a.ppy.sh/{d["userid"]}',
             )
 
             embed.set_image(url=f'https://assets.ppy.sh/beatmaps/{d["setid"]}/covers/cover.jpg')
 
-            embed.add_field(
-                name="Grade",
-                value=f'{EMOJI[d["scorerank"]]}{mods}',
-                inline=True
-            )
-            embed.add_field(
-                name="Score",
-                value=humanize_number(d["score"]),
-                inline=True
-            )
-            embed.add_field(
-                name="Accuracy",
-                value="{:.2%}".format(d["accuracy"]),
-                inline=True
-            )
-            embed.add_field(
-                name="PP",
-                value=f"**{performance}pp**",
-                inline=True
-            )
-            embed.add_field(
-                name=comboratio,
-                value=combo,
-                inline=True
-            )
-            embed.add_field(
-                name="Hits",
-                value=hits,
-                inline=True
-            )
+            embed.add_field(name="Grade", value=f'{EMOJI[d["scorerank"]]}{mods}', inline=True)
+            embed.add_field(name="Score", value=humanize_number(d["score"]), inline=True)
+            embed.add_field(name="Accuracy", value="{:.2%}".format(d["accuracy"]), inline=True)
+            embed.add_field(name="PP", value=f"**{performance}pp**", inline=True)
+            embed.add_field(name=comboratio, value=combo, inline=True)
+            embed.add_field(name="Hits", value=hits, inline=True)
             embed.add_field(
                 name="Map Info",
                 value=f'Mapper: [{d["creator"]}](https://osu.ppy.sh/users/{d["creatorid"]}) | BPM: `{d["bpm"]}` | Objects: `{humanize_number(d["circles"] + d["sliders"] + d["spinners"])}` \n'
                 f'Status: {inline(d["status"].capitalize())} | {stats}',
-                inline=False
+                inline=False,
             )
 
-            embed.set_footer(text=f'Play {p}/{len(data)} | {d["username"]} | osu!{mode.capitalize()} | Played')
+            embed.set_footer(
+                text=f'Play {p}/{len(data)} | {d["username"]} | osu!{mode.capitalize()} | Played'
+            )
 
             embed.timestamp = datetime.strptime(d["played"], "%Y-%m-%dT%H:%M:%S%z")
 
             embed_list.append(embed)
             p += 1
-            
+
         return embed_list
 
     async def trackingembed(self, channels, udata, ndata):
@@ -1167,7 +1066,7 @@ class Embed(Data):
                     if ndata[o[0]]["played"] == udata[p[0]]["played"]:
                         ndata.pop(o[0])
                         break
-        
+
         badchannels = []
         for d in ndata:
             if d["mode"] == "osu":
@@ -1181,7 +1080,7 @@ class Embed(Data):
                 comboratio = "Combo / Ratio"
                 version = re.sub(r"^\S*\s", "", d["version"])
                 try:
-                    ratio = round(d["scoregeki"] / d["score300"],2)
+                    ratio = round(d["scoregeki"] / d["score300"], 2)
                 except:
                     ratio = "Perfect"
                 combo = f'**{d["combo"]:,}x** / {ratio}'
@@ -1210,10 +1109,10 @@ class Embed(Data):
                 if d["oldpp"]:
                     checkedpp = round(d["scorepp"] - d["oldpp"], 2)
                     checkedacc = d["accuracy"] - d["oldacc"]
-                    ppaddon = f' ({humanize_number(checkedpp)})'
+                    ppaddon = f" ({humanize_number(checkedpp)})"
                     accaddon = f' ({"{:.2%}".format(checkedacc)})'
                     if checkedpp > 0:
-                        ppaddon = f' (+{humanize_number(checkedpp)})'
+                        ppaddon = f" (+{humanize_number(checkedpp)})"
                     if checkedacc > 0:
                         accaddon = f' (+{"{:.2%}".format(checkedacc)})'
                     if d["index"] > d["oldindex"]:
@@ -1223,54 +1122,31 @@ class Embed(Data):
             except KeyError:
                 pass
 
-
             embed = discord.Embed(color=0)
 
             embed.set_author(
                 name=f'{d["artist"]} - {d["title"]} [{version}] [{str(d["sr"])}★]',
                 url=d["mapurl"],
-                icon_url=f'https://a.ppy.sh/{d["userid"]}'
+                icon_url=f'https://a.ppy.sh/{d["userid"]}',
             )
 
             embed.title = embedtitle
 
             embed.set_image(url=f'https://assets.ppy.sh/beatmaps/{d["setid"]}/covers/cover.jpg')
 
+            embed.add_field(name="Grade", value=f'{EMOJI[d["scorerank"]]}{mods}', inline=True)
+            embed.add_field(name="Score", value=humanize_number(d["score"]), inline=True)
             embed.add_field(
-                name="Grade",
-                value=f'{EMOJI[d["scorerank"]]}{mods}',
-                inline=True
+                name="Accuracy", value="{:.2%}{}".format(d["accuracy"], accaddon), inline=True
             )
-            embed.add_field(
-                name="Score",
-                value=humanize_number(d["score"]),
-                inline=True
-            )
-            embed.add_field(
-                name="Accuracy",
-                value="{:.2%}{}".format(d["accuracy"], accaddon),
-                inline=True
-            )
-            embed.add_field(
-                name="PP",
-                value=f"**{performance}pp{ppaddon}**",
-                inline=True
-            )
-            embed.add_field(
-                name=comboratio,
-                value=combo,
-                inline=True
-            )
-            embed.add_field(
-                name="Hits",
-                value=hits,
-                inline=True
-            )
+            embed.add_field(name="PP", value=f"**{performance}pp{ppaddon}**", inline=True)
+            embed.add_field(name=comboratio, value=combo, inline=True)
+            embed.add_field(name="Hits", value=hits, inline=True)
             embed.add_field(
                 name="Map Info",
                 value=f'Mapper: [{d["creator"]}](https://osu.ppy.sh/users/{d["creatorid"]}) | BPM: `{d["bpm"]}` | Objects: `{humanize_number(d["circles"] + d["sliders"] + d["spinners"])}` \n'
                 f'Status: {inline(d["status"].capitalize())} | {stats}',
-                inline=False
+                inline=False,
             )
 
             embed.set_footer(text=f'{d["username"]} | osu!{mode.capitalize()} | Played')

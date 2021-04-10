@@ -7,7 +7,10 @@ from redbot.core import checks, commands
 from redbot.core.commands import Context, permissions_check
 from redbot.core.utils.chat_formatting import humanize_number
 from redbot.core.utils.mod import (
-    check_permissions, is_mod_or_superior, mass_purge, slow_deletion
+    check_permissions,
+    is_mod_or_superior,
+    mass_purge,
+    slow_deletion,
 )
 from redbot.core.utils.predicates import MessagePredicate
 
@@ -15,6 +18,7 @@ from .abc import MixinMeta
 from .converters import PositiveInt, RawMessageIds, positive_int
 
 log = logging.getLogger("red.angiedale.mod.cleanup")
+
 
 def check_self_permissions():
     async def predicate(ctx: Context):
@@ -399,15 +403,11 @@ class Cleanup(MixinMeta):
         try:
             mone = await channel.fetch_message(one)
         except discord.errors.NotFound:
-            return await ctx.send(
-                ("Could not find a message with the ID of {id}.".format(id=one))
-            )
+            return await ctx.send(("Could not find a message with the ID of {id}.".format(id=one)))
         try:
             mtwo = await channel.fetch_message(two)
         except discord.errors.NotFound:
-            return await ctx.send(
-                ("Could not find a message with the ID of {id}.".format(id=two))
-            )
+            return await ctx.send(("Could not find a message with the ID of {id}.".format(id=two)))
         to_delete = await self.get_messages_for_deletion(
             channel=channel, before=mtwo, after=mone, delete_pinned=delete_pinned
         )
@@ -424,9 +424,7 @@ class Cleanup(MixinMeta):
 
     @cleanup.command()
     @commands.bot_has_permissions(manage_messages=True)
-    async def messages(
-        self, ctx: Context, number: positive_int, delete_pinned: bool = False
-    ):
+    async def messages(self, ctx: Context, number: positive_int, delete_pinned: bool = False):
         """Delete the last X messages.
 
         Example:
@@ -460,9 +458,7 @@ class Cleanup(MixinMeta):
 
     @cleanup.command(name="bot")
     @commands.bot_has_permissions(manage_messages=True)
-    async def cleanup_bot(
-        self, ctx: Context, number: positive_int, delete_pinned: bool = False
-    ):
+    async def cleanup_bot(self, ctx: Context, number: positive_int, delete_pinned: bool = False):
         """Clean up command messages and messages from the bot.
 
         Can only cleanup custom commands and alias commands if those cogs are loaded.
@@ -630,9 +626,7 @@ class Cleanup(MixinMeta):
 
     @cleanup.command(name="duplicates", aliases=["spam"])
     @commands.bot_has_permissions(manage_messages=True)
-    async def cleanup_duplicates(
-        self, ctx: Context, number: positive_int = PositiveInt(50)
-    ):
+    async def cleanup_duplicates(self, ctx: Context, number: positive_int = PositiveInt(50)):
         """Deletes duplicate messages in the channel from the last X messages and keeps only one copy.
 
         Defaults to 50.

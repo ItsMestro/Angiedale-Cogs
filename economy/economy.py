@@ -98,9 +98,14 @@ class Economy(commands.Cog):
 
     default_global_settings = default_guild_settings
 
-    default_member_settings = {"next_payday": 0, "last_slot": 0}
+    default_member_settings = {
+        "next_payday": 0,
+        "last_slot": 0,
+    }
 
-    default_role_settings = {"PAYDAY_CREDITS": 0}
+    default_role_settings = {
+        "PAYDAY_CREDITS": 0,
+    }
 
     default_user_settings = default_member_settings
 
@@ -316,9 +321,7 @@ class Economy(commands.Cog):
             )
         else:
             await bank.bank_prune(self.bot, guild=ctx.guild)
-            await ctx.send(
-                ("Bank accounts for users no longer in this server have been deleted.")
-            )
+            await ctx.send(("Bank accounts for users no longer in this server have been deleted."))
 
     @_prune.command(name="global")
     @checks.is_owner()
@@ -537,7 +540,7 @@ class Economy(commands.Cog):
         guild = ctx.guild
         author = ctx.author
         embed_requested = await ctx.embed_requested()
-        footer_message = ("Page {page_num}/{page_len}.")
+        footer_message = "Page {page_num}/{page_len}."
         max_bal = await bank.get_max_balance(ctx.guild)
 
         if top < 1:

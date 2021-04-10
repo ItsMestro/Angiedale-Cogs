@@ -19,6 +19,7 @@ class RawUserIds(Converter):
 
         raise BadArgument(("{} doesn't look like a valid user ID.").format(argument))
 
+
 # Duplicate of redbot.cogs.cleanup.converters.PositiveInt
 PositiveInt = NewType("PositiveInt", int)
 if TYPE_CHECKING:

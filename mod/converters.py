@@ -60,6 +60,7 @@ class MuteTime(Converter):
         result["reason"] = argument.strip()
         return result
 
+
 class RawUserIds(Converter):
     async def convert(self, ctx, argument):
         # This is for the hackban and unban commands, where we receive IDs that
@@ -70,6 +71,7 @@ class RawUserIds(Converter):
             return int(match.group(1))
 
         raise BadArgument(("{} doesn't look like a valid user ID.").format(argument))
+
 
 class RawMessageIds(Converter):
     async def convert(self, ctx: Context, argument: str) -> int:

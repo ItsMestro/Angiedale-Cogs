@@ -33,13 +33,25 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
     `m`
     """
 
-    default_user_settings = {"username": None, "userid": None}
-    default_global_settings = {"tracking": {"osu": {}, "taiko": {}, "fruits": {}, "mania": {}}}
+    default_user_settings = {
+        "username": None,
+        "userid": None,
+    }
+    default_global_settings = {
+        "tracking": {
+            "osu": {},
+            "taiko": {},
+            "fruits": {},
+            "mania": {},
+        },
+    }
 
     def __init__(self, bot: Red):
         super().__init__()
         self.bot = bot
-        self.osuconfig: Config = Config.get_conf(self, identifier=1387000, cog_name="Osu", force_registration=True)
+        self.osuconfig: Config = Config.get_conf(
+            self, identifier=1387000, cog_name="Osu", force_registration=True
+        )
         self.osuconfig.register_user(**self.default_user_settings)
         self.osuconfig.register_global(**self.default_global_settings)
 
@@ -58,8 +70,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         await self.osuconfig.user_from_id(user_id)
 
     async def initialize(self) -> None:
-        """Should be called straight after cog instantiation.
-        """
+        """Should be called straight after cog instantiation."""
 
         await self.bot.wait_until_ready()
 
@@ -83,8 +94,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
     @commands.command()
     async def osulink(self, ctx: commands.Context, *, username: str):
-        """Link your account with an osu! user profile.
-        """
+        """Link your account with an osu! user profile."""
 
         data = await self.fetch_api(f"users/{username}", ctx=ctx)
 
@@ -101,22 +111,35 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
     @commands.guild_only()
     @commands.group()
     async def osutrack(self, ctx: commands.Context):
-        """Top play tracking
-        """
+        """Top play tracking"""
 
     @osutrack.command()
     async def add(self, ctx, channel: discord.TextChannel, mode: str, *, username: str):
         """Track a players top scores.
-        
+
         Only 1 mode per player and max 15 players in a server.
         """
 
         mode = mode.lower()
-        if mode == "osu" or mode == "standard" or mode == "std" or mode == "s" or mode == "o" or mode == "0":
+        if (
+            mode == "osu"
+            or mode == "standard"
+            or mode == "std"
+            or mode == "s"
+            or mode == "o"
+            or mode == "0"
+        ):
             mode = "osu"
         elif mode == "taiko" or mode == "t" or mode == "1":
             mode = "taiko"
-        elif mode == "fruits" or mode == "catch" or mode == "ctb" or mode == "c" or mode == "f" or mode == "2":
+        elif (
+            mode == "fruits"
+            or mode == "catch"
+            or mode == "ctb"
+            or mode == "c"
+            or mode == "f"
+            or mode == "2"
+        ):
             mode = "fruits"
         elif mode == "mania" or mode == "m" or mode == "3":
             mode = "mania"
@@ -131,15 +154,19 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         count = await self.counttracking(channel=channel)
 
         if not count <= 15:
-            return await del_message(ctx, "Already tracking 15 users in this server. Please remove some before adding more.")
+            return await del_message(
+                ctx,
+                "Already tracking 15 users in this server. Please remove some before adding more.",
+            )
 
         await self.removetracking(user=str(data["id"]), channel=channel, mode=mode)
-        await ctx.maybe_send_embed(f'Now tracking top 100 plays for {data["username"]} in {channel.mention}')
+        await ctx.maybe_send_embed(
+            f'Now tracking top 100 plays for {data["username"]} in {channel.mention}'
+        )
 
     @osutrack.command()
     async def remove(self, ctx: commands.Context, username: str):
-        """Remove a tracked player.
-        """
+        """Remove a tracked player."""
 
         data = await self.fetch_api(f"users/{username}", ctx=ctx)
 
@@ -149,15 +176,16 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         count = await self.counttracking(user=str(data["id"]))
 
         if count == 0:
-            return await del_message(ctx, f"{data['username']} isn't being tracked in this server.")
+            return await del_message(
+                ctx, f"{data['username']} isn't being tracked in this server."
+            )
 
         await self.removetracking(user=str(data["id"]), channel=ctx.channel)
         await ctx.maybe_send_embed(f'Stopped tracking {data["username"]}')
 
     @osutrack.command()
     async def list(self, ctx: commands.Context):
-        """Lists currently tracked users in this server.
-        """
+        """Lists currently tracked users in this server."""
 
         count = await self.counttracking(guild=ctx.guild.id)
 
@@ -174,7 +202,10 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         embeds = []
         embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
 
-        embed.set_author(name=f'{len(count)} players are being tracked in this server.', icon_url=self.bot.user.avatar_url)
+        embed.set_author(
+            name=f"{len(count)} players are being tracked in this server.",
+            icon_url=self.bot.user.avatar_url,
+        )
 
         embed.description = p
 
@@ -183,16 +214,31 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
     @checks.is_owner()
     @osutrack.command()
-    async def dev(self, ctx: commands.Context, channel: discord.TextChannel, mode: str, *, username: str):
-        """Track a players top scores.
-        """
+    async def dev(
+        self, ctx: commands.Context, channel: discord.TextChannel, mode: str, *, username: str
+    ):
+        """Track a players top scores."""
 
         mode = mode.lower()
-        if mode == "osu" or mode == "standard" or mode == "std" or mode == "s" or mode == "o" or mode == "0":
+        if (
+            mode == "osu"
+            or mode == "standard"
+            or mode == "std"
+            or mode == "s"
+            or mode == "o"
+            or mode == "0"
+        ):
             mode = "osu"
         elif mode == "taiko" or mode == "t" or mode == "1":
             mode = "taiko"
-        elif mode == "fruits" or mode == "catch" or mode == "ctb" or mode == "c" or mode == "f" or mode == "2":
+        elif (
+            mode == "fruits"
+            or mode == "catch"
+            or mode == "ctb"
+            or mode == "c"
+            or mode == "f"
+            or mode == "2"
+        ):
             mode = "fruits"
         elif mode == "mania" or mode == "m" or mode == "3":
             mode = "mania"
@@ -205,20 +251,21 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
             return await del_message(ctx, f"Could not find the user {username}.")
 
         await self.removetracking(user=str(data["id"]), channel=channel, mode=mode, dev=True)
-        await ctx.maybe_send_embed(f'Now tracking top 100 plays for {data["username"]} in {channel.mention}')
+        await ctx.maybe_send_embed(
+            f'Now tracking top 100 plays for {data["username"]} in {channel.mention}'
+        )
 
     @commands.command()
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def map(self, ctx: commands.Context, beatmap: str):
-        """Get info about a osu! map.
-        """
+        """Get info about a osu! map."""
 
         mapid = self.findmap(beatmap)
 
         if not mapid:
             return await del_message(ctx, f"That doesn't seem to be a valid map.")
 
-        data = await self.fetch_api(f'beatmaps/{mapid}', ctx=ctx)
+        data = await self.fetch_api(f"beatmaps/{mapid}", ctx=ctx)
 
         if not data:
             return await del_message(ctx, "Cant find the map specified")
@@ -239,9 +286,9 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
     @commands.command(aliases=["osucl"])
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def osuchangelog(self, ctx: commands.Context, release_stream = "stable"):
+    async def osuchangelog(self, ctx: commands.Context, release_stream="stable"):
         """Gets the changelog for different parts of osu!.
-        
+
         Supported Release Streams:
         `stable`
         `fallback`
@@ -252,10 +299,10 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         """
 
         stream = self.stream(release_stream)
-        
+
         if not stream:
             return await del_message(ctx, f"Please provide a valid release stream.")
-            
+
         params = {"stream": stream}
         data = await self.fetch_api("changelog", ctx=ctx, params=params)
 
@@ -271,7 +318,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         Examples:
             - `[p]osurankings catch SE`
             - `[p]osur mania 4k`
-        
+
         **Arguments:**
 
         - `<mode>` one of the 4 gamemodes. Only full names.
@@ -281,15 +328,17 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         """
 
         mode, type, country, variant = self.ranking(arguments)
-        
+
         if not mode:
             return await del_message(ctx, "You seem to have used too many arguments.")
 
         if country:
-            country = (country if len(country) == 2 else False)
+            country = country if len(country) == 2 else False
 
         if type == "score" and country or type == "score" and variant:
-            return await del_message(ctx, "Score can not be used with the `<variant>` or `<country>` arguments.")
+            return await del_message(
+                ctx, "Score can not be used with the `<variant>` or `<country>` arguments."
+            )
 
         if country == False:
             return await del_message(ctx, f"Please use the 2 letter ISO code for countries.")
@@ -307,21 +356,24 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
     @commands.command(aliases=["osuc", "oc"])
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def osucompare(self, ctx: commands.Context, *, user = None):
-        """Compare your or someone elses score with the last one sent in the channel.
-        """
+    async def osucompare(self, ctx: commands.Context, *, user=None):
+        """Compare your or someone elses score with the last one sent in the channel."""
 
         userid = await self.user(ctx, user)
 
         if not userid:
-            return 
+            return
 
         mapid, params = await self.history(ctx)
 
         if not mapid:
-            return await del_message(ctx, "Could not find any recently displayed maps in this channel.")
+            return await del_message(
+                ctx, "Could not find any recently displayed maps in this channel."
+            )
 
-        data = await self.fetch_api(f"beatmaps/{mapid}/scores/users/{userid}", ctx=ctx, params=params)
+        data = await self.fetch_api(
+            f"beatmaps/{mapid}/scores/users/{userid}", ctx=ctx, params=params
+        )
         await asyncio.sleep(0.5)
 
         if not data:
@@ -347,10 +399,9 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
     @commands.command(aliases=["osus", "os"])
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def osuscore(self, ctx: commands.Context, beatmap, *, user = None):
-        """Get your or another users score for a specified map.
-        """
-        
+    async def osuscore(self, ctx: commands.Context, beatmap, *, user=None):
+        """Get your or another users score for a specified map."""
+
         userid = await self.user(ctx, user)
 
         if not userid:
@@ -380,17 +431,16 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
     @commands.command(aliases=["osu", "std"])
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def standard(self, ctx: commands.Context, *, user = None):
-        """Get a players osu! profile.
-        """
+    async def standard(self, ctx: commands.Context, *, user=None):
+        """Get a players osu! profile."""
 
         userid = await self.user(ctx, user)
-            
+
         if not userid:
             return
 
         data = await self.fetch_api(f"users/{userid}/osu", ctx=ctx)
-        
+
         if data:
             embeds = await self.profileembed(ctx, data, "osu")
             return await menu(ctx, embeds, togglepage(self.bot))
@@ -402,17 +452,16 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
     @commands.command(hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def taiko(self, ctx: commands.Context, *, user = None):
-        """Get a players osu! profile.
-        """
+    async def taiko(self, ctx: commands.Context, *, user=None):
+        """Get a players osu! profile."""
 
         userid = await self.user(ctx, user)
-            
+
         if not userid:
             return
 
         data = await self.fetch_api(f"users/{userid}/taiko", ctx=ctx)
-        
+
         if data:
             embeds = await self.profileembed(ctx, data, "taiko")
             return await menu(ctx, embeds, togglepage(self.bot))
@@ -424,17 +473,16 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
     @commands.command(aliases=["catch", "ctb"], hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def fruits(self, ctx: commands.Context, *, user = None):
-        """Get a players osu! profile.
-        """
+    async def fruits(self, ctx: commands.Context, *, user=None):
+        """Get a players osu! profile."""
 
         userid = await self.user(ctx, user)
-            
+
         if not userid:
             return
 
         data = await self.fetch_api(f"users/{userid}/fruits", ctx=ctx)
-        
+
         if data:
             embeds = await self.profileembed(ctx, data, "fruits")
             return await menu(ctx, embeds, togglepage(self.bot))
@@ -446,17 +494,16 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
     @commands.command(hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def mania(self, ctx: commands.Context, *, user = None):
-        """Get a players osu! profile.
-        """
+    async def mania(self, ctx: commands.Context, *, user=None):
+        """Get a players osu! profile."""
 
         userid = await self.user(ctx, user)
-            
+
         if not userid:
             return
 
         data = await self.fetch_api(f"users/{userid}/mania", ctx=ctx)
-        
+
         if data:
             embeds = await self.profileembed(ctx, data, "mania")
             return await menu(ctx, embeds, togglepage(self.bot))
@@ -466,11 +513,13 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
         await del_message(ctx, "I can't seem to get your profile.")
 
-    @commands.command(aliases=["rsstd", "recentosu", "rsosu", "rsstandard", "recentstd", "rso", "recento"])
+    @commands.command(
+        aliases=["rsstd", "recentosu", "rsosu", "rsstandard", "recentstd", "rso", "recento"]
+    )
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def recentstandard(self, ctx: commands.Context, *, user = None):
+    async def recentstandard(self, ctx: commands.Context, *, user=None):
         """Get a players recent osu! plays.
-        
+
         Includes failed plays.
         """
 
@@ -488,15 +537,17 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
             return await menu(ctx, embeds, multipage(embeds))
 
         if user:
-            return await del_message(ctx, f"Looks like {user} don't have any recent plays in that mode.")
+            return await del_message(
+                ctx, f"Looks like {user} don't have any recent plays in that mode."
+            )
 
         await del_message(ctx, f"Looks like you don't have any recent plays in that mode.")
 
     @commands.command(aliases=["rst", "rstaiko", "recentt"], hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def recenttaiko(self, ctx: commands.Context, *, user = None):
+    async def recenttaiko(self, ctx: commands.Context, *, user=None):
         """Get a players recent osu! plays.
-        
+
         Includes failed plays.
         """
 
@@ -514,15 +565,20 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
             return await menu(ctx, embeds, multipage(embeds))
 
         if user:
-            return await del_message(ctx, f"Looks like {user} don't have any recent plays in that mode.")
-            
+            return await del_message(
+                ctx, f"Looks like {user} don't have any recent plays in that mode."
+            )
+
         await del_message(ctx, f"Looks like you don't have any recent plays in that mode.")
 
-    @commands.command(aliases=["rsctb", "recentcatch", "recentctb", "rscatch", "rsfruits", "recentf", "rsf"], hidden=True)
+    @commands.command(
+        aliases=["rsctb", "recentcatch", "recentctb", "rscatch", "rsfruits", "recentf", "rsf"],
+        hidden=True,
+    )
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def recentfruits(self, ctx: commands.Context, *, user = None):
+    async def recentfruits(self, ctx: commands.Context, *, user=None):
         """Get a players recent osu! plays.
-        
+
         Includes failed plays.
         """
 
@@ -540,15 +596,17 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
             return await menu(ctx, embeds, multipage(embeds))
 
         if user:
-            return await del_message(ctx, f"Looks like {user} don't have any recent plays in that mode.")
-            
+            return await del_message(
+                ctx, f"Looks like {user} don't have any recent plays in that mode."
+            )
+
         await del_message(ctx, f"Looks like you don't have any recent plays in that mode.")
 
     @commands.command(aliases=["rsm", "recentm", "rsmania"], hidden=True)
     @commands.cooldown(1, 10, commands.BucketType.user)
-    async def recentmania(self, ctx: commands.Context, *, user = None):
+    async def recentmania(self, ctx: commands.Context, *, user=None):
         """Get a players recent osu! plays.
-        
+
         Includes failed plays.
         """
 
@@ -566,8 +624,10 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
             return await menu(ctx, embeds, multipage(embeds))
 
         if user:
-            return await del_message(ctx, f"Looks like {user} don't have any recent plays in that mode.")
-            
+            return await del_message(
+                ctx, f"Looks like {user} don't have any recent plays in that mode."
+            )
+
         await del_message(ctx, f"Looks like you don't have any recent plays in that mode.")
 
     @commands.command(aliases=["topstd", "toposu", "topo"], usage="[user] [args]")
@@ -590,9 +650,11 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         data1 = await self.fetch_api(f"users/{userid}/scores/best", ctx=ctx, params=params)
 
         if not data1:
-            return await del_message(ctx, f"I can't find any top plays for that user in this mode.")
+            return await del_message(
+                ctx, f"I can't find any top plays for that user in this mode."
+            )
 
-        params["offset"] =  "50"
+        params["offset"] = "50"
         await asyncio.sleep(0.5)
 
         data2 = await self.fetch_api(f"users/{userid}/scores/best", params=params)
@@ -622,9 +684,11 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         data1 = await self.fetch_api(f"users/{userid}/scores/best", ctx=ctx, params=params)
 
         if not data1:
-            return await del_message(ctx, f"I can't find any top plays for that user in this mode.")
+            return await del_message(
+                ctx, f"I can't find any top plays for that user in this mode."
+            )
 
-        params["offset"] =  "50"
+        params["offset"] = "50"
         await asyncio.sleep(0.5)
 
         data2 = await self.fetch_api(f"users/{userid}/scores/best", params=params)
@@ -654,9 +718,11 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         data1 = await self.fetch_api(f"users/{userid}/scores/best", ctx=ctx, params=params)
 
         if not data1:
-            return await del_message(ctx, f"I can't find any top plays for that user in this mode.")
+            return await del_message(
+                ctx, f"I can't find any top plays for that user in this mode."
+            )
 
-        params["offset"] =  "50"
+        params["offset"] = "50"
         await asyncio.sleep(0.5)
 
         data2 = await self.fetch_api(f"users/{userid}/scores/best", params=params)
@@ -686,9 +752,11 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         data1 = await self.fetch_api(f"users/{userid}/scores/best", ctx=ctx, params=params)
 
         if not data1:
-            return await del_message(ctx, f"I can't find any top plays for that user in this mode.")
+            return await del_message(
+                ctx, f"I can't find any top plays for that user in this mode."
+            )
 
-        params["offset"] =  "50"
+        params["offset"] = "50"
         await asyncio.sleep(0.5)
 
         data2 = await self.fetch_api(f"users/{userid}/scores/best", params=params)
@@ -702,24 +770,26 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def ppstandard(self, ctx: commands.Context, *user_or_args):
         """Shows pp info for osu!.
-        
+
         **Arguments:**
-        
+
         - `-pp <number>` will display how many scores you have above `<number>`"""
 
         userid, pp = await self.pp(ctx, user_or_args)
 
         if not userid:
-            return 
+            return
 
         params = {"mode": "osu", "limit": "50"}
 
         data1 = await self.fetch_api(f"users/{userid}/scores/best", ctx=ctx, params=params)
 
         if not data1:
-            return await del_message(ctx, f"There isn't enough plays by this user to use this command.")
+            return await del_message(
+                ctx, f"There isn't enough plays by this user to use this command."
+            )
 
-        params["offset"] =  "50"
+        params["offset"] = "50"
         await asyncio.sleep(0.5)
 
         data2 = await self.fetch_api(f"users/{userid}/scores/best", params=params)
@@ -733,24 +803,26 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def pptaiko(self, ctx: commands.Context, *user_or_args):
         """Shows pp info for osu!.
-        
+
         **Arguments:**
-        
+
         - `-pp <number>` will display how many scores you have above `<number>`"""
-        
+
         userid, pp = await self.pp(ctx, user_or_args)
 
         if not userid:
-            return 
+            return
 
         params = {"mode": "taiko", "limit": "50"}
 
         data1 = await self.fetch_api(f"users/{userid}/scores/best", ctx=ctx, params=params)
 
         if not data1:
-            return await del_message(ctx, f"There isn't enough plays by this user to use this command.")
+            return await del_message(
+                ctx, f"There isn't enough plays by this user to use this command."
+            )
 
-        params["offset"] =  "50"
+        params["offset"] = "50"
         await asyncio.sleep(0.5)
 
         data2 = await self.fetch_api(f"users/{userid}/scores/best", params=params)
@@ -764,24 +836,26 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def ppfruits(self, ctx: commands.Context, *user_or_args):
         """Shows pp info for osu!.
-        
+
         **Arguments:**
-        
+
         - `-pp <number>` will display how many scores you have above `<number>`"""
-        
+
         userid, pp = await self.pp(ctx, user_or_args)
 
         if not userid:
-            return 
+            return
 
         params = {"mode": "fruits", "limit": "50"}
 
         data1 = await self.fetch_api(f"users/{userid}/scores/best", ctx=ctx, params=params)
 
         if not data1:
-            return await del_message(ctx, f"There isn't enough plays by this user to use this command.")
+            return await del_message(
+                ctx, f"There isn't enough plays by this user to use this command."
+            )
 
-        params["offset"] =  "50"
+        params["offset"] = "50"
         await asyncio.sleep(0.5)
 
         data2 = await self.fetch_api(f"users/{userid}/scores/best", params=params)
@@ -795,24 +869,26 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def ppmania(self, ctx: commands.Context, *user_or_args):
         """Shows pp info for osu!.
-        
+
         **Arguments:**
-        
+
         - `-pp <number>` will display how many scores you have above `<number>`"""
-        
+
         userid, pp = await self.pp(ctx, user_or_args)
 
         if not userid:
-            return 
+            return
 
         params = {"mode": "mania", "limit": "50"}
 
         data1 = await self.fetch_api(f"users/{userid}/scores/best", ctx=ctx, params=params)
 
         if not data1:
-            return await del_message(ctx, f"There isn't enough plays by this user to use this command.")
+            return await del_message(
+                ctx, f"There isn't enough plays by this user to use this command."
+            )
 
-        params["offset"] =  "50"
+        params["offset"] = "50"
         await asyncio.sleep(0.5)
 
         data2 = await self.fetch_api(f"users/{userid}/scores/best", params=params)
@@ -822,7 +898,10 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         embeds = await self.ppembed(ctx, data, pp)
         await menu(ctx, embeds, singlepage())
 
-    @commands.command(aliases=["tco", "tcstd", "tcosu", "topcompareosu", "topcomparestd", "topcompareo"], usage="[user] [args]")
+    @commands.command(
+        aliases=["tco", "tcstd", "tcosu", "topcompareosu", "topcomparestd", "topcompareo"],
+        usage="[user] [args]",
+    )
     @commands.cooldown(1, 20, commands.BucketType.user)
     async def topcomparestandard(self, ctx: commands.Context, *user_or_args):
         """Returns a list of unique maps between you and another user.
@@ -830,7 +909,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         Requires to have your account linked with the bot.
 
         **Arguments:**
-        
+
         - `-p <rank>` will compare you with the person at `<rank>` rank. Can not be higher than 10,000.
         - `<user>` compares you with the specific user.
         """
@@ -841,14 +920,17 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         author = await self.osuconfig.user(ctx.author).userid()
 
         if not author:
-            return await del_message(ctx, f"You need to have your account linked before using this command.\nYou can do so using `{ctx.clean_prefix}osulink <username>`")
+            return await del_message(
+                ctx,
+                f"You need to have your account linked before using this command.\nYou can do so using `{ctx.clean_prefix}osulink <username>`",
+            )
 
         userid, rank = await self.topcompare(ctx, user_or_args)
 
         if rank:
             params = {"cursor[page]": ceil(rank / 50)}
 
-            data = await self.fetch_api(f'rankings/osu/performance', params=params)
+            data = await self.fetch_api(f"rankings/osu/performance", params=params)
             userid = data["ranking"][(rank % 50) - 1]["user"]["id"]
 
         if not userid:
@@ -859,14 +941,16 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         udata1 = await self.fetch_api(f"users/{userid}/scores/best", ctx=ctx, params=params)
 
         if udata1:
-            return await del_message(ctx, "That user doesn't seem to have any top plays in this mode.")
+            return await del_message(
+                ctx, "That user doesn't seem to have any top plays in this mode."
+            )
 
         adata1 = await self.fetch_api(f"users/{author}/scores/best", params=params)
 
         if not adata1:
             return await del_message(ctx, "You don't seem to have any top plays in this mode.")
 
-        params["offset"] =  "50"
+        params["offset"] = "50"
         adata2 = await self.fetch_api(f"users/{author}/scores/best", params=params)
         adata = adata1 + adata2
 
@@ -880,7 +964,9 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
         await del_message(ctx, "Your top plays are surprisingly identical.")
 
-    @commands.command(aliases=["tct", "tctaiko", "topcomparet"], hidden=True, usage="[user] [args]")
+    @commands.command(
+        aliases=["tct", "tctaiko", "topcomparet"], hidden=True, usage="[user] [args]"
+    )
     @commands.cooldown(1, 20, commands.BucketType.user)
     async def topcomparetaiko(self, ctx: commands.Context, *user_or_args):
         """Returns a list of unique maps between you and another user.
@@ -888,25 +974,28 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         Requires to have your account linked with the bot.
 
         **Arguments:**
-        
+
         - `-p <rank>` will compare you with the person at `<rank>` rank. Can not be higher than 10,000.
         - `<user>` compares you with the specific user.
         """
-        
+
         if not user_or_args:
             return await ctx.send_help()
 
         author = await self.osuconfig.user(ctx.author).userid()
 
         if not author:
-            return await del_message(ctx, f"You need to have your account linked before using this command.\nYou can do so using `{ctx.clean_prefix}osulink <username>`")
+            return await del_message(
+                ctx,
+                f"You need to have your account linked before using this command.\nYou can do so using `{ctx.clean_prefix}osulink <username>`",
+            )
 
         userid, rank = await self.topcompare(ctx, user_or_args)
 
         if rank:
             params = {"cursor[page]": ceil(rank / 50)}
 
-            data = await self.fetch_api(f'rankings/osu/performance', params=params)
+            data = await self.fetch_api(f"rankings/osu/performance", params=params)
             userid = data["ranking"][(rank % 50) - 1]["user"]["id"]
 
         if not userid:
@@ -917,14 +1006,16 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         udata1 = await self.fetch_api(f"users/{userid}/scores/best", ctx=ctx, params=params)
 
         if udata1:
-            return await del_message(ctx, "That user doesn't seem to have any top plays in this mode.")
+            return await del_message(
+                ctx, "That user doesn't seem to have any top plays in this mode."
+            )
 
         adata1 = await self.fetch_api(f"users/{author}/scores/best", params=params)
 
         if not adata1:
             return await del_message(ctx, "You don't seem to have any top plays in this mode.")
 
-        params["offset"] =  "50"
+        params["offset"] = "50"
         adata2 = await self.fetch_api(f"users/{author}/scores/best", params=params)
         adata = adata1 + adata2
 
@@ -932,13 +1023,25 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         udata = udata1 + udata2
 
         embeds = await self.topcompareembed(ctx, adata, udata)
-        
+
         if embeds:
             return await menu(ctx, embeds, multipage(embeds))
 
         await del_message(ctx, "Your top plays are surprisingly identical.")
 
-    @commands.command(aliases=["tcf", "tcctb", "topcomparecatch", "topcomparectb", "tcfruits", "tccatch", "topcomparef"], hidden=True, usage="[user] [args]")
+    @commands.command(
+        aliases=[
+            "tcf",
+            "tcctb",
+            "topcomparecatch",
+            "topcomparectb",
+            "tcfruits",
+            "tccatch",
+            "topcomparef",
+        ],
+        hidden=True,
+        usage="[user] [args]",
+    )
     @commands.cooldown(1, 20, commands.BucketType.user)
     async def topcomparefruits(self, ctx: commands.Context, *user_or_args):
         """Returns a list of unique maps between you and another user.
@@ -946,25 +1049,28 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         Requires to have your account linked with the bot.
 
         **Arguments:**
-        
+
         - `-p <rank>` will compare you with the person at `<rank>` rank. Can not be higher than 10,000.
         - `<user>` compares you with the specific user.
         """
-        
+
         if not user_or_args:
             return await ctx.send_help()
 
         author = await self.osuconfig.user(ctx.author).userid()
 
         if not author:
-            return await del_message(ctx, f"You need to have your account linked before using this command.\nYou can do so using `{ctx.clean_prefix}osulink <username>`")
+            return await del_message(
+                ctx,
+                f"You need to have your account linked before using this command.\nYou can do so using `{ctx.clean_prefix}osulink <username>`",
+            )
 
         userid, rank = await self.topcompare(ctx, user_or_args)
 
         if rank:
             params = {"cursor[page]": ceil(rank / 50)}
 
-            data = await self.fetch_api(f'rankings/osu/performance', params=params)
+            data = await self.fetch_api(f"rankings/osu/performance", params=params)
             userid = data["ranking"][(rank % 50) - 1]["user"]["id"]
 
         if not userid:
@@ -975,14 +1081,16 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         udata1 = await self.fetch_api(f"users/{userid}/scores/best", ctx=ctx, params=params)
 
         if udata1:
-            return await del_message(ctx, "That user doesn't seem to have any top plays in this mode.")
+            return await del_message(
+                ctx, "That user doesn't seem to have any top plays in this mode."
+            )
 
         adata1 = await self.fetch_api(f"users/{author}/scores/best", params=params)
 
         if not adata1:
             return await del_message(ctx, "You don't seem to have any top plays in this mode.")
 
-        params["offset"] =  "50"
+        params["offset"] = "50"
         adata2 = await self.fetch_api(f"users/{author}/scores/best", params=params)
         adata = adata1 + adata2
 
@@ -990,13 +1098,15 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         udata = udata1 + udata2
 
         embeds = await self.topcompareembed(ctx, adata, udata)
-        
+
         if embeds:
             return await menu(ctx, embeds, multipage(embeds))
 
         await del_message(ctx, "Your top plays are surprisingly identical.")
 
-    @commands.command(aliases=["tcm", "tcmania", "topcomparem"], hidden=True, usage="[user] [args]")
+    @commands.command(
+        aliases=["tcm", "tcmania", "topcomparem"], hidden=True, usage="[user] [args]"
+    )
     @commands.cooldown(1, 20, commands.BucketType.user)
     async def topcomparemania(self, ctx: commands.Context, *user_or_args):
         """Returns a list of unique maps between you and another user.
@@ -1004,25 +1114,28 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         Requires to have your account linked with the bot.
 
         **Arguments:**
-        
+
         - `-p <rank>` will compare you with the person at `<rank>` rank. Can not be higher than 10,000.
         - `<user>` compares you with the specific user.
         """
-        
+
         if not user_or_args:
             return await ctx.send_help()
 
         author = await self.osuconfig.user(ctx.author).userid()
 
         if not author:
-            return await del_message(ctx, f"You need to have your account linked before using this command.\nYou can do so using `{ctx.clean_prefix}osulink <username>`")
+            return await del_message(
+                ctx,
+                f"You need to have your account linked before using this command.\nYou can do so using `{ctx.clean_prefix}osulink <username>`",
+            )
 
         userid, rank = await self.topcompare(ctx, user_or_args)
 
         if rank:
             params = {"cursor[page]": ceil(rank / 50)}
 
-            data = await self.fetch_api(f'rankings/osu/performance', params=params)
+            data = await self.fetch_api(f"rankings/osu/performance", params=params)
             userid = data["ranking"][(rank % 50) - 1]["user"]["id"]
 
         if not userid:
@@ -1033,14 +1146,16 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         udata1 = await self.fetch_api(f"users/{userid}/scores/best", ctx=ctx, params=params)
 
         if udata1:
-            return await del_message(ctx, "That user doesn't seem to have any top plays in this mode.")
+            return await del_message(
+                ctx, "That user doesn't seem to have any top plays in this mode."
+            )
 
         adata1 = await self.fetch_api(f"users/{author}/scores/best", params=params)
 
         if not adata1:
             return await del_message(ctx, "You don't seem to have any top plays in this mode.")
 
-        params["offset"] =  "50"
+        params["offset"] = "50"
         adata2 = await self.fetch_api(f"users/{author}/scores/best", params=params)
         adata = adata1 + adata2
 
@@ -1048,7 +1163,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         udata = udata1 + udata2
 
         embeds = await self.topcompareembed(ctx, adata, udata)
-        
+
         if embeds:
             return await menu(ctx, embeds, multipage(embeds))
 
@@ -1060,9 +1175,8 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         await self.update_tracking(False)
         log.error("Manually debugging tracking.")
 
-    async def update_tracking(self, a = True):
-        """Checks for new top plays based on list of tracked users.
-        """
+    async def update_tracking(self, a=True):
+        """Checks for new top plays based on list of tracked users."""
 
         await self.bot.wait_until_ready()
         log.error("Tracking waited until ready")
@@ -1077,20 +1191,22 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
                 for mode, users in modes.items():
                     for user, channels in users.items():
                         userdata = ""
-                        userpath = f'{path}/{user}{mode}.json'
+                        userpath = f"{path}/{user}{mode}.json"
 
                         params = {"mode": mode, "limit": "50"}
-                        newdata = await self.fetch_api(f'users/{user}/scores/best', params=params)
+                        newdata = await self.fetch_api(f"users/{user}/scores/best", params=params)
                         if newdata:
-                            params["offset"] =  "50"
+                            params["offset"] = "50"
                             await asyncio.sleep(1)
-                            newdata2 = await self.fetch_api(f'users/{user}/scores/best', params=params)
+                            newdata2 = await self.fetch_api(
+                                f"users/{user}/scores/best", params=params
+                            )
                             newdata = newdata + newdata2
 
                             newdata = self.topdata(newdata)
 
                             if not os.path.exists(userpath):
-                                f =  open(userpath, "x")
+                                f = open(userpath, "x")
                                 f.close()
                                 with open(userpath, "w") as data:
                                     json.dump(newdata, data, indent=4)
@@ -1107,7 +1223,9 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
                                     with open(userpath, "w") as data:
                                         json.dump(newdata, data, indent=4)
 
-                                    badchannels = await self.trackingembed(channels, userdata, newdata)
+                                    badchannels = await self.trackingembed(
+                                        channels, userdata, newdata
+                                    )
                                     if len(badchannels) > 0:
                                         for bch in badchannels:
                                             await self.removetracking(channel=bch)

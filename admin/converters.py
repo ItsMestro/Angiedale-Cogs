@@ -40,6 +40,7 @@ class SelfRole(commands.Converter):
             raise commands.BadArgument(("The provided role is not a valid selfrole."))
         return role
 
+
 class MuteTime(Converter):
     """
     This will parse my defined multi response pattern and provide usable formats

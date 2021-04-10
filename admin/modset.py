@@ -7,7 +7,7 @@ from redbot.core.utils import AsyncIter
 from redbot.core.utils.chat_formatting import box, humanize_timedelta, inline
 
 
-class ModSettings():
+class ModSettings:
     """
     This is a mixin for the mod cog containing all settings commands.
     """
@@ -45,7 +45,7 @@ class ModSettings():
         default_days = data["default_days"]
         default_tempban_duration = data["default_tempban_duration"]
         if not track_all_names and track_nicknames:
-            yes_or_no = ("Overridden by another setting")
+            yes_or_no = "Overridden by another setting"
         else:
             yes_or_no = ("Yes") if track_nicknames else ("No")
         msg += ("Track nickname changes: {yes_or_no}\n").format(yes_or_no=yes_or_no)
@@ -93,7 +93,7 @@ class ModSettings():
                 num_days=default_days
             )
         else:
-            msg += ("Default message history delete on ban: Don't delete any\n")
+            msg += "Default message history delete on ban: Don't delete any\n"
         msg += ("Default tempban duration: {duration}").format(
             duration=humanize_timedelta(seconds=default_tempban_duration)
         )
@@ -113,14 +113,10 @@ class ModSettings():
         toggled = await self.modconfig.guild(guild).respect_hierarchy()
         if not toggled:
             await self.modconfig.guild(guild).respect_hierarchy.set(True)
-            await ctx.send(
-                ("Role hierarchy will be checked when moderation commands are issued.")
-            )
+            await ctx.send(("Role hierarchy will be checked when moderation commands are issued."))
         else:
             await self.modconfig.guild(guild).respect_hierarchy.set(False)
-            await ctx.send(
-                ("Role hierarchy will be ignored when moderation commands are issued.")
-            )
+            await ctx.send(("Role hierarchy will be ignored when moderation commands are issued."))
 
     @modset.group()
     @commands.guild_only()
@@ -144,16 +140,16 @@ class ModSettings():
         if enabled is None:
             state = await self.modconfig.guild(guild).mention_spam.strict()
             if state:
-                msg = ("Mention spam currently accounts for multiple mentions of the same user.")
+                msg = "Mention spam currently accounts for multiple mentions of the same user."
             else:
-                msg = ("Mention spam currently only accounts for mentions of different users.")
+                msg = "Mention spam currently only accounts for mentions of different users."
             await ctx.send(msg)
             return
 
         if enabled:
-            msg = ("Mention spam will now account for multiple mentions of the same user.")
+            msg = "Mention spam will now account for multiple mentions of the same user."
         else:
-            msg = ("Mention spam will only account for mentions of different users.")
+            msg = "Mention spam will only account for mentions of different users."
         await self.modconfig.guild(guild).mention_spam.strict.set(enabled)
         await ctx.send(msg)
 
@@ -182,11 +178,11 @@ class ModSettings():
 
         if mention_spam["kick"]:
             if max_mentions >= mention_spam["kick"]:
-                mismatch_message += ("\nAutowarn is equal to or higher than autokick.")
+                mismatch_message += "\nAutowarn is equal to or higher than autokick."
 
         if mention_spam["ban"]:
             if max_mentions >= mention_spam["ban"]:
-                mismatch_message += ("\nAutowarn is equal to or higher than autoban.")
+                mismatch_message += "\nAutowarn is equal to or higher than autoban."
 
         await self.modconfig.guild(ctx.guild).mention_spam.warn.set(max_mentions)
         await ctx.send(
@@ -222,11 +218,11 @@ class ModSettings():
 
         if mention_spam["warn"]:
             if max_mentions <= mention_spam["warn"]:
-                mismatch_message += ("\nAutokick is equal to or lower than autowarn.")
+                mismatch_message += "\nAutokick is equal to or lower than autowarn."
 
         if mention_spam["ban"]:
             if max_mentions >= mention_spam["ban"]:
-                mismatch_message += ("\nAutokick is equal to or higher than autoban.")
+                mismatch_message += "\nAutokick is equal to or higher than autoban."
 
         await self.modconfig.guild(ctx.guild).mention_spam.kick.set(max_mentions)
         await ctx.send(
@@ -261,11 +257,11 @@ class ModSettings():
 
         if mention_spam["warn"]:
             if max_mentions <= mention_spam["warn"]:
-                mismatch_message += ("\nAutoban is equal to or lower than autowarn.")
+                mismatch_message += "\nAutoban is equal to or lower than autowarn."
 
         if mention_spam["kick"]:
             if max_mentions <= mention_spam["kick"]:
-                mismatch_message += ("\nAutoban is equal to or lower than autokick.")
+                mismatch_message += "\nAutoban is equal to or lower than autokick."
 
         await self.modconfig.guild(ctx.guild).mention_spam.ban.set(max_mentions)
         await ctx.send(
@@ -422,16 +418,16 @@ class ModSettings():
         if enabled is None:
             state = await self.modconfig.guild(guild).track_nicknames()
             if state:
-                msg = ("Nickname changes are currently being tracked.")
+                msg = "Nickname changes are currently being tracked."
             else:
-                msg = ("Nickname changes are not currently being tracked.")
+                msg = "Nickname changes are not currently being tracked."
             await ctx.send(msg)
             return
 
         if enabled:
-            msg = ("Nickname changes will now be tracked.")
+            msg = "Nickname changes will now be tracked."
         else:
-            msg = ("Nickname changes will no longer be tracked.")
+            msg = "Nickname changes will no longer be tracked."
         await self.modconfig.guild(guild).track_nicknames.set(enabled)
         await ctx.send(msg)
 
@@ -446,14 +442,14 @@ class ModSettings():
         if enabled is None:
             state = await self.modconfig.track_all_names()
             if state:
-                msg = ("Name changes are currently being tracked.")
+                msg = "Name changes are currently being tracked."
             else:
-                msg = ("All name changes are currently not being tracked.")
+                msg = "All name changes are currently not being tracked."
             await ctx.send(msg)
             return
 
         if enabled:
-            msg = ("Name changes will now be tracked.")
+            msg = "Name changes will now be tracked."
         else:
             msg = (
                 "All name changes will no longer be tracked.\n"
@@ -487,7 +483,9 @@ class ModSettings():
 
         async with ctx.typing():
             # Nickname data
-            async with self.modconfig._get_base_group(self.modconfig.MEMBER).all() as mod_member_data:
+            async with self.modconfig._get_base_group(
+                self.modconfig.MEMBER
+            ).all() as mod_member_data:
                 guilds_to_remove = []
                 for guild_id, guild_data in mod_member_data.items():
                     await asyncio.sleep(0)

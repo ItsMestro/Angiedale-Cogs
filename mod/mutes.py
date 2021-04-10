@@ -8,7 +8,10 @@ import discord
 from redbot.core import checks, commands, modlog
 from redbot.core.utils import bounded_gather
 from redbot.core.utils.chat_formatting import (
-    bold, humanize_list, humanize_timedelta, pagify
+    bold,
+    humanize_list,
+    humanize_timedelta,
+    pagify,
 )
 from redbot.core.utils.menus import start_adding_reactions
 from redbot.core.utils.mod import get_audit_reason
@@ -252,7 +255,7 @@ class Mutes(MixinMeta):
                 continue
             _mmeber, channel, reason = result
             unmuted_channels.remove(channel)
-        modlog_reason = ("Automatic unmute")
+        modlog_reason = "Automatic unmute"
 
         channel_list = humanize_list([c.mention for c in unmuted_channels if c is not None])
         if channel_list:
@@ -332,10 +335,10 @@ class Mutes(MixinMeta):
             if create_case:
                 if isinstance(channel, discord.VoiceChannel):
                     unmute_type = "vunmute"
-                    notification_title = ("Voice unmute")
+                    notification_title = "Voice unmute"
                 else:
                     unmute_type = "cunmute"
-                    notification_title = ("Channel unmute")
+                    notification_title = "Channel unmute"
                 await modlog.create_case(
                     self.bot,
                     channel.guild,
@@ -390,12 +393,12 @@ class Mutes(MixinMeta):
             until_str = until.strftime("%Y-%m-%d %H:%M:%S UTC")
 
         if moderator is None:
-            moderator_str = ("Unknown")
+            moderator_str = "Unknown"
         else:
             moderator_str = str(moderator)
 
         if not reason:
-            reason = ("No reason provided.")
+            reason = "No reason provided."
 
         # okay, this is some poor API to require PrivateChannel here...
         if await self.bot.embed_requested(await user.create_dm(), user):
@@ -547,10 +550,10 @@ class Mutes(MixinMeta):
                     log.debug("creating case")
                     if isinstance(after, discord.VoiceChannel):
                         unmute_type = "vunmute"
-                        notification_title = ("Voice unmute")
+                        notification_title = "Voice unmute"
                     else:
                         unmute_type = "cunmute"
-                        notification_title = ("Channel unmute")
+                        notification_title = "Channel unmute"
                     if send_dm_notification:
                         await self._send_dm_notification(
                             user,
@@ -574,7 +577,9 @@ class Mutes(MixinMeta):
             if to_del:
                 for u_id in to_del:
                     del self._channel_mutes[after.id][u_id]
-                await self.mutesconfig.channel(after).muted_users.set(self._channel_mutes[after.id])
+                await self.mutesconfig.channel(after).muted_users.set(
+                    self._channel_mutes[after.id]
+                )
 
     @commands.Cog.listener("on_member_join")
     async def mutes_on_member_join(self, member: discord.Member):
@@ -687,7 +692,7 @@ class Mutes(MixinMeta):
             mutes_data = self._server_mutes[ctx.guild.id]
             if mutes_data:
 
-                msg += ("__Server Mutes__\n")
+                msg += "__Server Mutes__\n"
                 for user_id, mutes in mutes_data.items():
                     if not mutes:
                         continue
@@ -816,9 +821,9 @@ class Mutes(MixinMeta):
         if success_list:
             if ctx.guild.id not in self._server_mutes:
                 self._server_mutes[ctx.guild.id] = {}
-            msg = ("{users} has been muted in this server{time}.")
+            msg = "{users} has been muted in this server{time}."
             if len(success_list) > 1:
-                msg = ("{users} have been muted in this server{time}.")
+                msg = "{users} have been muted in this server{time}."
             await ctx.send(
                 msg.format(users=humanize_list([f"{u}" for u in success_list]), time=time)
             )
@@ -964,14 +969,14 @@ class Mutes(MixinMeta):
                     issue_list.append((user, success["reason"]))
 
         if success_list:
-            msg = ("{users} has been muted in this channel{time}.")
+            msg = "{users} has been muted in this channel{time}."
             if len(success_list) > 1:
-                msg = ("{users} have been muted in this channel{time}.")
+                msg = "{users} have been muted in this channel{time}."
             await channel.send(
                 msg.format(users=humanize_list([f"{u}" for u in success_list]), time=time)
             )
         if issue_list:
-            msg = ("The following users could not be muted\n")
+            msg = "The following users could not be muted\n"
             for user, issue in issue_list:
                 msg += f"{user}: {issue}\n"
             await ctx.send_interactive(pagify(msg))
@@ -1098,7 +1103,9 @@ class Mutes(MixinMeta):
                     issue_list.append((user, success["reason"]))
         if success_list:
             if channel.id in self._channel_mutes and self._channel_mutes[channel.id]:
-                await self.mutesconfig.channel(channel).muted_users.set(self._channel_mutes[channel.id])
+                await self.mutesconfig.channel(channel).muted_users.set(
+                    self._channel_mutes[channel.id]
+                )
             else:
                 await self.mutesconfig.channel(channel).muted_users.clear()
             await ctx.send(
@@ -1107,7 +1114,7 @@ class Mutes(MixinMeta):
                 )
             )
         if issue_list:
-            msg = ("The following users could not be unmuted\n")
+            msg = "The following users could not be unmuted\n"
             for user, issue in issue_list:
                 msg += f"{user}: {issue}\n"
             await ctx.send_interactive(pagify(msg))
@@ -1139,10 +1146,10 @@ class Mutes(MixinMeta):
         # along with this entire method and some othe refactorization
         # v1.0.0 is meant to look ugly right :')
         if permissions.administrator:
-            ret["reason"] = (MUTE_UNMUTE_ISSUES["is_admin"])
+            ret["reason"] = MUTE_UNMUTE_ISSUES["is_admin"]
             return ret
         if not await self.is_allowed_by_hierarchy(guild, author, user):
-            ret["reason"] = (MUTE_UNMUTE_ISSUES["hierarchy_problem"])
+            ret["reason"] = MUTE_UNMUTE_ISSUES["hierarchy_problem"]
             return ret
         mute_role = await self.mutesconfig.guild(guild).mute_role()
 
@@ -1150,13 +1157,13 @@ class Mutes(MixinMeta):
 
             role = guild.get_role(mute_role)
             if not role:
-                ret["reason"] = (MUTE_UNMUTE_ISSUES["role_missing"])
+                ret["reason"] = MUTE_UNMUTE_ISSUES["role_missing"]
                 return ret
             if author != guild.owner and role >= author.top_role:
-                ret["reason"] = (MUTE_UNMUTE_ISSUES["assigned_role_hierarchy_problem"])
+                ret["reason"] = MUTE_UNMUTE_ISSUES["assigned_role_hierarchy_problem"]
                 return ret
             if not guild.me.guild_permissions.manage_roles or role >= guild.me.top_role:
-                ret["reason"] = (MUTE_UNMUTE_ISSUES["permissions_issue_role"])
+                ret["reason"] = MUTE_UNMUTE_ISSUES["permissions_issue_role"]
                 return ret
             # This is here to prevent the modlog case from happening on role updates
             # we need to update the cache early so it's there before we receive the member_update event
@@ -1174,7 +1181,7 @@ class Mutes(MixinMeta):
             except discord.errors.Forbidden:
                 if guild.id in self._server_mutes and user.id in self._server_mutes[guild.id]:
                     del self._server_mutes[guild.id][user.id]
-                ret["reason"] = (MUTE_UNMUTE_ISSUES["permissions_issue_role"])
+                ret["reason"] = MUTE_UNMUTE_ISSUES["permissions_issue_role"]
                 return ret
             ret["success"] = True
             return ret
@@ -1218,25 +1225,25 @@ class Mutes(MixinMeta):
         }
         mute_role = await self.mutesconfig.guild(guild).mute_role()
         if not await self.is_allowed_by_hierarchy(guild, author, user):
-            ret["reason"] = (MUTE_UNMUTE_ISSUES["hierarchy_problem"])
+            ret["reason"] = MUTE_UNMUTE_ISSUES["hierarchy_problem"]
             return ret
         if mute_role:
 
             role = guild.get_role(mute_role)
             if not role:
-                ret["reason"] = (MUTE_UNMUTE_ISSUES["role_missing"])
+                ret["reason"] = MUTE_UNMUTE_ISSUES["role_missing"]
                 return ret
 
             if guild.id in self._server_mutes:
                 if user.id in self._server_mutes[guild.id]:
                     del self._server_mutes[guild.id][user.id]
             if not guild.me.guild_permissions.manage_roles or role >= guild.me.top_role:
-                ret["reason"] = (MUTE_UNMUTE_ISSUES["permissions_issue_role"])
+                ret["reason"] = MUTE_UNMUTE_ISSUES["permissions_issue_role"]
                 return ret
             try:
                 await user.remove_roles(role, reason=reason)
             except discord.errors.Forbidden:
-                ret["reason"] = (MUTE_UNMUTE_ISSUES["permissions_issue_role"])
+                ret["reason"] = MUTE_UNMUTE_ISSUES["permissions_issue_role"]
                 return ret
             ret["success"] = True
             return ret
@@ -1281,7 +1288,7 @@ class Mutes(MixinMeta):
             if channel.permissions_for(guild.me).move_members:
                 move_channel = True
             else:
-                send_reason = (MUTE_UNMUTE_ISSUES["voice_mute_permission"])
+                send_reason = MUTE_UNMUTE_ISSUES["voice_mute_permission"]
 
         if not await self.is_allowed_by_hierarchy(guild, author, user):
             return {

@@ -10,9 +10,7 @@ from PIL import Image, ImageDraw, ImageFont
 from redbot.core import Config, checks, commands
 from redbot.core.bot import Red
 from redbot.core.data_manager import bundled_data_path, cog_data_path
-from redbot.core.utils.chat_formatting import (
-    humanize_number, humanize_timedelta
-)
+from redbot.core.utils.chat_formatting import humanize_number, humanize_timedelta
 from redbot.core.utils.menus import menu
 
 log = logging.getLogger("red.angiedale.ttools")
@@ -23,16 +21,17 @@ pingphrase1 = [
     "You better be prepared.",
     "The time has come.",
     "I hope you're ready.",
-    "You better be ready."
-    ]
+    "You better be ready.",
+]
 
 pingphrase2 = [
     "You have a match coming up in",
     "You will face each other in",
     "Your match starts in",
     "The time of your match is in",
-    "You'll be playing in"
-    ]
+    "You'll be playing in",
+]
+
 
 class TTools(commands.Cog):
     """Tools for osu! Tournaments."""
@@ -40,8 +39,18 @@ class TTools(commands.Cog):
     def __init__(self, bot: Red):
         self.bot = bot
 
-        self.config: Config = Config.get_conf(self, identifier=1387000, cog_name="TTools", force_registration=True)
-        guild_defaults = {"sheet": None, "enabled": False, "regsopen": False, "mode": "osu", "referee": None, "useimg": False, "customimg": False}
+        self.config: Config = Config.get_conf(
+            self, identifier=1387000, cog_name="TTools", force_registration=True
+        )
+        guild_defaults = {
+            "sheet": None,
+            "enabled": False,
+            "regsopen": False,
+            "mode": "osu",
+            "referee": None,
+            "useimg": False,
+            "customimg": False,
+        }
         self.config.register_guild(**guild_defaults)
 
         self.gs = gspread.service_account(filename=f"{bundled_data_path(self)}/key.json")
@@ -121,7 +130,11 @@ class TTools(commands.Cog):
         """"""
         if len(ctx.message.attachments) == 1:
             img = ctx.message.attachments[0]
-            if not img.filename.lower().endswith(".png") and not img.filename.lower().endswith(".jpg") and not img.filename.lower().endswith(".jpeg"):
+            if (
+                not img.filename.lower().endswith(".png")
+                and not img.filename.lower().endswith(".jpg")
+                and not img.filename.lower().endswith(".jpeg")
+            ):
                 return await ctx.send("Please provide a `.png` or `.jpg` image.")
             if not img.width == 1600 and not img.height == 400:
                 return await ctx.send("Please use an image that is `1600x400` in size.")
@@ -175,7 +188,9 @@ class TTools(commands.Cog):
                 blueteam = m[6]
                 matchtime = m[1].split(":")
                 matchdate = datetime.strptime(m[0].split(", ")[1], "%d %b")
-                matchdatetime = matchdate.replace(year=datetime.utcnow().year, hour=int(matchtime[0]), minute=int(matchtime[1]))
+                matchdatetime = matchdate.replace(
+                    year=datetime.utcnow().year, hour=int(matchtime[0]), minute=int(matchtime[1])
+                )
                 matchexists = True
                 break
 
@@ -196,7 +211,7 @@ class TTools(commands.Cog):
                 bluereserve = p[0]
                 blueuserid = p[1]
                 blueflag = p[4]
-        
+
         reduser = ctx.guild.get_member(int(reduserid))
         blueuser = ctx.guild.get_member(int(blueuserid))
         if reduser:
@@ -221,8 +236,12 @@ class TTools(commands.Cog):
             else:
                 imgpath = f"{bundled_data_path(self)}/image.png"
             img = Image.open(imgpath).convert("RGBA")
-            imgred = Image.open(f"{bundled_data_path(self)}/flags/{redflag}.png", formats=["PNG"]).convert("RGBA")
-            imgblue = Image.open(f"{bundled_data_path(self)}/flags/{blueflag}.png", formats=["PNG"]).convert("RGBA")
+            imgred = Image.open(
+                f"{bundled_data_path(self)}/flags/{redflag}.png", formats=["PNG"]
+            ).convert("RGBA")
+            imgblue = Image.open(
+                f"{bundled_data_path(self)}/flags/{blueflag}.png", formats=["PNG"]
+            ).convert("RGBA")
             imgred = imgred.resize((imgred.size[0] * 2, imgred.size[1] * 2))
             imgblue = imgblue.resize((imgblue.size[0] * 2, imgblue.size[1] * 2))
 
@@ -232,8 +251,8 @@ class TTools(commands.Cog):
 
             drawimage = ImageDraw.Draw(img)
 
-            font = ImageFont.truetype(f'{bundled_data_path(self)}/Exo2.0-Bold.otf', 52)
-            timefont = ImageFont.truetype(f'{bundled_data_path(self)}/Exo2.0-Bold.otf', 32)
+            font = ImageFont.truetype(f"{bundled_data_path(self)}/Exo2.0-Bold.otf", 52)
+            timefont = ImageFont.truetype(f"{bundled_data_path(self)}/Exo2.0-Bold.otf", 32)
 
             redwidth, redheight = drawimage.textsize(redteam, font)
             rx = (width / 2) / 2 - (redwidth / 2)
@@ -244,9 +263,9 @@ class TTools(commands.Cog):
             rfx = (width / 2) / 2 - (imgred.size[0] / 2)
             bfx = (width / 2) / 2 - (imgblue.size[0] / 2) + (width / 2)
 
-            drawimage.text((rx,220), redteam, font=font, fill=(255,255,255))
-            drawimage.text((bx,220), blueteam, font=font, fill=(255,255,255))
-            drawimage.text((tx,320), matchtimetext, font=timefont, fill=(160,160,160))
+            drawimage.text((rx, 220), redteam, font=font, fill=(255, 255, 255))
+            drawimage.text((bx, 220), blueteam, font=font, fill=(255, 255, 255))
+            drawimage.text((tx, 320), matchtimetext, font=timefont, fill=(160, 160, 160))
 
             img.paste(imgred, (int(rfx), 100), imgred)
             img.paste(imgblue, (int(bfx), 100), imgblue)
@@ -282,21 +301,27 @@ class TTools(commands.Cog):
             for r in team:
                 if ctx.author.id == int(r):
                     await ctx.message.delete()
-                    return await ctx.send("You are already registered. If you need to edit your registration, contact an organizer.", delete_after=10)
+                    return await ctx.send(
+                        "You are already registered. If you need to edit your registration, contact an organizer.",
+                        delete_after=10,
+                    )
 
         if "osu.ppy.sh" in username:
-            username = re.sub("[^0-9]", "", username.rsplit('/', 1)[-1])
+            username = re.sub("[^0-9]", "", username.rsplit("/", 1)[-1])
         mode = await self.config.guild(ctx.guild).mode()
         data = await self.useosufetch(f"users/{username}/{mode}")
         await ctx.message.delete()
         if not data:
-            return await ctx.send(f"Tried looking for the user `{username}` but couldn't find them. Maybe try with your profile link instead.", delete_after=20)
+            return await ctx.send(
+                f"Tried looking for the user `{username}` but couldn't find them. Maybe try with your profile link instead.",
+                delete_after=20,
+            )
 
         embeds = []
         embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
         embed.set_author(
-            name=f'Is this you?',
-            icon_url=f'https://osu.ppy.sh/images/flags/{data["country_code"]}.png'
+            name=f"Is this you?",
+            icon_url=f'https://osu.ppy.sh/images/flags/{data["country_code"]}.png',
         )
         embed.set_thumbnail(url=f'https://a.ppy.sh/{data["id"]}')
         embed.title = data["username"]
@@ -334,12 +359,34 @@ class TTools(commands.Cog):
                 sh.worksheet("Data").update(f"BD{len(existingteams)+2}", rank4k)
             except:
                 pass
-            sh.worksheet("Signups").update(f"A{len(existingteams)+2}:G{len(existingteams)+2}", [[data["id"], f"{ctx.author.name}#{ctx.author.discriminator}", str(ctx.author.id), data["username"], data["statistics"]["global_rank"], data["country_code"], rank4k]])
+            sh.worksheet("Signups").update(
+                f"A{len(existingteams)+2}:G{len(existingteams)+2}",
+                [
+                    [
+                        data["id"],
+                        f"{ctx.author.name}#{ctx.author.discriminator}",
+                        str(ctx.author.id),
+                        data["username"],
+                        data["statistics"]["global_rank"],
+                        data["country_code"],
+                        rank4k,
+                    ]
+                ],
+            )
 
             await message.delete()
-            await ctx.send(f'{ctx.author.mention} is now registered to the tournament as `{data["username"]}`')
+            await ctx.send(
+                f'{ctx.author.mention} is now registered to the tournament as `{data["username"]}`'
+            )
 
-        await menu(ctx, embeds, {"\N{WHITE HEAVY CHECK MARK}": processregistration, "\N{CROSS MARK}": failedregistration})
+        await menu(
+            ctx,
+            embeds,
+            {
+                "\N{WHITE HEAVY CHECK MARK}": processregistration,
+                "\N{CROSS MARK}": failedregistration,
+            },
+        )
 
         if not done:
             async for m in ctx.channel.history(limit=20):

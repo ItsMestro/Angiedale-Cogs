@@ -323,7 +323,7 @@ class Filter(MixinMeta):
                     user_count += 1
                     await self.filterconfig.member(author).filter_count.set(user_count)
                     if user_count >= filter_count and created_at.timestamp() < next_reset_time:
-                        reason = ("Autoban (too many filtered messages.)")
+                        reason = "Autoban (too many filtered messages.)"
                         try:
                             await guild.ban(author, reason=reason)
                         except discord.HTTPException:

@@ -12,8 +12,7 @@ from redbot.core import Config, checks, commands, modlog
 from redbot.core.bot import Red
 from redbot.core.commands import UserInputOptional
 from redbot.core.utils import AsyncIter
-from redbot.core.utils._internal_utils import \
-    send_to_owners_with_prefix_replaced
+from redbot.core.utils._internal_utils import send_to_owners_with_prefix_replaced
 from redbot.core.utils.chat_formatting import pagify
 from redbot.core.utils.menus import DEFAULT_CONTROLS, menu
 from redbot.core.utils.mod import get_audit_reason
@@ -73,23 +72,37 @@ class Mod(
         "track_nicknames": True,
     }
 
-    default_channel_settings = {"ignored": False}
+    default_channel_settings = {
+        "ignored": False,
+    }
 
-    default_member_settings = {"past_nicks": [], "perms_cache": {}, "banned_until": False}
+    default_member_settings = {
+        "past_nicks": [],
+        "perms_cache": {},
+        "banned_until": False,
+    }
 
-    default_user_settings = {"past_names": []}
+    default_user_settings = {
+        "past_names": [],
+    }
 
     def __init__(self, bot: Red):
         super().__init__()
         self.bot = bot
 
-        self.filterconfig = Config.get_conf(self, identifier=1387000, force_registration=True, cog_name="Filter")
+        self.filterconfig = Config.get_conf(
+            self, identifier=1387000, force_registration=True, cog_name="Filter"
+        )
 
-        self.warnconfig = Config.get_conf(self, identifier=1387000, force_registration=True, cog_name="Warnings")
+        self.warnconfig = Config.get_conf(
+            self, identifier=1387000, force_registration=True, cog_name="Warnings"
+        )
 
         self.pattern_cache = {}
 
-        self.config = Config.get_conf(self, identifier=1387000, force_registration=True, cog_name="Mod")
+        self.config = Config.get_conf(
+            self, identifier=1387000, force_registration=True, cog_name="Mod"
+        )
         self.config.register_global(**self.default_global_settings)
         self.config.register_guild(**self.default_guild_settings)
         self.config.register_channel(**self.default_channel_settings)
@@ -99,7 +112,9 @@ class Mod(
         self.tban_expiry_task = asyncio.create_task(self.tempban_expirations_task())
         self.last_case: dict = defaultdict(dict)
 
-        self.mutesconfig = Config.get_conf(self, identifier=1387000, force_registration=True, cog_name="Mutes")
+        self.mutesconfig = Config.get_conf(
+            self, identifier=1387000, force_registration=True, cog_name="Mutes"
+        )
         default_guild_mutes = {
             "sent_instructions": False,
             "mute_role": None,
@@ -499,7 +514,7 @@ class Mod(
         reason_type = None
         async with self.warnconfig.guild(ctx.guild).reasons() as registered_reasons:
             if (reason_type := registered_reasons.get(reason.lower())) is None:
-                msg = ("That is not a registered reason!")
+                msg = "That is not a registered reason!"
                 if custom_allowed:
                     reason_type = {"description": reason, "points": points}
                 else:
@@ -547,7 +562,7 @@ class Mod(
             if showmod:
                 title = ("Warning from {user}").format(user=ctx.author)
             else:
-                title = ("Warning")
+                title = "Warning"
             em = discord.Embed(
                 title=title, description=reason_type["description"], color=await ctx.embed_colour()
             )
@@ -575,7 +590,7 @@ class Mod(
             if showmod:
                 title = ("Warning from {user}").format(user=ctx.author)
             else:
-                title = ("Warning")
+                title = "Warning"
             em = discord.Embed(
                 title=title, description=reason_type["description"], color=await ctx.embed_colour()
             )
@@ -593,9 +608,7 @@ class Mod(
                 if warn_channel:
                     await ctx.tick()
                 else:
-                    await ctx.send(
-                        ("{user} has been warned.").format(user=user.mention), embed=em
-                    )
+                    await ctx.send(("{user} has been warned.").format(user=user.mention), embed=em)
         else:
             if not dm_failed:
                 await ctx.tick()
@@ -643,7 +656,7 @@ class Mod(
                 for key in user_warnings.keys():
                     mod_id = user_warnings[key]["mod"]
                     if mod_id == 0xDE1:
-                        mod = ("Deleted Moderator")
+                        mod = "Deleted Moderator"
                     else:
                         bot = ctx.bot
                         mod = bot.get_user(mod_id) or ("Unknown Moderator ({})").format(mod_id)

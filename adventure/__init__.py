@@ -11,6 +11,7 @@ __red_end_user_data_statement__ = (
     "but will respect deletion requests."
 )
 
+
 async def setup(bot):
     cog = Adventure(bot)
     bot.add_cog(cog)

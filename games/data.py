@@ -122,7 +122,14 @@ guild_defaults = {
             "Multiplier": None,
             "Open": True,
         },
-        "War": {"Access": 0, "Cooldown": 5, "Min": 25, "Max": 100, "Multiplier": 1.5, "Open": True},
+        "War": {
+            "Access": 0,
+            "Cooldown": 5,
+            "Min": 25,
+            "Max": 100,
+            "Multiplier": 1.5,
+            "Open": True,
+        },
     },
 }
 
@@ -140,7 +147,9 @@ log = logging.getLogger("red.angiedale.games.data")
 
 class Database:
 
-    config: Config = Config.get_conf(_DataObj, identifier=1387000, cog_name="GamesCasino", force_registration=True)
+    config: Config = Config.get_conf(
+        _DataObj, identifier=1387000, cog_name="GamesCasino", force_registration=True
+    )
 
     def __init__(self):
         self.config.register_guild(**guild_defaults)
@@ -214,7 +223,7 @@ class Database:
 
     async def casino_is_global(self):
         """Checks to see if the casino is storing data on
-           a per server basis or globally."""
+        a per server basis or globally."""
         return await self.config.Settings.Global()
 
     async def get_data(self, ctx, player=None):
@@ -314,7 +323,9 @@ class Database:
         await data.Played.clear()
         await data.Won.clear()
 
-        msg = ("{0.name} ({0.id}) reset all stats for {1.name} ({1.id}).").format(ctx.author, player)
+        msg = ("{0.name} ({0.id}) reset all stats for {1.name} ({1.id}).").format(
+            ctx.author, player
+        )
         await ctx.send(msg)
 
     async def _reset_player_all(self, ctx, player):
@@ -329,7 +340,9 @@ class Database:
         data = await self.get_data(ctx, player=player)
         await data.clear()
 
-        msg = ("{0.name} ({0.id}) reset all data for {1.name} ({1.id}).").format(ctx.author, player)
+        msg = ("{0.name} ({0.id}) reset all data for {1.name} ({1.id}).").format(
+            ctx.author, player
+        )
         await ctx.send(msg)
 
     async def _reset_player_cooldowns(self, ctx, player):
@@ -344,7 +357,9 @@ class Database:
         data = await self.get_data(ctx, player=player)
         await data.Cooldowns.clear()
 
-        msg = ("{0.name} ({0.id}) reset all cooldowns for {1.name} ({1.id}).").format(ctx.author, player)
+        msg = ("{0.name} ({0.id}) reset all cooldowns for {1.name} ({1.id}).").format(
+            ctx.author, player
+        )
         await ctx.send(msg)
 
     async def _reset_cooldowns(self, ctx):
@@ -360,7 +375,9 @@ class Database:
             for player in await self.config.all_members(ctx.guild):
                 user = discord.Object(id=player)
                 await self.config.member(user).Cooldowns.clear()
-            msg = ("{0.name} ({0.id}) reset all cooldowns on {1.name}.").format(ctx.author, ctx.guild)
+            msg = ("{0.name} ({0.id}) reset all cooldowns on {1.name}.").format(
+                ctx.author, ctx.guild
+            )
 
         await ctx.send(msg)
 

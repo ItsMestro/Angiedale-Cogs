@@ -1,12 +1,10 @@
 import discord
 from redbot.core import checks, commands
 
-from .helpers import (
-    get_command_for_dropping_points, get_command_for_exceeded_points
-)
+from .helpers import get_command_for_dropping_points, get_command_for_exceeded_points
 
 
-class Warnings():
+class Warnings:
     """Warn misbehaving users and take automated actions."""
 
     @commands.group()

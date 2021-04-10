@@ -7,6 +7,7 @@ __red_end_user_data_statement__ = (
     "data can not be deleted per request."
 )
 
+
 def setup(bot):
     cog = Economy(bot)
     bot.add_cog(cog)

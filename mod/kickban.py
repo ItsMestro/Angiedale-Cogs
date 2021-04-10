@@ -8,7 +8,11 @@ import discord
 from redbot.core import checks, commands, modlog
 from redbot.core.utils import AsyncIter
 from redbot.core.utils.chat_formatting import (
-    bold, format_perms_list, humanize_list, humanize_number, pagify
+    bold,
+    format_perms_list,
+    humanize_list,
+    humanize_number,
+    pagify,
 )
 from redbot.core.utils.mod import get_audit_reason
 
@@ -196,7 +200,7 @@ class KickBanMixin(MixinMeta):
                         author.name, author.id, ban_type, username, user.id, str(days)
                     )
                 )
-                success_message = ("Done. That felt good.")
+                success_message = "Done. That felt good."
             except discord.Forbidden:
                 return False, ("I'm not allowed to do that.")
             except discord.NotFound:
@@ -425,16 +429,12 @@ class KickBanMixin(MixinMeta):
         upgrades = []
 
         async def show_results():
-            text = ("Banned {num} users from the server.").format(
-                num=humanize_number(len(banned))
-            )
+            text = ("Banned {num} users from the server.").format(num=humanize_number(len(banned)))
             if errors:
-                text += ("\nErrors:\n")
+                text += "\nErrors:\n"
                 text += "\n".join(errors.values())
             if upgrades:
-                text += (
-                    "\nFollowing user IDs have been upgraded from a temporary to a permanent ban:\n"
-                )
+                text += "\nFollowing user IDs have been upgraded from a temporary to a permanent ban:\n"
                 text += humanize_list(upgrades)
 
             for p in pagify(text):

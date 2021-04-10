@@ -21,7 +21,9 @@ class Interactions(commands.Cog):
         super().__init__()
         self.bot = bot
 
-        self.statsconfig = Config.get_conf(self, identifier=1387000, force_registration=True, cog_name="Stats")
+        self.statsconfig = Config.get_conf(
+            self, identifier=1387000, force_registration=True, cog_name="Stats"
+        )
         self.bonks = 0
 
         self.statstask: Optional[asyncio.Task] = None
@@ -301,7 +303,9 @@ class Interactions(commands.Cog):
     async def fetch_nekos_life(self, ctx, rp_action):
 
         async with aiohttp.ClientSession() as session:
-            async with session.get(f"https://api.nekos.dev/api/v3/images/sfw/gif/{rp_action}/?count=20") as resp:
+            async with session.get(
+                f"https://api.nekos.dev/api/v3/images/sfw/gif/{rp_action}/?count=20"
+            ) as resp:
                 try:
                     content = await resp.json(content_type=None)
                 except (ValueError, aiohttp.ContentTypeError) as ex:
@@ -324,9 +328,7 @@ class Interactions(commands.Cog):
         return self.imagelist
 
     @commands.command(aliases=["lovecalc", "lovercalculator"])
-    async def lovers(
-        self, ctx: commands.Context, lover: discord.Member, loved: discord.Member
-    ):
+    async def lovers(self, ctx: commands.Context, lover: discord.Member, loved: discord.Member):
         """Calculate the love between two users!"""
 
         x = lover.display_name

@@ -189,20 +189,26 @@ class TriviaSession:
                 self.stop()
                 return False
             if self.settings["reveal_answer"]:
-                reply = (random.choice((
-                    ("I know this one! {answer}!"),
-                    ("Easy: {answer}."),
-                    ("Oh really? It's {answer} of course."))
-                    )).format(answer=answers[0])
-            else:
-                reply = (random.choice((
-                    ("To the next one I guess..."),
-                    ("Moving on..."),
-                    ("I'm sure you'll know the answer of the next one."),
-                    ("\N{PENSIVE FACE} Next one.")))
+                reply = (
+                    random.choice(
+                        (
+                            ("I know this one! {answer}!"),
+                            ("Easy: {answer}."),
+                            ("Oh really? It's {answer} of course."),
+                        )
                     )
+                ).format(answer=answers[0])
+            else:
+                reply = random.choice(
+                    (
+                        ("To the next one I guess..."),
+                        ("Moving on..."),
+                        ("I'm sure you'll know the answer of the next one."),
+                        ("\N{PENSIVE FACE} Next one."),
+                    )
+                )
             if self.settings["bot_plays"]:
-                reply += (" **+1** for me!")
+                reply += " **+1** for me!"
                 self.scores[self.ctx.guild.me] += 1
             await self.ctx.send(reply)
         else:

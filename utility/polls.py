@@ -47,7 +47,7 @@ class Poll:
             "end_time": self.end_time.timestamp() if self.end_time else None,
             "tally": self.tally,
             "embed": self.embed,
-            "multiple_votes": self.multiple_votes
+            "multiple_votes": self.multiple_votes,
         }
 
     def parse_duration(self, duration: Optional[timedelta] = None) -> Optional[datetime]:
@@ -173,7 +173,8 @@ class Poll:
         if self.duration:
             end = "| ends at"
         em.set_footer(
-            text=f"{self.author} created a poll {end}", icon_url=str(self.author.avatar_url),
+            text=f"{self.author} created a poll {end}",
+            icon_url=str(self.author.avatar_url),
         )
         if self.end_time:
             em.timestamp = self.end_time
