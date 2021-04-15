@@ -940,7 +940,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
         udata1 = await self.fetch_api(f"users/{userid}/scores/best", ctx=ctx, params=params)
 
-        if udata1:
+        if not udata1:
             return await del_message(
                 ctx, "That user doesn't seem to have any top plays in this mode."
             )
@@ -1005,7 +1005,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
         udata1 = await self.fetch_api(f"users/{userid}/scores/best", ctx=ctx, params=params)
 
-        if udata1:
+        if not udata1:
             return await del_message(
                 ctx, "That user doesn't seem to have any top plays in this mode."
             )
@@ -1080,7 +1080,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
         udata1 = await self.fetch_api(f"users/{userid}/scores/best", ctx=ctx, params=params)
 
-        if udata1:
+        if not udata1:
             return await del_message(
                 ctx, "That user doesn't seem to have any top plays in this mode."
             )
@@ -1145,7 +1145,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
         udata1 = await self.fetch_api(f"users/{userid}/scores/best", ctx=ctx, params=params)
 
-        if udata1:
+        if not udata1:
             return await del_message(
                 ctx, "That user doesn't seem to have any top plays in this mode."
             )
