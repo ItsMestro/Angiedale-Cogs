@@ -181,7 +181,8 @@ class ModLog:
                 rendered_cases.append(page)
         await menu(ctx, rendered_cases, DEFAULT_CONTROLS)
 
-    @modlog.command()
+    @commands.command()
+    @checks.mod_or_permissions(administrator=True)
     async def reason(self, ctx: commands.Context, case: Optional[int], *, reason: str):
         """Specify a reason for a modlog case.
 
