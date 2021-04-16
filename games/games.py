@@ -33,7 +33,7 @@ from .data import Database
 from .session import TriviaSession
 from .utils import is_input_unsupported
 
-__all__ = ["Trivia", "UNIQUE_ID", "get_core_lists"]
+__all__ = ["get_core_lists"]
 
 log = logging.getLogger("red.angiedale.games")
 

@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Dict, NewType, Union
 
 from redbot.core import commands
 from redbot.core.commands import BadArgument, Context, Converter
+from redbot.core.utils.chat_formatting import inline
 
 log = logging.getLogger("red.angiedale.mod.converter")
 
