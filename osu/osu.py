@@ -1196,7 +1196,6 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
                 await asyncio.sleep(60)
 
                 modes = self.tracking_cache
-                log.error(modes)
 
                 for mode, users in modes.items():
                     for user, channels in users.items():
