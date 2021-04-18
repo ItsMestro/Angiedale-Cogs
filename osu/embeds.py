@@ -6,11 +6,7 @@ from datetime import datetime, timedelta
 from math import ceil
 
 import discord
-from redbot.core.utils.chat_formatting import (
-    humanize_number,
-    humanize_timedelta,
-    inline,
-)
+from redbot.core.utils.chat_formatting import humanize_number, humanize_timedelta, inline
 
 log = logging.getLogger("red.angiedale.osu.embeds")
 
@@ -24,6 +20,7 @@ EMOJI = {
     "C": "<:C_Rank:794823687488012308>",
     "D": "<:F_Rank:794823687781613609>",
     "F": "<:F_Rank:794823687781613609>",
+    "BPM": "<:BPM:833130972668493824>",
 }
 
 
@@ -551,7 +548,7 @@ class Embed(Data):
             inline=False,
         )
         embed.add_field(name="Length / Drain", value=f"{length} / {draintime}", inline=True)
-        embed.add_field(name="BPM", value=d["bpm"], inline=True)
+        embed.add_field(name=EMOJI["BPM"], value=d["bpm"], inline=True)
         embed.add_field(name=max_combo_text, value=max_combo, inline=True)
         embed.add_field(name="Playcount", value=humanize_number(d["playcount"]), inline=True)
         embed.add_field(name="Favorites", value=humanize_number(d["favouritecount"]), inline=True)
@@ -1040,7 +1037,7 @@ class Embed(Data):
             embed.add_field(name="Hits", value=hits, inline=True)
             embed.add_field(
                 name="Map Info",
-                value=f'Mapper: [{d["creator"]}](https://osu.ppy.sh/users/{d["creatorid"]}) | BPM: `{d["bpm"]}` | Objects: `{humanize_number(d["circles"] + d["sliders"] + d["spinners"])}` \n'
+                value=f'Mapper: [{d["creator"]}](https://osu.ppy.sh/users/{d["creatorid"]}) | {EMOJI["BPM"]} `{d["bpm"]}` | Objects: `{humanize_number(d["circles"] + d["sliders"] + d["spinners"])}` \n'
                 f'Status: {inline(d["status"].capitalize())} | {stats}',
                 inline=False,
             )
@@ -1144,7 +1141,7 @@ class Embed(Data):
             embed.add_field(name="Hits", value=hits, inline=True)
             embed.add_field(
                 name="Map Info",
-                value=f'Mapper: [{d["creator"]}](https://osu.ppy.sh/users/{d["creatorid"]}) | BPM: `{d["bpm"]}` | Objects: `{humanize_number(d["circles"] + d["sliders"] + d["spinners"])}` \n'
+                value=f'Mapper: [{d["creator"]}](https://osu.ppy.sh/users/{d["creatorid"]}) | {EMOJI["BPM"]} `{d["bpm"]}` | Objects: `{humanize_number(d["circles"] + d["sliders"] + d["spinners"])}` \n'
                 f'Status: {inline(d["status"].capitalize())} | {stats}',
                 inline=False,
             )
