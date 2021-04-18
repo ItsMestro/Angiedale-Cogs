@@ -4,12 +4,13 @@ import logging
 import os
 from asyncio.exceptions import CancelledError
 from math import ceil
+from pathlib import Path
 from typing import Literal, Optional
 
 import discord
 from redbot.core import Config, checks, commands
 from redbot.core.bot import Red
-from redbot.core.data_manager import bundled_data_path
+from redbot.core.data_manager import cog_data_path
 from redbot.core.utils.menus import menu
 
 from .embeds import Data, Embed
@@ -49,6 +50,8 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
     def __init__(self, bot: Red):
         super().__init__()
         self.bot = bot
+        self.tracking_cache = []
+
         self.osuconfig: Config = Config.get_conf(
             self, identifier=1387000, cog_name="Osu", force_registration=True
         )
@@ -160,6 +163,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
             )
 
         await self.removetracking(user=str(data["id"]), channel=channel, mode=mode)
+        await self.refresh_tracking_cache()
         await ctx.maybe_send_embed(
             f'Now tracking top 100 plays for {data["username"]} in {channel.mention}'
         )
@@ -181,6 +185,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
             )
 
         await self.removetracking(user=str(data["id"]), channel=ctx.channel)
+        await self.refresh_tracking_cache()
         await ctx.maybe_send_embed(f'Stopped tracking {data["username"]}')
 
     @osutrack.command()
@@ -251,6 +256,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
             return await del_message(ctx, f"Could not find the user {username}.")
 
         await self.removetracking(user=str(data["id"]), channel=channel, mode=mode, dev=True)
+        await self.refresh_tracking_cache()
         await ctx.maybe_send_embed(
             f'Now tracking top 100 plays for {data["username"]} in {channel.mention}'
         )
@@ -1179,19 +1185,23 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         """Checks for new top plays based on list of tracked users."""
 
         await self.bot.wait_until_ready()
-        log.error("Tracking waited until ready")
+
+        await self.refresh_tracking_cache()
+
+        path = Path(f"{cog_data_path(self)}/tracking")
+        path.mkdir(exist_ok=True)
 
         while True:
             try:
                 await asyncio.sleep(60)
-                async with self.osuconfig.tracking() as t:
-                    modes = t
 
-                path = bundled_data_path(self)
+                modes = self.tracking_cache
+                log.error(modes)
+
                 for mode, users in modes.items():
                     for user, channels in users.items():
                         userdata = ""
-                        userpath = f"{path}/{user}{mode}.json"
+                        userpath = f"{path}/{user}_{mode}.json"
 
                         params = {"mode": mode, "limit": "50"}
                         newdata = await self.fetch_api(f"users/{user}/scores/best", params=params)
@@ -1206,21 +1216,22 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
                             newdata = self.topdata(newdata)
 
                             if not os.path.exists(userpath):
-                                f = open(userpath, "x")
-                                f.close()
-                                with open(userpath, "w") as data:
+                                with open(userpath, "w+") as data:
                                     json.dump(newdata, data, indent=4)
                             elif a:
-                                with open(userpath, "w") as data:
+                                with open(userpath, "w+") as data:
                                     json.dump(newdata, data, indent=4)
 
                                 await asyncio.sleep(15)
                             else:
-                                with open(userpath) as data:
-                                    userdata = json.load(data)
+                                try:
+                                    with open(userpath) as data:
+                                        userdata = json.load(data)
+                                except FileNotFoundError:
+                                    pass
 
                                 if not userdata == newdata:
-                                    with open(userpath, "w") as data:
+                                    with open(userpath, "w+") as data:
                                         json.dump(newdata, data, indent=4)
 
                                     badchannels = await self.trackingembed(
@@ -1229,14 +1240,22 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
                                     if len(badchannels) > 0:
                                         for bch in badchannels:
                                             await self.removetracking(channel=bch)
+                                            await self.refresh_tracking_cache()
                                     await asyncio.sleep(15)
 
                             await asyncio.sleep(5)
                         else:
                             await self.removetracking(user=user, mode=mode)
+                            await self.refresh_tracking_cache()
                 a = False
             except CancelledError:
                 break
             except:
                 log.error("Loop broke", exc_info=1)
                 break
+
+    async def refresh_tracking_cache(self):
+        """Should be called after every config change to flush the cache with new data."""
+
+        async with self.osuconfig.tracking() as t:
+            self.tracking_cache = t

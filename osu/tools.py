@@ -7,9 +7,8 @@ from typing import Dict, Optional
 
 import aiohttp
 import discord
-from discord.errors import HTTPException
 from redbot.core import Config, commands
-from redbot.core.data_manager import bundled_data_path
+from redbot.core.data_manager import cog_data_path
 from redbot.core.utils.menus import DEFAULT_CONTROLS, close_menu, next_page
 
 log = logging.getLogger("red.angiedale.osu")
@@ -397,7 +396,7 @@ class Helper:
                         if len(ch) < 1:
                             us.pop(id)
                             try:
-                                os.remove(f"{bundled_data_path(self)}/{id}{m}.json")
+                                os.remove(f"{cog_data_path(self)}/tracking/{id}_{m}.json")
                             except:
                                 pass
                         if done == True:
@@ -420,7 +419,7 @@ class Helper:
                     if mode == m:
                         try:
                             us.pop(user)
-                            os.remove(f"{bundled_data_path(self)}/{user}{m}.json")
+                            os.remove(f"{cog_data_path(self)}/tracking/{user}{m}.json")
                         except KeyError:
                             pass
 
