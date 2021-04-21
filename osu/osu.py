@@ -15,11 +15,10 @@ from redbot.core.utils.menus import menu
 
 from .database import Database
 from .embeds import Data, Embed
+from .utils.custommenu import custom_menu, custompage
 from .tools import (
     API,
     Helper,
-    custom_menu,
-    custompage,
     del_message,
     multipage,
     singlepage,
