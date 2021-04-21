@@ -5,16 +5,14 @@ from typing import Optional
 import discord
 from redbot.core import checks, commands
 from redbot.core.utils import bounded_gather
-from redbot.core.utils.chat_formatting import (
-    humanize_list, humanize_timedelta, pagify
-)
+from redbot.core.utils.chat_formatting import humanize_list, humanize_timedelta, pagify
 
 from .converters import MuteTime
 
 log = logging.getLogger("red.angiedale.mod.mutes")
 
 
-class Mutes():
+class Mutes:
     """
     Mute users temporarily or indefinitely.
     """
@@ -109,7 +107,7 @@ class Mutes():
         """
         if channel is None:
             await self.mutesconfig.guild(ctx.guild).notification_channel.clear()
-            await ctx.send(("Notification channel for unmute issues has been cleard."))
+            await ctx.send(("Notification channel for unmute issues has been cleared."))
         else:
             await self.mutesconfig.guild(ctx.guild).notification_channel.set(channel.id)
             await ctx.send(
@@ -155,9 +153,9 @@ class Mutes():
                 tasks.append(self._set_mute_role_overwrites(role, channel))
             errors = await bounded_gather(*tasks)
             if any(errors):
-                msg = (
-                    "I could not set overwrites for the following channels: {channels}"
-                ).format(channels=humanize_list([i for i in errors if i]))
+                msg = ("I could not set overwrites for the following channels: {channels}").format(
+                    channels=humanize_list([i for i in errors if i])
+                )
                 for page in pagify(msg, delims=[" "]):
                     await ctx.send(page)
 

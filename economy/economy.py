@@ -10,6 +10,7 @@ from redbot.core import Config, bank, checks, commands, errors
 from redbot.core.bot import Red
 from redbot.core.commands.converter import TimedeltaConverter
 from redbot.core.utils import AsyncIter
+from redbot.core.utils.angiedale import patreon_tier
 from redbot.core.utils.chat_formatting import box, humanize_number
 from redbot.core.utils.menus import DEFAULT_CONTROLS, close_menu, menu
 
@@ -57,19 +58,30 @@ def guild_only_check():
 class SetParser:
     def __init__(self, argument):
         allowed = ("+", "-")
-        self.sum = int(argument)
+        try:
+            self.sum = int(argument)
+        except ValueError:
+            raise commands.BadArgument(
+                (
+                    "Invalid value, the argument must be an integer,"
+                    " optionally preceded with a `+` or `-` sign."
+                )
+            )
         if argument and argument[0] in allowed:
             if self.sum < 0:
                 self.operation = "withdraw"
             elif self.sum > 0:
                 self.operation = "deposit"
             else:
-                raise RuntimeError
+                raise commands.BadArgument(
+                    (
+                        "Invalid value, the amount of currency to increase or decrease"
+                        " must be an integer different from zero."
+                    )
+                )
             self.sum = abs(self.sum)
-        elif argument.isdigit():
-            self.operation = "set"
         else:
-            raise RuntimeError
+            self.operation = "set"
 
 
 class Economy(commands.Cog):
@@ -86,9 +98,14 @@ class Economy(commands.Cog):
 
     default_global_settings = default_guild_settings
 
-    default_member_settings = {"next_payday": 0, "last_slot": 0}
+    default_member_settings = {
+        "next_payday": 0,
+        "last_slot": 0,
+    }
 
-    default_role_settings = {"PAYDAY_CREDITS": 0}
+    default_role_settings = {
+        "PAYDAY_CREDITS": 0,
+    }
 
     default_user_settings = default_member_settings
 
@@ -304,9 +321,7 @@ class Economy(commands.Cog):
             )
         else:
             await bank.bank_prune(self.bot, guild=ctx.guild)
-            await ctx.send(
-                ("Bank accounts for users no longer in this server have been deleted.")
-            )
+            await ctx.send(("Bank accounts for users no longer in this server have been deleted."))
 
     @_prune.command(name="global")
     @checks.is_owner()
@@ -398,15 +413,23 @@ class Economy(commands.Cog):
             )
             if cur_time >= next_payday:
                 pdcredits = await self.config.PAYDAY_CREDITS()
+                patreontier = patreon_tier(ctx)
+                patreonbonus = 1
+                if patreontier == 2:
+                    patreonbonus = 1.5
+                elif patreontier >= 3:
+                    patreonbonus = 2
                 if pdcredits == 250:
-                    pdcredits = randint(200, 400)
+                    pdcredits = randint(200, round(400 * patreonbonus))
+                else:
+                    pdcredits = round(pdcredits * patreonbonus)
                 try:
                     await bank.deposit_credits(author, pdcredits)
                 except errors.BalanceTooHigh as exc:
                     await bank.set_balance(author, exc.max_balance)
                     await ctx.send(
                         (
-                            "You've reached the maximum amount of {currency}!"
+                            "You've reached the maximum amount of {currency}! "
                             "Please spend some more \N{GRIMACING FACE}\n\n"
                             "You currently have {new_balance} {currency}."
                         ).format(
@@ -517,7 +540,7 @@ class Economy(commands.Cog):
         guild = ctx.guild
         author = ctx.author
         embed_requested = await ctx.embed_requested()
-        footer_message = ("Page {page_num}/{page_len}.")
+        footer_message = "Page {page_num}/{page_len}."
         max_bal = await bank.get_max_balance(ctx.guild)
 
         if top < 1:

@@ -9,6 +9,7 @@ __red_end_user_data_statement__ = (
     "but will respect deletion requests."
 )
 
+
 def setup(bot):
     cog = Osu(bot)
     bot.add_cog(cog)

@@ -141,7 +141,9 @@ class API(commands.Cog):
         """Nothing to delete"""
         return
 
-    def format_name(self, first_name, last_name):  # Combines first_name and last_name and/or shows either of the two
+    def format_name(
+        self, first_name, last_name
+    ):  # Combines first_name and last_name and/or shows either of the two
         if first_name and last_name:
             return first_name + " " + last_name
         elif first_name:
@@ -165,7 +167,9 @@ class API(commands.Cog):
         cleantext = re.sub(cleanr, "", description)
         return cleantext
 
-    def description_parser(self, description):  # Limits text to 400characters and 5 lines and adds "..." at the end
+    def description_parser(
+        self, description
+    ):  # Limits text to 400characters and 5 lines and adds "..." at the end
         description = self.clean_spoilers(description)
         description = self.clean_html(description)
         description = "\n".join(description.split("\n")[:5])
@@ -190,7 +194,9 @@ class API(commands.Cog):
         headers = {"content-type": "application/json"}
 
         async with aiohttp.ClientSession() as session:
-            async with session.post("https://graphql.anilist.co", data=json.dumps(request_json), headers=headers) as response:
+            async with session.post(
+                "https://graphql.anilist.co", data=json.dumps(request_json), headers=headers
+            ) as response:
                 return await response.json()
 
     async def _search_anime_manga(self, ctx, cmd, entered_title):
@@ -242,15 +248,28 @@ class API(commands.Cog):
                 embed.add_field(name="Score", value=anime_manga.get("averageScore", "N/A"))
                 if cmd == "ANIME":
                     embed.add_field(name="Episodes", value=anime_manga.get("episodes", "N/A"))
-                    embed.set_footer(text="Status : " + MediaStatusToString[anime_manga["status"]] + ", Next episode : " + time_left + ", Powered by Anilist")
+                    embed.set_footer(
+                        text="Status : "
+                        + MediaStatusToString[anime_manga["status"]]
+                        + ", Next episode : "
+                        + time_left
+                        + ", Powered by Anilist"
+                    )
                 else:
                     embed.add_field(name="Chapters", value=anime_manga.get("chapters", "N/A"))
-                    embed.set_footer(text="Status : " + MediaStatusToString.get(anime_manga.get("status"), "N/A") + ", Powered by Anilist")
+                    embed.set_footer(
+                        text="Status : "
+                        + MediaStatusToString.get(anime_manga.get("status"), "N/A")
+                        + ", Powered by Anilist"
+                    )
                 if external_links:
                     embed.add_field(name="Streaming and/or Info sites", value=external_links)
                 if anime_manga["bannerImage"]:
                     embed.set_image(url=anime_manga["bannerImage"])
-                embed.add_field(name="You can find out more", value=f"[Anilist]({link}), [MAL](https://myanimelist.net/{cmd.lower()}/{anime_manga['idMal']}), Kitsu (Soon™)")
+                embed.add_field(
+                    name="You can find out more",
+                    value=f"[Anilist]({link}), [MAL](https://myanimelist.net/{cmd.lower()}/{anime_manga['idMal']}), Kitsu (Soon™)",
+                )
                 embeds.append(embed)
 
             return embeds, data
@@ -262,7 +281,9 @@ class API(commands.Cog):
 
         variables = {"search": entered_title, "page": 1}
 
-        data = (await self._request(SEARCH_CHARACTER_QUERY, variables))["data"]["Page"]["characters"]
+        data = (await self._request(SEARCH_CHARACTER_QUERY, variables))["data"]["Page"][
+            "characters"
+        ]
 
         if data is not None and len(data) > 0:
 
@@ -272,17 +293,31 @@ class API(commands.Cog):
             for character in data:
                 # Sets up various variables for Embed
                 link = f"https://anilist.co/character/{character['id']}"
-                character_anime = [f'[{anime["title"]["userPreferred"]}]({"https://anilist.co/anime/" + str(anime["id"])})' for anime in character["media"]["nodes"] if anime["type"] == "ANIME"]
-                character_manga = [f'[{manga["title"]["userPreferred"]}]({"https://anilist.co/manga/" + str(manga["id"])})' for manga in character["media"]["nodes"] if manga["type"] == "MANGA"]
-                embed = discord.Embed(title=self.format_name(character["name"]["first"], character["name"]["last"]))
+                character_anime = [
+                    f'[{anime["title"]["userPreferred"]}]({"https://anilist.co/anime/" + str(anime["id"])})'
+                    for anime in character["media"]["nodes"]
+                    if anime["type"] == "ANIME"
+                ]
+                character_manga = [
+                    f'[{manga["title"]["userPreferred"]}]({"https://anilist.co/manga/" + str(manga["id"])})'
+                    for manga in character["media"]["nodes"]
+                    if manga["type"] == "MANGA"
+                ]
+                embed = discord.Embed(
+                    title=self.format_name(character["name"]["first"], character["name"]["last"])
+                )
                 embed.url = link
                 embed.color = 3447003
                 embed.description = self.description_parser(character["description"])
                 embed.set_thumbnail(url=character["image"]["large"])
                 if len(character_anime) > 0:
-                    embed.add_field(name="Anime", value="\n".join(self.list_maximum(character_anime)))
+                    embed.add_field(
+                        name="Anime", value="\n".join(self.list_maximum(character_anime))
+                    )
                 if len(character_manga) > 0:
-                    embed.add_field(name="Manga", value="\n".join(self.list_maximum(character_manga)))
+                    embed.add_field(
+                        name="Manga", value="\n".join(self.list_maximum(character_manga))
+                    )
                 embed.set_footer(text="Powered by Anilist")
                 embeds.append(embed)
 
@@ -313,8 +348,13 @@ class API(commands.Cog):
                 embed.color = 3447003
                 embed.description = self.description_parser(user["about"])
                 embed.set_thumbnail(url=user["avatar"]["large"])
-                embed.add_field(name="Watched time", value=datetime.timedelta(minutes=int(user["stats"]["watchedTime"])))
-                embed.add_field(name="Chapters read", value=user["stats"].get("chaptersRead", "N/A"))
+                embed.add_field(
+                    name="Watched time",
+                    value=datetime.timedelta(minutes=int(user["stats"]["watchedTime"])),
+                )
+                embed.add_field(
+                    name="Chapters read", value=user["stats"].get("chaptersRead", "N/A")
+                )
                 for category in "anime", "manga", "characters":
                     fav = []
                     for node in user["favourites"][category]["nodes"]:
@@ -329,7 +369,9 @@ class API(commands.Cog):
                         fav.append(f'[{title}](https://anilist.co/{url_path}/{node["id"]})')
 
                     if fav:
-                        embed.add_field(name=f"Favorite {category}", value="\n".join(self.list_maximum(fav)))
+                        embed.add_field(
+                            name=f"Favorite {category}", value="\n".join(self.list_maximum(fav))
+                        )
                 embed.set_footer(text="Powered by Anilist")
                 embeds.append(embed)
 
@@ -352,7 +394,9 @@ class API(commands.Cog):
             embeds, data = await self._search_anime_manga(ctx, cmd, entered_title)
 
             if embeds is not None:
-                await menu(ctx, pages=embeds, controls=DEFAULT_CONTROLS, message=None, page=0, timeout=30)
+                await menu(
+                    ctx, pages=embeds, controls=DEFAULT_CONTROLS, message=None, page=0, timeout=30
+                )
             else:
                 await ctx.send("No anime was found or there was an error in the process")
 
@@ -369,7 +413,9 @@ class API(commands.Cog):
             embeds, data = await self._search_anime_manga(ctx, cmd, entered_title)
 
             if embeds is not None:
-                await menu(ctx, pages=embeds, controls=DEFAULT_CONTROLS, message=None, page=0, timeout=30)
+                await menu(
+                    ctx, pages=embeds, controls=DEFAULT_CONTROLS, message=None, page=0, timeout=30
+                )
             else:
                 await ctx.send("No mangas were found or there was an error in the process")
 
@@ -384,7 +430,9 @@ class API(commands.Cog):
             embeds, data = await self._search_character(ctx, entered_title)
 
             if embeds is not None:
-                await menu(ctx, pages=embeds, controls=DEFAULT_CONTROLS, message=None, page=0, timeout=30)
+                await menu(
+                    ctx, pages=embeds, controls=DEFAULT_CONTROLS, message=None, page=0, timeout=30
+                )
             else:
                 await ctx.send("No characters were found or there was an error in the process")
 
@@ -400,7 +448,9 @@ class API(commands.Cog):
             embeds, data = await self._search_user(ctx, entered_title)
 
             if embeds is not None:
-                await menu(ctx, pages=embeds, controls=DEFAULT_CONTROLS, message=None, page=0, timeout=30)
+                await menu(
+                    ctx, pages=embeds, controls=DEFAULT_CONTROLS, message=None, page=0, timeout=30
+                )
             else:
                 await ctx.send("No users were found or there was an error in the process")
 
@@ -500,7 +550,7 @@ class API(commands.Cog):
             )
 
     @commands.command()
-    async def gif(self, ctx, *, search = None):
+    async def gif(self, ctx, *, search=None):
         """Gets gifs from tenor."""
         token = (await self.bot.get_shared_api_tokens("tenor")).get("token")
 
@@ -528,32 +578,25 @@ class API(commands.Cog):
                         try:
                             result = choice(data["results"])
                             embed = discord.Embed(
-                                color=await self.bot.get_embed_color(ctx),
-                                title=result["title"]
+                                color=await self.bot.get_embed_color(ctx), title=result["title"]
                             )
                             if search:
-                                embed.set_author(
-                                    name=f"Result for {search}"
-                                )
+                                embed.set_author(name=f"Result for {search}")
                             else:
-                                embed.set_author(
-                                    name=f"Trending image on tenor"
-                                )
-                            embed.set_image(
-                                url=result["media"][0]["gif"]["url"]
-                            )
-                            embed.set_footer(
-                                text="Powered by tenor"
-                            )
+                                embed.set_author(name=f"Trending image on tenor")
+                            embed.set_image(url=result["media"][0]["gif"]["url"])
+                            embed.set_footer(text="Powered by tenor")
                             await ctx.send(embed=embed)
                         except:
-                            message = await ctx.maybe_send_embed("Could not find a gif for that search term.")
+                            message = await ctx.maybe_send_embed(
+                                "Could not find a gif for that search term."
+                            )
                             await asyncio.sleep(10)
                             try:
                                 await message.delete()
                             except (discord.errors.NotFound, discord.errors.Forbidden):
                                 pass
-        
+
         else:
             message = await ctx.maybe_send_embed("No api token")
             await asyncio.sleep(10)
@@ -567,7 +610,9 @@ class API(commands.Cog):
             headers = {"user-agent": "Red-cog/3.0"}
             async with aiohttp.ClientSession() as session:
                 async with session.get(
-                    "https://www.youtube.com/results", params={"search_query": query}, headers=headers
+                    "https://www.youtube.com/results",
+                    params={"search_query": query},
+                    headers=headers,
                 ) as r:
                     result = await r.text()
             yt_find = re.findall(r"{\"videoId\":\"(.{11})", result)

@@ -50,7 +50,9 @@ class PollOptions(Converter):
         result["author_id"] = ctx.author.id
         return result
 
-    def strip_question(self, result: Dict[str, Union[List[str], str, bool, timedelta]], argument: str):
+    def strip_question(
+        self, result: Dict[str, Union[List[str], str, bool, timedelta]], argument: str
+    ):
         match = QUESTION_RE.match(argument)
         if not match:
             raise BadArgument("That doesn't look like a question.")
@@ -58,7 +60,9 @@ class PollOptions(Converter):
         no_question = QUESTION_RE.sub("", argument)
         return result, no_question
 
-    def strip_options(self, result: Dict[str, Union[List[str], str, bool, timedelta]], argument: str):
+    def strip_options(
+        self, result: Dict[str, Union[List[str], str, bool, timedelta]], argument: str
+    ):
         possible_options = OPTIONS_RE.match(argument)
         if not possible_options:
             raise BadArgument("You have no options for this poll.")

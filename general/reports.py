@@ -17,7 +17,7 @@ from redbot.core.utils.tunnel import Tunnel
 log = logging.getLogger("red.reports")
 
 
-class Reports():
+class Reports:
     """Create user reports that server staff can respond to.
 
     Users can open reports using `[p]report`. These are then sent
@@ -25,9 +25,15 @@ class Reports():
     gets a DM. Both can be used to communicate.
     """
 
-    default_guild_settings = {"output_channel": None, "active": False, "next_ticket": 1}
+    default_guild_settings = {
+        "output_channel": None,
+        "active": False,
+        "next_ticket": 1,
+    }
 
-    default_report = {"report": {}}
+    default_report = {
+        "report": {},
+    }
 
     # This can be made configureable later if it
     # becomes an issue.
@@ -43,7 +49,9 @@ class Reports():
     ]
 
     def __init__(self):
-        self.reportsconfig = Config.get_conf(self, identifier=1387000, force_registration=True, cog_name="Reports")
+        self.reportsconfig = Config.get_conf(
+            self, identifier=1387000, force_registration=True, cog_name="Reports"
+        )
         self.reportsconfig.register_guild(**self.default_guild_settings)
         self.reportsconfig.init_custom("REPORT", 2)
         self.reportsconfig.register_custom("REPORT", **self.default_report)
@@ -203,12 +211,12 @@ class Reports():
         )
         return ticket_number
 
-    @commands.group(name="report", invoke_without_command=True)
+    @commands.group(name="report", usage="[text]", invoke_without_command=True)
     async def report(self, ctx: commands.Context, *, _report: str = ""):
         """Send a report.
 
         Use without arguments for interactive reporting, or do
-        `[p]report <text>` to use it non-interactively.
+        `[p]report [text]` to use it non-interactively.
         """
         author = ctx.author
         guild = ctx.guild
@@ -396,12 +404,9 @@ class Reports():
             "Tunnels are not persistent across bot restarts."
         )
         topic = (
-            (
-                "A moderator in the server `{guild.name}` has opened a 2-way communication about "
-                "ticket number {ticket_number}."
-            ).format(guild=guild, ticket_number=ticket_number)
-            + big_topic
-        )
+            "A moderator in the server `{guild.name}` has opened a 2-way communication about "
+            "ticket number {ticket_number}."
+        ).format(guild=guild, ticket_number=ticket_number) + big_topic
         try:
             m = await tun.communicate(message=ctx.message, topic=topic, skip_message_content=True)
         except discord.Forbidden:

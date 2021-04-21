@@ -7,7 +7,10 @@ from redbot.core import checks, commands
 from redbot.core.commands import Context, permissions_check
 from redbot.core.utils.chat_formatting import humanize_number
 from redbot.core.utils.mod import (
-    check_permissions, is_mod_or_superior, mass_purge, slow_deletion
+    check_permissions,
+    is_mod_or_superior,
+    mass_purge,
+    slow_deletion,
 )
 from redbot.core.utils.predicates import MessagePredicate
 
@@ -15,6 +18,7 @@ from .abc import MixinMeta
 from .converters import PositiveInt, RawMessageIds, positive_int
 
 log = logging.getLogger("red.angiedale.mod.cleanup")
+
 
 def check_self_permissions():
     async def predicate(ctx: Context):
@@ -123,6 +127,23 @@ class Cleanup(MixinMeta):
                     break
 
         return collected
+
+    @staticmethod
+    async def get_message_from_reference(
+        channel: discord.TextChannel, reference: discord.MessageReference
+    ) -> Optional[discord.Message]:
+        message = None
+        resolved = reference.resolved
+        if resolved and isinstance(resolved, discord.Message):
+            message = resolved
+        elif (message := reference.cached_message) :
+            pass
+        else:
+            try:
+                message = await channel.fetch_message(reference.message_id)
+            except discord.NotFound:
+                pass
+        return message
 
     @checks.mod_or_permissions(manage_messages=True)
     @commands.guild_only()
@@ -255,13 +276,17 @@ class Cleanup(MixinMeta):
     @cleanup.command()
     @commands.bot_has_permissions(manage_messages=True)
     async def after(
-        self, ctx: Context, message_id: RawMessageIds, delete_pinned: bool = False
+        self,
+        ctx: commands.Context,
+        message_id: Optional[RawMessageIds],
+        delete_pinned: bool = False,
     ):
         """Delete all messages after a specified message.
 
         To get a message id, enable developer mode in Discord's
         settings, 'appearance' tab. Then right click a message
         and copy its id.
+        Replying to a message will cleanup all messages after it.
 
         **Arguments:**
 
@@ -271,11 +296,18 @@ class Cleanup(MixinMeta):
 
         channel = ctx.channel
         author = ctx.author
+        after = None
 
-        try:
-            after = await channel.fetch_message(message_id)
-        except discord.NotFound:
-            return await ctx.send(("Message not found."))
+        if message_id:
+            try:
+                after = await channel.fetch_message(message_id)
+            except discord.NotFound:
+                return await ctx.send(("Message not found."))
+        elif ref := ctx.message.reference:
+            after = await self.get_message_from_reference(channel, ref)
+
+        if after is None:
+            raise commands.BadArgument
 
         to_delete = await self.get_messages_for_deletion(
             channel=channel, number=None, after=after, delete_pinned=delete_pinned
@@ -296,7 +328,7 @@ class Cleanup(MixinMeta):
     async def before(
         self,
         ctx: Context,
-        message_id: RawMessageIds,
+        message_id: Optional[RawMessageIds],
         number: positive_int,
         delete_pinned: bool = False,
     ):
@@ -305,6 +337,7 @@ class Cleanup(MixinMeta):
         To get a message id, enable developer mode in Discord's
         settings, 'appearance' tab. Then right click a message
         and copy its id.
+        Replying to a message will cleanup all messages before it.
 
         **Arguments:**
 
@@ -315,11 +348,18 @@ class Cleanup(MixinMeta):
 
         channel = ctx.channel
         author = ctx.author
+        before = None
 
-        try:
-            before = await channel.fetch_message(message_id)
-        except discord.NotFound:
-            return await ctx.send(("Message not found."))
+        if message_id:
+            try:
+                before = await channel.fetch_message(message_id)
+            except discord.NotFound:
+                return await ctx.send(("Message not found."))
+        elif ref := ctx.message.reference:
+            before = await self.get_message_from_reference(channel, ref)
+
+        if before is None:
+            raise commands.BadArgument
 
         to_delete = await self.get_messages_for_deletion(
             channel=channel, number=number, before=before, delete_pinned=delete_pinned
@@ -363,15 +403,11 @@ class Cleanup(MixinMeta):
         try:
             mone = await channel.fetch_message(one)
         except discord.errors.NotFound:
-            return await ctx.send(
-                ("Could not find a message with the ID of {id}.".format(id=one))
-            )
+            return await ctx.send(("Could not find a message with the ID of {id}.".format(id=one)))
         try:
             mtwo = await channel.fetch_message(two)
         except discord.errors.NotFound:
-            return await ctx.send(
-                ("Could not find a message with the ID of {id}.".format(id=two))
-            )
+            return await ctx.send(("Could not find a message with the ID of {id}.".format(id=two)))
         to_delete = await self.get_messages_for_deletion(
             channel=channel, before=mtwo, after=mone, delete_pinned=delete_pinned
         )
@@ -388,9 +424,7 @@ class Cleanup(MixinMeta):
 
     @cleanup.command()
     @commands.bot_has_permissions(manage_messages=True)
-    async def messages(
-        self, ctx: Context, number: positive_int, delete_pinned: bool = False
-    ):
+    async def messages(self, ctx: Context, number: positive_int, delete_pinned: bool = False):
         """Delete the last X messages.
 
         Example:
@@ -424,9 +458,7 @@ class Cleanup(MixinMeta):
 
     @cleanup.command(name="bot")
     @commands.bot_has_permissions(manage_messages=True)
-    async def cleanup_bot(
-        self, ctx: Context, number: positive_int, delete_pinned: bool = False
-    ):
+    async def cleanup_bot(self, ctx: Context, number: positive_int, delete_pinned: bool = False):
         """Clean up command messages and messages from the bot.
 
         Can only cleanup custom commands and alias commands if those cogs are loaded.
@@ -594,9 +626,7 @@ class Cleanup(MixinMeta):
 
     @cleanup.command(name="duplicates", aliases=["spam"])
     @commands.bot_has_permissions(manage_messages=True)
-    async def cleanup_duplicates(
-        self, ctx: Context, number: positive_int = PositiveInt(50)
-    ):
+    async def cleanup_duplicates(self, ctx: Context, number: positive_int = PositiveInt(50)):
         """Deletes duplicate messages in the channel from the last X messages and keeps only one copy.
 
         Defaults to 50.

@@ -4,7 +4,7 @@ import logging
 from abc import ABC
 from collections import defaultdict, namedtuple
 from copy import copy
-from datetime import timezone
+from datetime import datetime, timezone
 from typing import Dict, Literal, Union, cast
 
 import discord
@@ -12,9 +12,7 @@ from redbot.core import Config, checks, commands, modlog
 from redbot.core.bot import Red
 from redbot.core.commands import UserInputOptional
 from redbot.core.utils import AsyncIter
-from redbot.core.utils._internal_utils import (
-    send_to_owners_with_prefix_replaced
-)
+from redbot.core.utils._internal_utils import send_to_owners_with_prefix_replaced
 from redbot.core.utils.chat_formatting import pagify
 from redbot.core.utils.menus import DEFAULT_CONTROLS, menu
 from redbot.core.utils.mod import get_audit_reason
@@ -74,33 +72,49 @@ class Mod(
         "track_nicknames": True,
     }
 
-    default_channel_settings = {"ignored": False}
+    default_channel_settings = {
+        "ignored": False,
+    }
 
-    default_member_settings = {"past_nicks": [], "perms_cache": {}, "banned_until": False}
+    default_member_settings = {
+        "past_nicks": [],
+        "perms_cache": {},
+        "banned_until": False,
+    }
 
-    default_user_settings = {"past_names": []}
+    default_user_settings = {
+        "past_names": [],
+    }
 
     def __init__(self, bot: Red):
         super().__init__()
         self.bot = bot
 
-        self.filterconfig = Config.get_conf(self, identifier=1387000, force_registration=True, cog_name="Filter")
+        self.filterconfig = Config.get_conf(
+            self, identifier=1387000, force_registration=True, cog_name="Filter"
+        )
 
-        self.warnconfig = Config.get_conf(self, identifier=1387000, force_registration=True, cog_name="Warnings")
+        self.warnconfig = Config.get_conf(
+            self, identifier=1387000, force_registration=True, cog_name="Warnings"
+        )
 
         self.pattern_cache = {}
 
-        self.config = Config.get_conf(self, identifier=1387000, force_registration=True, cog_name="Mod")
+        self.config = Config.get_conf(
+            self, identifier=1387000, force_registration=True, cog_name="Mod"
+        )
         self.config.register_global(**self.default_global_settings)
         self.config.register_guild(**self.default_guild_settings)
         self.config.register_channel(**self.default_channel_settings)
         self.config.register_member(**self.default_member_settings)
         self.config.register_user(**self.default_user_settings)
         self.cache: dict = {}
-        self.tban_expiry_task = self.bot.loop.create_task(self.check_tempban_expirations())
+        self.tban_expiry_task = asyncio.create_task(self.tempban_expirations_task())
         self.last_case: dict = defaultdict(dict)
 
-        self.mutesconfig = Config.get_conf(self, identifier=1387000, force_registration=True, cog_name="Mutes")
+        self.mutesconfig = Config.get_conf(
+            self, identifier=1387000, force_registration=True, cog_name="Mutes"
+        )
         default_guild_mutes = {
             "sent_instructions": False,
             "mute_role": None,
@@ -110,7 +124,7 @@ class Mod(
             "dm": False,
             "show_mod": False,
         }
-        self.mutesconfig.register_global(force_role_mutes=True)
+        self.mutesconfig.register_global(force_role_mutes=True, schema_version=0)
         # Tbh I would rather force everyone to use role mutes.
         # I also honestly think everyone would agree they're the
         # way to go. If for whatever reason someone wants to
@@ -132,6 +146,8 @@ class Mod(
         # checking for manual overwrites
 
         self._ready = asyncio.Event()
+
+        self._init_task = self.bot.loop.create_task(self._initialize())
 
     async def red_delete_data_for_user(
         self,
@@ -173,9 +189,12 @@ class Mod(
                         pass
                     # possible with a context switch between here and getting all guilds
 
-    async def initialize(self):
+    async def _initialize(self):
+        await self.bot.wait_until_red_ready()
         await self._maybe_update_config()
+
         await self.register_casetypes()
+
         guild_data = await self.mutesconfig.all_guilds()
         for g_id, mutes in guild_data.items():
             self._server_mutes[g_id] = {}
@@ -197,6 +216,7 @@ class Mod(
         await self._readymutes.wait()
 
     def cog_unload(self):
+        self._init_task.cancel()
         self.tban_expiry_task.cancel()
         self._unmute_task.cancel()
         for task in self._unmute_tasks.values():
@@ -257,6 +277,38 @@ class Mod(
                             guild_data["mention_spam"] = {}
                         guild_data["mention_spam"]["ban"] = current_state
             await self.config.version.set("1.3.0")
+
+        schema_version = await self.config.schema_version()
+
+        if schema_version == 0:
+            await self._schema_0_to_1()
+            schema_version += 1
+            await self.config.schema_version.set(schema_version)
+
+    async def _schema_0_to_1(self):
+        """This contains conversion that adds guild ID to channel mutes data."""
+        all_channels = await self.config.all_channels()
+        if not all_channels:
+            return
+
+        start = datetime.now()
+        log.info(
+            "Config conversion to schema_version 1 started. This may take a while to proceed..."
+        )
+        async for channel_id in AsyncIter(all_channels.keys()):
+            try:
+                if (channel := self.bot.get_channel(channel_id)) is None:
+                    channel = await self.bot.fetch_channel(channel_id)
+                async with self.config.channel_from_id(channel_id).muted_users() as muted_users:
+                    for mute_id, mute_data in muted_users.items():
+                        mute_data["guild"] = channel.guild.id
+            except (discord.NotFound, discord.Forbidden):
+                await self.config.channel_from_id(channel_id).clear()
+
+        log.info(
+            "Config conversion to schema_version 1 done. It took %s to proceed.",
+            datetime.now() - start,
+        )
 
     async def mute_role_helper(self, ctx, role):
         """handle [p]muteset role"""
@@ -376,6 +428,7 @@ class Mod(
                     em = discord.Embed(
                         title=("Reason: {name}").format(name=r),
                         description=v["description"],
+                        color=await ctx.embed_colour(),
                     )
                     em.add_field(name=("Points"), value=str(v["points"]))
                     msg_list.append(em)
@@ -400,7 +453,10 @@ class Mod(
         async with guild_settings.actions() as registered_actions:
             for r in registered_actions:
                 if await ctx.embed_requested():
-                    em = discord.Embed(title=("Action: {name}").format(name=r["action_name"]))
+                    em = discord.Embed(
+                        title=("Action: {name}").format(name=r["action_name"]),
+                        color=await ctx.embed_colour(),
+                    )
                     em.add_field(name=("Points"), value="{}".format(r["points"]), inline=False)
                     em.add_field(
                         name=("Exceed command"),
@@ -458,7 +514,7 @@ class Mod(
         reason_type = None
         async with self.warnconfig.guild(ctx.guild).reasons() as registered_reasons:
             if (reason_type := registered_reasons.get(reason.lower())) is None:
-                msg = ("That is not a registered reason!")
+                msg = "That is not a registered reason!"
                 if custom_allowed:
                     reason_type = {"description": reason, "points": points}
                 else:
@@ -506,10 +562,9 @@ class Mod(
             if showmod:
                 title = ("Warning from {user}").format(user=ctx.author)
             else:
-                title = ("Warning")
+                title = "Warning"
             em = discord.Embed(
-                title=title,
-                description=reason_type["description"],
+                title=title, description=reason_type["description"], color=await ctx.embed_colour()
             )
             em.add_field(name=("Points"), value=str(reason_type["points"]))
             try:
@@ -535,10 +590,9 @@ class Mod(
             if showmod:
                 title = ("Warning from {user}").format(user=ctx.author)
             else:
-                title = ("Warning")
+                title = "Warning"
             em = discord.Embed(
-                title=title,
-                description=reason_type["description"],
+                title=title, description=reason_type["description"], color=await ctx.embed_colour()
             )
             em.add_field(name=("Points"), value=str(reason_type["points"]))
             warn_channel = self.bot.get_channel(guild_settings["warn_channel"])
@@ -554,9 +608,7 @@ class Mod(
                 if warn_channel:
                     await ctx.tick()
                 else:
-                    await ctx.send(
-                        ("{user} has been warned.").format(user=user.mention), embed=em
-                    )
+                    await ctx.send(("{user} has been warned.").format(user=user.mention), embed=em)
         else:
             if not dm_failed:
                 await ctx.tick()
@@ -604,7 +656,7 @@ class Mod(
                 for key in user_warnings.keys():
                     mod_id = user_warnings[key]["mod"]
                     if mod_id == 0xDE1:
-                        mod = ("Deleted Moderator")
+                        mod = "Deleted Moderator"
                     else:
                         bot = ctx.bot
                         mod = bot.get_user(mod_id) or ("Unknown Moderator ({})").format(mod_id)
@@ -619,7 +671,9 @@ class Mod(
                     )
                 await ctx.send_interactive(
                     pagify(msg, shorten_by=58),
-                    box_lang=("Warnings for {user}").format(user=user),
+                    box_lang=("Warnings for {user}").format(
+                        user=user if isinstance(user, discord.Member) else user.id
+                    ),
                 )
 
     @commands.command()

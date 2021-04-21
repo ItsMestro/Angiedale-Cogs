@@ -1,5 +1,6 @@
-import logging
 import asyncio
+import logging
+from datetime import datetime
 from typing import Literal
 
 import discord
@@ -14,6 +15,7 @@ from .mutes import Mutes
 from .warnings import Warnings
 
 log = logging.getLogger("red.angiedale.admin")
+
 
 def is_support_guild():
     async def pred(ctx: commands.Context):
@@ -43,29 +45,51 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
         "toggle_channel": False,
     }
 
-    default_member_warnings = {"total_points": 0, "status": "", "warnings": {}}
+    default_member_warnings = {
+        "total_points": 0,
+        "status": "",
+        "warnings": {},
+    }
 
     def __init__(self, bot: Red):
         self.bot = bot
 
-        self.reportsconfig = Config.get_conf(self, identifier=1387000, force_registration=True, cog_name="Reports")
+        self.reportsconfig = Config.get_conf(
+            self, identifier=1387000, force_registration=True, cog_name="Reports"
+        )
 
-        self.modconfig = Config.get_conf(self, identifier=1387000, force_registration=True, cog_name="Mod")
+        self.modconfig = Config.get_conf(
+            self, identifier=1387000, force_registration=True, cog_name="Mod"
+        )
 
-        self.mutesconfig = Config.get_conf(self, identifier=1387000, force_registration=True, cog_name="Mutes")
+        self.mutesconfig = Config.get_conf(
+            self, identifier=1387000, force_registration=True, cog_name="Mutes"
+        )
 
-        self.warnconfig = Config.get_conf(self, identifier=1387000, force_registration=True, cog_name="Warnings")
+        self.leaverconfig = Config.get_conf(
+            self, identifier=1387000, force_registration=True, cog_name="Leaver"
+        )
+        leaverdefault_guild = {"channel": None}
+        self.leaverconfig.register_guild(**leaverdefault_guild)
+
+        self.warnconfig = Config.get_conf(
+            self, identifier=1387000, force_registration=True, cog_name="Warnings"
+        )
         self.warnconfig.register_guild(**self.default_guild_warnings)
         self.warnconfig.register_member(**self.default_member_warnings)
         self.registration_task = self.bot.loop.create_task(self.register_warningtype())
 
-        self.adminconfig = Config.get_conf(self, identifier=1387000, force_registration=True, cog_name="OwnerAdmin")
+        self.adminconfig = Config.get_conf(
+            self, identifier=1387000, force_registration=True, cog_name="OwnerAdmin"
+        )
         self.adminconfig.register_guild(
             announce_channel=None,  # Integer ID
             selfroles=[],  # List of integer ID's
         )
 
-        self.filterconfig = Config.get_conf(self, identifier=1387000, force_registration=True, cog_name="Filter")
+        self.filterconfig = Config.get_conf(
+            self, identifier=1387000, force_registration=True, cog_name="Filter"
+        )
         default_guild_settings = {
             "filter": [],
             "filterban_count": 0,
@@ -73,8 +97,13 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
             "filter_names": False,
             "filter_default_name": "Florida Man",
         }
-        default_member_settings = {"filter_count": 0, "next_reset_time": 0}
-        default_channel_settings = {"filter": []}
+        default_member_settings = {
+            "filter_count": 0,
+            "next_reset_time": 0,
+        }
+        default_channel_settings = {
+            "filter": [],
+        }
         self.filterconfig.register_guild(**default_guild_settings)
         self.filterconfig.register_member(**default_member_settings)
         self.filterconfig.register_channel(**default_channel_settings)
@@ -284,18 +313,22 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
         reason = "{}({}) changed the colour of role '{}'".format(author.name, author.id, role.name)
 
         if not self.pass_user_hierarchy_check(ctx, role):
-            await ctx.send((
-                "I can not let you edit {role.name}"
-                " because that role is higher than or equal to your highest role"
-                " in the Discord hierarchy."
-                ).format(role=role))
+            await ctx.send(
+                (
+                    "I can not let you edit {role.name}"
+                    " because that role is higher than or equal to your highest role"
+                    " in the Discord hierarchy."
+                ).format(role=role)
+            )
             return
         if not self.pass_hierarchy_check(ctx, role):
-            await ctx.send((
-                "I can not edit {role.name}"
-                " because that role is higher than my or equal to highest role"
-                " in the Discord hierarchy."
-                ).format(role=role))
+            await ctx.send(
+                (
+                    "I can not edit {role.name}"
+                    " because that role is higher than my or equal to highest role"
+                    " in the Discord hierarchy."
+                ).format(role=role)
+            )
             return
         if not ctx.guild.me.guild_permissions.manage_roles:
             await ctx.send(("I need manage roles permission to do that."))
@@ -303,10 +336,12 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
         try:
             await role.edit(reason=reason, color=value)
         except discord.Forbidden:
-            await ctx.send((
-                "I attempted to do something that Discord denied me permissions for."
-                " Your command failed to successfully complete."
-                ))
+            await ctx.send(
+                (
+                    "I attempted to do something that Discord denied me permissions for."
+                    " Your command failed to successfully complete."
+                )
+            )
         else:
             log.info(reason)
             await ctx.send(("Done."))
@@ -328,18 +363,22 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
         )
 
         if not self.pass_user_hierarchy_check(ctx, role):
-            await ctx.send((
-                "I can not let you edit {role.name}"
-                " because that role is higher than or equal to your highest role"
-                " in the Discord hierarchy."
-                ).format(role=role))
+            await ctx.send(
+                (
+                    "I can not let you edit {role.name}"
+                    " because that role is higher than or equal to your highest role"
+                    " in the Discord hierarchy."
+                ).format(role=role)
+            )
             return
         if not self.pass_hierarchy_check(ctx, role):
-            await ctx.send((
-                "I can not edit {role.name}"
-                " because that role is higher than my or equal to highest role"
-                " in the Discord hierarchy."
-                ).format(role=role))
+            await ctx.send(
+                (
+                    "I can not edit {role.name}"
+                    " because that role is higher than my or equal to highest role"
+                    " in the Discord hierarchy."
+                ).format(role=role)
+            )
             return
         if not ctx.guild.me.guild_permissions.manage_roles:
             await ctx.send(("I need manage roles permission to do that."))
@@ -347,10 +386,12 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
         try:
             await role.edit(reason=reason, name=name)
         except discord.Forbidden:
-            await ctx.send((
-                "I attempted to do something that Discord denied me permissions for."
-                " Your command failed to successfully complete."
-                ))
+            await ctx.send(
+                (
+                    "I attempted to do something that Discord denied me permissions for."
+                    " Your command failed to successfully complete."
+                )
+            )
         else:
             log.info(reason)
             await ctx.send(("Done."))
@@ -366,18 +407,22 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
             )
             return
         if check_user and not self.pass_user_hierarchy_check(ctx, role):
-            await ctx.send((
-                "I can not let you give {role.name} to {member.display_name}"
-                " because that role is higher than or equal to your highest role"
-                " in the Discord hierarchy."
-                ).format(role=role, member=member))
+            await ctx.send(
+                (
+                    "I can not let you give {role.name} to {member.display_name}"
+                    " because that role is higher than or equal to your highest role"
+                    " in the Discord hierarchy."
+                ).format(role=role, member=member)
+            )
             return
         if not self.pass_hierarchy_check(ctx, role):
-            await ctx.send((
-                "I can not give {role.name} to {member.display_name}"
-                " because that role is higher than or equal to my highest role"
-                " in the Discord hierarchy."
-                ).format(role=role, member=member))
+            await ctx.send(
+                (
+                    "I can not give {role.name} to {member.display_name}"
+                    " because that role is higher than or equal to my highest role"
+                    " in the Discord hierarchy."
+                ).format(role=role, member=member)
+            )
             return
         if not ctx.guild.me.guild_permissions.manage_roles:
             await ctx.send(("I need manage roles permission to do that."))
@@ -385,9 +430,12 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
         try:
             await member.add_roles(role)
         except discord.Forbidden:
-            await ctx.send((
-                "I attempted to do something that Discord denied me permissions for."
-                " Your command failed to successfully complete."))
+            await ctx.send(
+                (
+                    "I attempted to do something that Discord denied me permissions for."
+                    " Your command failed to successfully complete."
+                )
+            )
         else:
             await ctx.send(
                 ("I successfully added {role.name} to {member.display_name}").format(
@@ -406,18 +454,22 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
             )
             return
         if check_user and not self.pass_user_hierarchy_check(ctx, role):
-            await ctx.send((
-                "I can not let you remove {role.name} from {member.display_name}"
-                " because that role is higher than or equal to your highest role"
-                " in the Discord hierarchy."
-                ).format(role=role, member=member))
+            await ctx.send(
+                (
+                    "I can not let you remove {role.name} from {member.display_name}"
+                    " because that role is higher than or equal to your highest role"
+                    " in the Discord hierarchy."
+                ).format(role=role, member=member)
+            )
             return
         if not self.pass_hierarchy_check(ctx, role):
-            await ctx.send((
-                "I can not remove {role.name} from {member.display_name}"
-                " because that role is higher than or equal to my highest role"
-                " in the Discord hierarchy."
-                ).format(role=role, member=member))
+            await ctx.send(
+                (
+                    "I can not remove {role.name} from {member.display_name}"
+                    " because that role is higher than or equal to my highest role"
+                    " in the Discord hierarchy."
+                ).format(role=role, member=member)
+            )
             return
         if not ctx.guild.me.guild_permissions.manage_roles:
             await ctx.send(("I need manage roles permission to do that."))
@@ -425,9 +477,12 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
         try:
             await member.remove_roles(role)
         except discord.Forbidden:
-            await ctx.send((
-                "I attempted to do something that Discord denied me permissions for."
-                " Your command failed to successfully complete."))
+            await ctx.send(
+                (
+                    "I attempted to do something that Discord denied me permissions for."
+                    " Your command failed to successfully complete."
+                )
+            )
         else:
             await ctx.send(
                 ("I successfully removed {role.name} from {member.display_name}").format(
@@ -538,7 +593,9 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
     async def setup(self, ctx):
         """Sends invite to support server."""
         if not ctx.guild.id == 128856147162562560:
-            await ctx.send("Join this server and run this command again in there.\n\nhttps://discord.gg/xxjdXmR")
+            await ctx.send(
+                "Join this server and run this command again in there.\n\nhttps://discord.gg/xxjdXmR"
+            )
         else:
             for guild in self.bot.guilds:
                 if ctx.author.id == guild.owner_id:
@@ -548,6 +605,48 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
                         return await ctx.send("Removed your support role.")
                     else:
                         await ctx.author.add_roles(supportrole)
-                        return await ctx.send("You've now been given a support role with access to exclusive channels for information on the bot.")
-            return await ctx.send((f"You're not the owner of any servers that I'm in. The support role is only for server owners.\n"
-            f"Feel free to let me join one of your servers with `{ctx.clean_prefix}invite`"))
+                        return await ctx.send(
+                            "You've now been given a support role with access to exclusive channels for information on the bot."
+                        )
+            return await ctx.send(
+                (
+                    f"You're not the owner of any servers that I'm in. The support role is only for server owners.\n"
+                    f"Feel free to let me join one of your servers with `{ctx.clean_prefix}invite`"
+                )
+            )
+
+    @commands.command()
+    @checks.admin_or_permissions(administrator=True)
+    @commands.guild_only()
+    async def leavers(self, ctx: commands.Context, channel: discord.TextChannel = None):
+        """Sets a channel that logs when users leave.
+        Leave blank to stop logging."""
+        if channel:
+            await self.leaverconfig.guild(ctx.guild).channel.set(channel.id)
+            await ctx.maybe_send_embed("Will now log when people leave in " + channel.name)
+        else:
+            await self.leaverconfig.guild(ctx.guild).channel.set(None)
+            await ctx.maybe_send_embed("Will no longer log people that leave")
+
+    @commands.Cog.listener()
+    async def on_member_remove(self, member: discord.Member):
+        guild = member.guild
+
+        if await self.bot.cog_disabled_in_guild(self, guild):
+            return
+
+        channel = await self.leaverconfig.guild(guild).channel()
+
+        if channel:
+            channel = guild.get_channel(channel)
+            out = "{} {}".format(member, member.nick if member.nick is not None else "")
+            if await self.bot.embed_requested(channel, member):
+                embed = discord.Embed(
+                    description=out, color=(await self.bot.get_embed_color(channel))
+                )
+                embed.set_author(name="Member Left")
+                embed.set_footer(f"ID: {member.id}")
+                embed.timestamp = datetime.utcnow()
+                await channel.send(embed=embed)
+            else:
+                await channel.send(f"{out} left the server.")

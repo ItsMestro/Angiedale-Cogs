@@ -2,9 +2,12 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
 
 import discord
-from redbot.core import commands, modlog, checks
+from redbot.core import checks, commands, modlog
 from redbot.core.utils.chat_formatting import (
-    format_perms_list, humanize_list, humanize_timedelta, pagify
+    format_perms_list,
+    humanize_list,
+    humanize_timedelta,
+    pagify,
 )
 from redbot.core.utils.mod import get_audit_reason
 
@@ -148,14 +151,14 @@ class VoiceMutes(MixinMeta):
                     issue_list.append((user, success["reason"]))
 
         if success_list:
-            msg = ("{users} has been muted in this channel{time}.")
+            msg = "{users} has been muted in this channel{time}."
             if len(success_list) > 1:
-                msg = ("{users} have been muted in this channel{time}.")
+                msg = "{users} have been muted in this channel{time}."
             await ctx.send(
                 msg.format(users=humanize_list([f"{u}" for u in success_list]), time=time)
             )
         if issue_list:
-            msg = ("The following users could not be muted\n")
+            msg = "The following users could not be muted\n"
             for user, issue in issue_list:
                 msg += f"{user}: {issue}\n"
             await ctx.send_interactive(pagify(msg))
@@ -216,14 +219,14 @@ class VoiceMutes(MixinMeta):
                         until=None,
                         channel=channel,
                     )
-                    await self._send_dm_notification(
-                        user, author, guild, ("Voice unmute"), reason
-                    )
+                    await self._send_dm_notification(user, author, guild, ("Voice unmute"), reason)
                 else:
                     issue_list.append((user, success["reason"]))
         if success_list:
             if channel.id in self._channel_mutes and self._channel_mutes[channel.id]:
-                await self.mutesconfig.channel(channel).muted_users.set(self._channel_mutes[channel.id])
+                await self.mutesconfig.channel(channel).muted_users.set(
+                    self._channel_mutes[channel.id]
+                )
             else:
                 await self.mutesconfig.channel(channel).muted_users.clear()
             await ctx.send(
@@ -232,7 +235,7 @@ class VoiceMutes(MixinMeta):
                 )
             )
         if issue_list:
-            msg = ("The following users could not be unmuted\n")
+            msg = "The following users could not be unmuted\n"
             for user, issue in issue_list:
                 msg += f"{user}: {issue}\n"
             await ctx.send_interactive(pagify(msg))

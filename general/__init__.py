@@ -10,6 +10,7 @@ __red_end_user_data_statement__ = (
     "have the data deleted per request."
 )
 
+
 def setup(bot):
     cog = General(bot)
     bot.add_cog(cog)

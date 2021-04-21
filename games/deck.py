@@ -6,10 +6,30 @@ from itertools import chain, product
 class Deck:
     """Creates a Deck of playing cards."""
 
-    suites = (":clubs:", ":diamonds:", ":hearts:", ":spades:")
-    face_cards = ("King", "Queen", "Jack", "Ace")
-    bj_vals = {"Jack": 10, "Queen": 10, "King": 10, "Ace": 1}
-    war_values = {"Jack": 11, "Queen": 12, "King": 13, "Ace": 14}
+    suites = (
+        ":clubs:",
+        ":diamonds:",
+        ":hearts:",
+        ":spades:",
+    )
+    face_cards = (
+        "King",
+        "Queen",
+        "Jack",
+        "Ace",
+    )
+    bj_vals = {
+        "Jack": 10,
+        "Queen": 10,
+        "King": 10,
+        "Ace": 1,
+    }
+    war_values = {
+        "Jack": 11,
+        "Queen": 12,
+        "King": 13,
+        "Ace": 14,
+    }
 
     def __init__(self):
         self._deck = deque()

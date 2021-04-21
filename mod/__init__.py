@@ -10,7 +10,7 @@ __red_end_user_data_statement__ = (
     "can not be deleted per request."
 )
 
+
 async def setup(bot):
     cog = Mod(bot)
     bot.add_cog(cog)
-    await cog.initialize()

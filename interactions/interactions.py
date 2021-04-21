@@ -1,11 +1,13 @@
+import asyncio
 import json
 import logging
 from random import randint
+from typing import Optional
 
 import aiohttp
 import discord
 from bs4 import BeautifulSoup
-from redbot.core import commands
+from redbot.core import Config, checks, commands
 from redbot.core.bot import Red
 from redbot.core.data_manager import bundled_data_path
 
@@ -18,6 +20,42 @@ class Interactions(commands.Cog):
     def __init__(self, bot: Red):
         super().__init__()
         self.bot = bot
+
+        self.statsconfig = Config.get_conf(
+            self, identifier=1387000, force_registration=True, cog_name="Stats"
+        )
+        self.bonks = 0
+
+        self.statstask: Optional[asyncio.Task] = None
+        self._ready_event: asyncio.Event = asyncio.Event()
+        self._init_task: asyncio.Task = self.bot.loop.create_task(self.initialize())
+
+    async def cog_before_invoke(self, ctx: commands.Context):
+        await self._ready_event.wait()
+
+    async def initialize(self) -> None:
+        """Should be called straight after cog instantiation."""
+        await self.bot.wait_until_ready()
+
+        self.statstask = asyncio.create_task(self.updatestats())
+
+        self._ready_event.set()
+
+    def cog_unload(self):
+        self.statstask.cancel()
+
+    async def updatestats(self):
+        while True:
+            try:
+                if self.bonks > 0:
+                    b = await self.statsconfig.bonk()
+                    await self.statsconfig.bonk.set(b + self.bonks)
+                    self.bonks = 0
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                log.exception(e, exc_info=e)
+            await asyncio.sleep(60 * 10)
 
     @commands.command()
     @commands.bot_has_permissions(embed_links=True)
@@ -260,11 +298,14 @@ class Interactions(commands.Cog):
         embed.set_footer(text="Made with the help of nekos.life")
         embed.set_image(url=images[i])
         await ctx.send(embed=embed)
+        self.bonks += 1
 
     async def fetch_nekos_life(self, ctx, rp_action):
 
         async with aiohttp.ClientSession() as session:
-            async with session.get(f"https://api.nekos.dev/api/v3/images/sfw/gif/{rp_action}/?count=20") as resp:
+            async with session.get(
+                f"https://api.nekos.dev/api/v3/images/sfw/gif/{rp_action}/?count=20"
+            ) as resp:
                 try:
                     content = await resp.json(content_type=None)
                 except (ValueError, aiohttp.ContentTypeError) as ex:
@@ -287,9 +328,7 @@ class Interactions(commands.Cog):
         return self.imagelist
 
     @commands.command(aliases=["lovecalc", "lovercalculator"])
-    async def lovers(
-        self, ctx: commands.Context, lover: discord.Member, loved: discord.Member
-    ):
+    async def lovers(self, ctx: commands.Context, lover: discord.Member, loved: discord.Member):
         """Calculate the love between two users!"""
 
         x = lover.display_name

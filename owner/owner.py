@@ -3,7 +3,7 @@ import logging
 import os
 import re
 import shutil
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from random import choice
 from typing import Optional
 from zipfile import ZipFile
@@ -16,12 +16,18 @@ from redbot.core.bot import Red
 from redbot.core.data_manager import cog_data_path
 from redbot.core.utils import AsyncIter
 from redbot.core.utils.chat_formatting import (
-    box, humanize_list, humanize_number, inline, pagify
+    box,
+    humanize_list,
+    humanize_number,
+    humanize_timedelta,
+    inline,
+    pagify,
 )
 from redbot.core.utils.menus import DEFAULT_CONTROLS, close_menu, menu
 from redbot.core.utils.tunnel import Tunnel
 
 log = logging.getLogger("red.angiedale.owner")
+
 
 def is_owner_if_bank_global():
     """
@@ -52,14 +58,26 @@ class Owner(commands.Cog):
         self.bot = bot
         self.interaction = []
 
-        self.adminconfig = Config.get_conf(self, identifier=1387000, force_registration=True, cog_name="OwnerAdmin")
+        self.adminconfig = Config.get_conf(
+            self, identifier=1387000, force_registration=True, cog_name="OwnerAdmin"
+        )
         self.adminconfig.register_global(serverlocked=False, schema_version=0)
 
-        self.mutesconfig = Config.get_conf(self, identifier=1387000, force_registration=True, cog_name="Mutes")
+        self.mutesconfig = Config.get_conf(
+            self, identifier=1387000, force_registration=True, cog_name="Mutes"
+        )
+
+        self.statsconfig = Config.get_conf(
+            self, identifier=1387000, force_registration=True, cog_name="Stats"
+        )
+        self.statsconfig.register_global(Channel=None, Message=None, bonk=0)
 
         self.__current_announcer = None
+        self.statschannel = None
+        self.statsmessage = None
+        self.statstask: Optional[asyncio.Task] = None
         self._ready = asyncio.Event()
-        asyncio.create_task(self.handle_migrations())
+        asyncio.create_task(self.initialize())
         # As this is a data migration, don't store this for cancelation.
 
         self.presence_task = asyncio.create_task(self.maybe_update_presence())
@@ -71,7 +89,7 @@ class Owner(commands.Cog):
         """ Nothing to delete """
         return
 
-    async def handle_migrations(self):
+    async def initialize(self):
 
         lock = self.adminconfig.get_guilds_lock()
         async with lock:
@@ -82,6 +100,14 @@ class Owner(commands.Cog):
             if current_schema == 0:
                 await self.migrate_config_from_0_to_1()
                 await self.adminconfig.schema_version.set(1)
+
+        await self.bot.wait_until_ready()
+
+        async with self.statsconfig.all() as sconfig:
+            self.statschannel = sconfig["Channel"]
+            self.statsmessage = sconfig["Message"]
+        if self.statschannel:
+            self.statstask = asyncio.create_task(self._update_stats())
 
         self._ready.set()
 
@@ -99,12 +125,102 @@ class Owner(commands.Cog):
 
     def cog_unload(self):
         self.presence_task.cancel()
+        if self.statstask:
+            self.statstask.cancel()
         try:
             self.__current_announcer.cancel()
         except AttributeError:
             pass
         for user in self.interaction:
             self.bot.loop.create_task(self.stop_interaction(user))
+
+    async def _update_stats(self):
+        await asyncio.sleep(30 * 1)
+        while True:
+            try:
+                await self.check_statsembed()
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                log.exception(e, exc_info=e)
+            await asyncio.sleep(60 * 10)
+
+    async def check_statsembed(self):
+        total_users = len(self.bot.users)
+        servers = len(self.bot.guilds)
+        commands = len(self.bot.commands)
+        emojis = len(self.bot.emojis)
+        bonkedusers = await self.statsconfig.bonk()
+        latencies = self.bot.latencies
+        uptime = humanize_timedelta(timedelta=datetime.utcnow() - self.bot.uptime)
+
+        latencymsg = ""
+        for shard, pingt in latencies:
+            latencymsg += "Shard **{}/{}**: `{}ms`\n".format(
+                shard + 1, len(latencies), round(pingt * 1000)
+            )
+
+        channel = self.bot.get_channel(self.statschannel)
+        message = await channel.fetch_message(self.statsmessage)
+        embed = message.embeds[0]
+
+        embed.set_field_at(0, name="Serving Users", value=total_users)
+        embed.set_field_at(1, name="In Servers", value=servers)
+        embed.set_field_at(2, name="Commands", value=commands)
+        embed.set_field_at(3, name="Emojis", value=emojis)
+        embed.set_field_at(4, name="Bonked Users", value=bonkedusers)
+        embed.set_field_at(5, name="Uptime", value=uptime, inline=False)
+        embed.set_field_at(6, name="Latency", value=latencymsg, inline=False)
+
+        embed.timestamp = datetime.utcnow()
+
+        await message.edit(embed=embed)
+
+    @commands.command()
+    @commands.guild_only()
+    @checks.is_owner()
+    async def setstatschannel(self, ctx, channel: discord.TextChannel = None):
+        """Set a channel for displaying bot stats."""
+        if not self.statsmessage and not channel:
+            return await ctx.send("Please provide a channel to start displaying bot stats in.")
+        response = []
+        if self.statsmessage:
+            if self.statstask:
+                self.statstask.cancel()
+            schannel = self.bot.get_channel(self.statschannel)
+            smessage = await schannel.fetch_message(self.statsmessage)
+            try:
+                await smessage.delete()
+            except:
+                pass
+            await self.statsconfig.clear_all()
+            response.append("deleted the previous stats message")
+        if channel:
+            embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
+            embed.title = f"Statistics for {self.bot.user.name}"
+            embed.set_thumbnail(url=self.bot.user.avatar_url)
+            embed.add_field(name="Serving Users", value=0)
+            embed.add_field(name="In Servers", value=0)
+            embed.add_field(name="Commands", value=0)
+            embed.add_field(name="Emojis", value=0)
+            embed.add_field(name="Bonked Users", value=0)
+            embed.add_field(name="Uptime", value=0, inline=False)
+            embed.add_field(name="Latency", value=0, inline=False)
+            embed.timestamp = datetime.utcnow()
+            embed.set_footer(text="Updated")
+
+            message = await channel.send(embed=embed)
+
+            await self.statsconfig.Channel.set(channel.id)
+            await self.statsconfig.Message.set(message.id)
+
+            self.statschannel = channel.id
+            self.statsmessage = message.id
+            self.statstask = self.bot.loop.create_task(self._update_stats())
+
+            response.append(f"started displaying stats for {self.bot.user.name} in {channel.name}")
+
+        await ctx.send(" and ".join(response).capitalize())
 
     @commands.Cog.listener()
     async def on_reaction_add(self, reaction, user):
@@ -140,11 +256,13 @@ class Owner(commands.Cog):
             await ctx.send(("The announcement has begun."))
         else:
             prefix = ctx.clean_prefix
-            await ctx.send((
-                "I am already announcing something. If you would like to make a"
-                " different announcement please use `{prefix}announce cancel`"
-                " first."
-                ).format(prefix=prefix))
+            await ctx.send(
+                (
+                    "I am already announcing something. If you would like to make a"
+                    " different announcement please use `{prefix}announce cancel`"
+                    " first."
+                ).format(prefix=prefix)
+            )
 
     @announce.command(name="cancel")
     async def announce_cancel(self, ctx):
@@ -339,7 +457,7 @@ class Owner(commands.Cog):
 
         base_embed.set_author(
             name=f"{self.bot.user.name} is in {len(guilds)} servers",
-            icon_url=self.bot.user.avatar_url
+            icon_url=self.bot.user.avatar_url,
         )
 
         guild_list = []
@@ -361,7 +479,11 @@ class Owner(commands.Cog):
             page_list.append(embed)
             i += 1
 
-        await menu(ctx, page_list, DEFAULT_CONTROLS if len(page_list) > 1 else {"\N{CROSS MARK}": close_menu})
+        await menu(
+            ctx,
+            page_list,
+            DEFAULT_CONTROLS if len(page_list) > 1 else {"\N{CROSS MARK}": close_menu},
+        )
 
     @commands.Cog.listener()
     async def on_guild_join(self, guild: discord.Guild):
@@ -377,8 +499,10 @@ class Owner(commands.Cog):
                 await asyncio.sleep(int(delay))
             except asyncio.CancelledError:
                 break
-            except Exception as e:
-                log.exception(e, exc_info=e)
+            except:
+                pass
+            # except Exception as e:
+            #     log.exception(e, exc_info=e)
 
     async def presence_updater(self):
         pattern = re.compile(rf"<@!?{self.bot.user.id}>")
@@ -404,17 +528,114 @@ class Owner(commands.Cog):
         datetoday = date.today()
         wheneaster = easter(datetoday.year)
         if datetoday >= wheneaster and datetoday <= wheneaster + timedelta(days=7):
-            statuses = ["with you <3", "with things", "with ink", "Splatoon", "in the bot channel", "with my owner", "Happy Easter", "Happy Easter", "with colored eggs", "with bunnies", "egghunt", usersstatus, serversstatus,]
+            statuses = [
+                "with you <3",
+                "with things",
+                "with ink",
+                "Splatoon",
+                "in the bot channel",
+                "with my owner",
+                "Happy Easter",
+                "Happy Easter",
+                "with colored eggs",
+                "with bunnies",
+                "egghunt",
+                usersstatus,
+                serversstatus,
+            ]
         elif datetoday.month == 2 and datetoday.day >= 14 and datetoday.day <= 15:
-            statuses = ["with you <3", "with things", "with ink", "Splatoon", "in the bot channel", "with my owner", "Happy Valentine", "Happy Valentine", "cupid", "with love", "with a box of heart chocolate", "with my lover", "with my valentine", usersstatus, serversstatus,]
+            statuses = [
+                "with you <3",
+                "with things",
+                "with ink",
+                "Splatoon",
+                "in the bot channel",
+                "with my owner",
+                "Happy Valentine",
+                "Happy Valentine",
+                "cupid",
+                "with love",
+                "with a box of heart chocolate",
+                "with my lover",
+                "with my valentine",
+                usersstatus,
+                serversstatus,
+            ]
         elif datetoday.month == 12 and datetoday.day >= 24 and datetoday.day < 31:
-            statuses = ["with you <3", "with things", "with ink", "Splatoon", "in the bot channel", "with my owner", "Merry Christmas", "Happy Holidays" "Merry Squidmas", "the christmas tree", "with santa", "with gifts", "in the snow", usersstatus, serversstatus,]
-        elif datetoday.month == 12 and datetoday.day == 31 or datetoday.month == 1 and datetoday.day <= 7:
-            statuses = ["with you <3", "with things", "with ink", "Splatoon", "in the bot channel", "with my owner", "Happy New Year", "Happy New Year", "with fireworks", usersstatus, serversstatus,]
-        elif datetoday.month == 11 and datetoday.day == 31 or datetoday.month == 11 and datetoday.day <= 7:
-            statuses = ["with you <3", "with things", "with ink", "Splatoon", "in the bot channel", "with my owner", "Happy Halloween", "Happy Splatoween", "trick or treat", "with candy", "spooky", "with pumpkins", usersstatus, serversstatus,]
+            statuses = [
+                "with you <3",
+                "with things",
+                "with ink",
+                "Splatoon",
+                "in the bot channel",
+                "with my owner",
+                "Merry Christmas",
+                "Happy Holidays" "Merry Squidmas",
+                "the christmas tree",
+                "with santa",
+                "with gifts",
+                "in the snow",
+                usersstatus,
+                serversstatus,
+            ]
+        elif (
+            datetoday.month == 12
+            and datetoday.day == 31
+            or datetoday.month == 1
+            and datetoday.day <= 7
+        ):
+            statuses = [
+                "with you <3",
+                "with things",
+                "with ink",
+                "Splatoon",
+                "in the bot channel",
+                "with my owner",
+                "Happy New Year",
+                "Happy New Year",
+                "with fireworks",
+                usersstatus,
+                serversstatus,
+            ]
+        elif (
+            datetoday.month == 11
+            and datetoday.day == 31
+            or datetoday.month == 11
+            and datetoday.day <= 7
+        ):
+            statuses = [
+                "with you <3",
+                "with things",
+                "with ink",
+                "Splatoon",
+                "in the bot channel",
+                "with my owner",
+                "Happy Halloween",
+                "Happy Splatoween",
+                "trick or treat",
+                "with candy",
+                "spooky",
+                "with pumpkins",
+                usersstatus,
+                serversstatus,
+            ]
         else:
-            statuses = ["with you <3", "with things", "with ink", "Splatoon", "in the bot channel", "with my owner", "with Pearl", "with Marina", "with Callie", "with Marie", "with Agent 3", "with Agent 4", usersstatus, serversstatus,]
+            statuses = [
+                "with you <3",
+                "with things",
+                "with ink",
+                "Splatoon",
+                "in the bot channel",
+                "with my owner",
+                "with Pearl",
+                "with Marina",
+                "with Callie",
+                "with Marie",
+                "with Agent 3",
+                "with Agent 4",
+                usersstatus,
+                serversstatus,
+            ]
         new_status = self.random_status(guild, statuses)
         if (current_game != new_status) or (current_game is None):
             new_status = " | ".join((new_status, helpaddon))
@@ -571,10 +792,13 @@ class Owner(commands.Cog):
                 zip.write(f"{path}/{file}", file)
 
         with open(f"{path}.zip", "rb") as fp:
-            await ctx.send(content="Here's your emotes!",file=discord.File(fp, f"{g.name} Emotes.zip"))
-        
+            await ctx.send(
+                content="Here's your emotes!", file=discord.File(fp, f"{g.name} Emotes.zip")
+            )
+
         os.remove(f"{path}.zip")
         shutil.rmtree(path)
+
 
 class Announcer:
     def __init__(self, ctx: commands.Context, message: str, config=None):

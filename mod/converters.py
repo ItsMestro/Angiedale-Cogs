@@ -5,14 +5,15 @@ from typing import TYPE_CHECKING, Dict, NewType, Union
 
 from redbot.core import commands
 from redbot.core.commands import BadArgument, Context, Converter
+from redbot.core.utils.chat_formatting import inline
 
 log = logging.getLogger("red.angiedale.mod.converter")
 
 SNOWFLAKE_THRESHOLD = 2 ** 63
 
 
-_id_regex = re.compile(r"([0-9]{15,21})$")
-_mention_regex = re.compile(r"<@!?([0-9]{15,21})>$")
+_id_regex = re.compile(r"([0-9]{15,20})$")
+_mention_regex = re.compile(r"<@!?([0-9]{15,20})>$")
 
 # the following regex is slightly modified from Red
 # it's changed to be slightly more strict on matching with finditer
@@ -60,6 +61,7 @@ class MuteTime(Converter):
         result["reason"] = argument.strip()
         return result
 
+
 class RawUserIds(Converter):
     async def convert(self, ctx, argument):
         # This is for the hackban and unban commands, where we receive IDs that
@@ -70,6 +72,7 @@ class RawUserIds(Converter):
             return int(match.group(1))
 
         raise BadArgument(("{} doesn't look like a valid user ID.").format(argument))
+
 
 class RawMessageIds(Converter):
     async def convert(self, ctx: Context, argument: str) -> int:

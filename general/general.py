@@ -10,12 +10,20 @@ import discord
 from dateutil.relativedelta import relativedelta
 from redbot.core import Config, commands
 from redbot.core.bot import Red
-from redbot.core.commands.commands import command
+from redbot.core.utils.angiedale import patreons_in_tier
 from redbot.core.utils.chat_formatting import (
-    bold, box, escape, humanize_number, humanize_timedelta, pagify
+    bold,
+    box,
+    escape,
+    humanize_list,
+    humanize_number,
+    humanize_timedelta,
+    pagify,
 )
 from redbot.core.utils.common_filters import (
-    escape_spoilers_and_mass_mentions, filter_invites, filter_mass_mentions
+    escape_spoilers_and_mass_mentions,
+    filter_invites,
+    filter_mass_mentions,
 )
 from redbot.core.utils.menus import close_menu, menu
 
@@ -24,93 +32,133 @@ from .reports import Reports
 
 log = logging.getLogger("red.angiedale.general")
 
-KAOMOJI_JOY = [" (* ^ ω ^)", " (o^▽^o)", " (≧◡≦)", ' ☆⌒ヽ(*"､^*)chu', " ( ˘⌣˘)♡(˘⌣˘ )", " xD"]
-KAOMOJI_EMBARRASSED = [" (⁄ ⁄>⁄ ▽ ⁄<⁄ ⁄)..", " (*^.^*)..,", "..,", ",,,", "... ", ".. ", " mmm..", "O.o"]
-KAOMOJI_CONFUSE = [" (o_O)?", " (°ロ°) !?", " (ーー;)?", " owo?"]
-KAOMOJI_SPARKLES = [" *:･ﾟ✧*:･ﾟ✧ ", " ☆*:・ﾟ ", "〜☆ ", " uguu.., ", "-.-"]
+KAOMOJI_JOY = [
+    " (* ^ ω ^)",
+    " (o^▽^o)",
+    " (≧◡≦)",
+    ' ☆⌒ヽ(*"､^*)chu',
+    " ( ˘⌣˘)♡(˘⌣˘ )",
+    " xD",
+]
+KAOMOJI_EMBARRASSED = [
+    " (⁄ ⁄>⁄ ▽ ⁄<⁄ ⁄)..",
+    " (*^.^*)..,",
+    "..,",
+    ",,,",
+    "... ",
+    ".. ",
+    " mmm..",
+    "O.o",
+]
+KAOMOJI_CONFUSE = [
+    " (o_O)?",
+    " (°ロ°) !?",
+    " (ーー;)?",
+    " owo?",
+]
+KAOMOJI_SPARKLES = [
+    " *:･ﾟ✧*:･ﾟ✧ ",
+    " ☆*:・ﾟ ",
+    "〜☆ ",
+    " uguu.., ",
+    "-.-",
+]
 
 fur = {
-        "ahh": "*murr*",
-        "love": "wuv",
-        "loves": "wuvs",
-        "awesome": "pawsome",
-        "awful": "pawful",
-        "bite": "nom",
-        "bites": "noms",
-        "butthole": "tailhole",
-        "buttholes": "tailholes",
-        "bulge": "bulgy-wulgy",
-        "bye": "bai",
-        "celebrity": "popufur",
-        "celebrities": "popufurs",
-        "cheese": "sergal",
-        "child": "cub",
-        "children": "cubs",
-        "computer": "protogen",
-        "computers": "protogens",
-        "confuse": "confuzzle",
-        "confused": "confuzzled",
-        "disease": "pathOwOgen",
-        "dog": "good boy",
-        "dogs": "good boys",
-        "dragon": "derg",
-        "dragons": "dergs",
-        "eat": "vore",
-        "everyone": "everyfur",
-        "foot": "footpaw",
-        "feet": "footpaws",
-        "for": "fur",
-        "fuck": "yiff",
-        "fucking": "yiffing",
-        "fucked": "yiffed",
-        "hand": "paw",
-        "hands": "paws",
-        "hi": "hai",
-        "human": "hyooman",
-        "humans": "hyoomans",
-        "hyena": "yeen",
-        "hyenas": "yeens",
-        "innocent": "furocent",
-        "kiss": "lick",
-        "kisses": "licks",
-        "lmao": "hehe~",
-        "masturbate": "paw off",
-        "mouth": "maw",
-        "naughty": "knotty",
-        "not": "knot",
-        "perfect": "purfect",
-        "persona": "fursona",
-        "personas": "fursonas",
-        "pervert": "furvert",
-        "perverts": "furverts",
-        "porn": "yiff",
-        "roar": "rawr",
-        "shout": "awoo",
-        "someone": "somefur",
-        "source": "sauce",
-        "sexy": "yiffy",
-        "tale": "tail",
-        "the": "teh",
-        "this": "dis",
-        "what": "wat",
-        "with": "wif",
-        "you": "chu",
-        ":)": ":3",
-        ":o": "OwO",
-        ":D": "UwU",
-        "XD": "X3",
-    }
+    "ahh": "*murr*",
+    "love": "wuv",
+    "loves": "wuvs",
+    "awesome": "pawsome",
+    "awful": "pawful",
+    "bite": "nom",
+    "bites": "noms",
+    "butthole": "tailhole",
+    "buttholes": "tailholes",
+    "bulge": "bulgy-wulgy",
+    "bye": "bai",
+    "celebrity": "popufur",
+    "celebrities": "popufurs",
+    "cheese": "sergal",
+    "child": "cub",
+    "children": "cubs",
+    "computer": "protogen",
+    "computers": "protogens",
+    "confuse": "confuzzle",
+    "confused": "confuzzled",
+    "disease": "pathOwOgen",
+    "dog": "good boy",
+    "dogs": "good boys",
+    "dragon": "derg",
+    "dragons": "dergs",
+    "eat": "vore",
+    "everyone": "everyfur",
+    "foot": "footpaw",
+    "feet": "footpaws",
+    "for": "fur",
+    "fuck": "yiff",
+    "fucking": "yiffing",
+    "fucked": "yiffed",
+    "hand": "paw",
+    "hands": "paws",
+    "hi": "hai",
+    "human": "hyooman",
+    "humans": "hyoomans",
+    "hyena": "yeen",
+    "hyenas": "yeens",
+    "innocent": "furocent",
+    "kiss": "lick",
+    "kisses": "licks",
+    "lmao": "hehe~",
+    "masturbate": "paw off",
+    "mouth": "maw",
+    "naughty": "knotty",
+    "not": "knot",
+    "perfect": "purfect",
+    "persona": "fursona",
+    "personas": "fursonas",
+    "pervert": "furvert",
+    "perverts": "furverts",
+    "porn": "yiff",
+    "roar": "rawr",
+    "shout": "awoo",
+    "someone": "somefur",
+    "source": "sauce",
+    "sexy": "yiffy",
+    "tale": "tail",
+    "the": "teh",
+    "this": "dis",
+    "what": "wat",
+    "with": "wif",
+    "you": "chu",
+    ":)": ":3",
+    ":o": "OwO",
+    ":D": "UwU",
+    "XD": "X3",
+}
 
-default_guild_settings_r = {"output_channel": None, "active": False, "next_ticket": 1}
+default_guild_settings_r = {
+    "output_channel": None,
+    "active": False,
+    "next_ticket": 1,
+}
 
-default_report = {"report": {}}
+default_report = {
+    "report": {},
+}
+
 
 class General(Reports, commands.Cog):
     """General commands."""
 
-    default_member_settings_m = {"past_nicks": [], "perms_cache": {}, "banned_until": False}
+    default_member_settings_m = {
+        "past_nicks": [],
+        "perms_cache": {},
+        "banned_until": False,
+    }
 
-    default_user_settings_m = {"past_names": []}
+    default_user_settings_m = {
+        "past_names": [],
+    }
 
     def __init__(self, bot: Red):
         super().__init__()
@@ -118,13 +166,17 @@ class General(Reports, commands.Cog):
         self.bot = bot
         self.channels = {}
 
-        self.warnconfig = Config.get_conf(self, identifier=1387000, force_registration=True, cog_name="Warnings")
+        self.warnconfig = Config.get_conf(
+            self, identifier=1387000, force_registration=True, cog_name="Warnings"
+        )
 
         self.modconfig = Config.get_conf(self, identifier=1387000, cog_name="Mod")
         self.modconfig.register_member(**self.default_member_settings_m)
         self.modconfig.register_user(**self.default_user_settings_m)
 
-        self.adminconfig = Config.get_conf(self, identifier=1387000, force_registration=True, cog_name="OwnerAdmin")
+        self.adminconfig = Config.get_conf(
+            self, identifier=1387000, force_registration=True, cog_name="OwnerAdmin"
+        )
 
     @staticmethod
     def pass_hierarchy_check(ctx: commands.Context, role: discord.Role) -> bool:
@@ -457,7 +509,7 @@ class General(Reports, commands.Cog):
                 self.channels[str(reaction.message.channel.id)]["reacted"].append(user.id)
 
     @commands.command(Aliases=["pfp"])
-    async def avatar(self, ctx, *, user: discord.Member=None):
+    async def avatar(self, ctx, *, user: discord.Member = None):
         """Returns user avatar URL.
 
         User argument can be user mention, nickname, username, user ID.
@@ -473,12 +525,9 @@ class General(Reports, commands.Cog):
         if not user.is_avatar_animated():
             url = user.avatar_url_as(static_format="png")
         embed = discord.Embed(
-            color=await self.bot.get_embed_color(ctx),
-            title=f"{user.name}'s Avatar"
+            color=await self.bot.get_embed_color(ctx), title=f"{user.name}'s Avatar"
         )
-        embed.set_image(
-            url=url
-        )
+        embed.set_image(url=url)
 
         await ctx.send(embed=embed)
 
@@ -490,7 +539,10 @@ class General(Reports, commands.Cog):
                 1
             ].content or "I can't translate that!"
         fuwwytext = self.fuwwyize_string(text)
-        await ctx.send(fuwwytext[:2000] if len(fuwwytext) > 2000 else fuwwytext, allowed_mentions=discord.AllowedMentions(users=False))
+        await ctx.send(
+            fuwwytext[:2000] if len(fuwwytext) > 2000 else fuwwytext,
+            allowed_mentions=discord.AllowedMentions(users=False),
+        )
 
     def fuwwyize_string(self, string: str):
         """Uwuize and wetuwn a stwing."""
@@ -533,72 +585,138 @@ class General(Reports, commands.Cog):
             final_punctuation = random.choice(KAOMOJI_SPARKLES)
 
         # Full Words Extra
-        if uwu == "ahh": uwu = fur["ahh"]
-        if uwu == "love": uwu = fur["love"]
-        if uwu == "awesome": uwu = fur["awesome"]
-        if uwu == "awful": uwu = fur["awful"]
-        if uwu == "bite": uwu = fur["bite"]
-        if uwu == "bites": uwu = fur["bites"]
-        if uwu == "butthole": uwu = fur["butthole"]
-        if uwu == "buttholes": uwu = fur["buttholes"]
-        if uwu == "bulge": uwu = fur["bulge"]
-        if uwu == "bye": uwu = fur["bye"]
-        if uwu == "celebrity": uwu = fur["celebrity"]
-        if uwu == "celebrities": uwu = fur["celebrities"]
-        if uwu == "cheese": uwu = fur["cheese"]
-        if uwu == "child" or uwu == "kid" or uwu == "infant": uwu = fur["child"]
-        if uwu == "children" or uwu == "kids" or uwu == "infants": uwu = fur["children"]
-        if uwu == "robot" or uwu == "cyborg" or uwu == "computer": uwu = fur["computer"]
-        if uwu == "robots" or uwu == "cyborgs" or uwu == "computers": uwu = fur["computers"]
-        if uwu == "disease": uwu = fur["disease"]
-        if uwu == "dog": uwu = fur["dog"]
-        if uwu == "dogs": uwu = fur["dogs"]
-        if uwu == "dragon": uwu = fur["dragon"]
-        if uwu == "dragons": uwu = fur["dragons"]
-        if uwu == "eat": uwu = fur["eat"]
-        if uwu == "everyone": uwu = fur["everyone"]
-        if uwu == "foot": uwu = fur["foot"]
-        if uwu == "feet": uwu = fur["feet"]
-        if uwu == "for": uwu = fur["for"]
-        if uwu == "fuck": uwu = fur["fuck"]
-        if uwu == "fucking": uwu = fur["fucking"]
-        if uwu == "fucked": uwu = fur["fucked"]
-        if uwu == "hand": uwu = fur["hand"]
-        if uwu == "hands": uwu = fur["hands"]
-        if uwu == "hi": uwu = fur["hi"]
-        if uwu == "human": uwu = fur["human"]
-        if uwu == "humans": uwu = fur["humans"]
-        if uwu == "hyena": uwu = fur["hyena"]
-        if uwu == "hyenas": uwu = fur["hyenas"]
-        if uwu == "innocent": uwu = fur["innocent"]
-        if uwu == "kiss": uwu = fur["kiss"]
-        if uwu == "kisses": uwu = fur["kisses"]
-        if uwu == "lmao": uwu = fur["lmao"]
-        if uwu == "masturbate" or uwu == "fap": uwu = fur["masturbate"]
-        if uwu == "mouth": uwu = fur["mouth"]
-        if uwu == "naughty": uwu = fur["naughty"]
-        if uwu == "not": uwu = fur["not"]
-        if uwu == "perfect": uwu = fur["perfect"]
-        if uwu == "persona": uwu = fur["persona"]
-        if uwu == "personas": uwu = fur["personas"]
-        if uwu == "pervert": uwu = fur["pervert"]
-        if uwu == "perverts": uwu = fur["perverts"]
-        if uwu == "porn": uwu = fur["porn"]
-        if uwu == "roar": uwu = fur["roar"]
-        if uwu == "shout": uwu = fur["shout"]
-        if uwu == "someone": uwu = fur["someone"]
-        if uwu == "source": uwu = fur["source"]
-        if uwu == "sexy": uwu = fur["sexy"]
-        if uwu == "tale": uwu = fur["tale"]
-        if uwu == "the": uwu = fur["the"]
-        if uwu == "this": uwu = fur["this"]
-        if uwu == "what": uwu = fur["what"]
-        if uwu == "with": uwu = fur["with"]
-        if uwu == "you": uwu = fur["you"]
-        if uwu == ":)": uwu = fur[":)"]
-        if uwu == ":o" or uwu == ":O": uwu = fur[":o"]
-        if uwu == ":D": uwu = fur[":D"]
-        if uwu == "XD" or uwu == "xD" or uwu == "xd": uwu = fur["XD"]
+        if uwu == "ahh":
+            uwu = fur["ahh"]
+        if uwu == "love":
+            uwu = fur["love"]
+        if uwu == "awesome":
+            uwu = fur["awesome"]
+        if uwu == "awful":
+            uwu = fur["awful"]
+        if uwu == "bite":
+            uwu = fur["bite"]
+        if uwu == "bites":
+            uwu = fur["bites"]
+        if uwu == "butthole":
+            uwu = fur["butthole"]
+        if uwu == "buttholes":
+            uwu = fur["buttholes"]
+        if uwu == "bulge":
+            uwu = fur["bulge"]
+        if uwu == "bye":
+            uwu = fur["bye"]
+        if uwu == "celebrity":
+            uwu = fur["celebrity"]
+        if uwu == "celebrities":
+            uwu = fur["celebrities"]
+        if uwu == "cheese":
+            uwu = fur["cheese"]
+        if uwu == "child" or uwu == "kid" or uwu == "infant":
+            uwu = fur["child"]
+        if uwu == "children" or uwu == "kids" or uwu == "infants":
+            uwu = fur["children"]
+        if uwu == "robot" or uwu == "cyborg" or uwu == "computer":
+            uwu = fur["computer"]
+        if uwu == "robots" or uwu == "cyborgs" or uwu == "computers":
+            uwu = fur["computers"]
+        if uwu == "disease":
+            uwu = fur["disease"]
+        if uwu == "dog":
+            uwu = fur["dog"]
+        if uwu == "dogs":
+            uwu = fur["dogs"]
+        if uwu == "dragon":
+            uwu = fur["dragon"]
+        if uwu == "dragons":
+            uwu = fur["dragons"]
+        if uwu == "eat":
+            uwu = fur["eat"]
+        if uwu == "everyone":
+            uwu = fur["everyone"]
+        if uwu == "foot":
+            uwu = fur["foot"]
+        if uwu == "feet":
+            uwu = fur["feet"]
+        if uwu == "for":
+            uwu = fur["for"]
+        if uwu == "fuck":
+            uwu = fur["fuck"]
+        if uwu == "fucking":
+            uwu = fur["fucking"]
+        if uwu == "fucked":
+            uwu = fur["fucked"]
+        if uwu == "hand":
+            uwu = fur["hand"]
+        if uwu == "hands":
+            uwu = fur["hands"]
+        if uwu == "hi":
+            uwu = fur["hi"]
+        if uwu == "human":
+            uwu = fur["human"]
+        if uwu == "humans":
+            uwu = fur["humans"]
+        if uwu == "hyena":
+            uwu = fur["hyena"]
+        if uwu == "hyenas":
+            uwu = fur["hyenas"]
+        if uwu == "innocent":
+            uwu = fur["innocent"]
+        if uwu == "kiss":
+            uwu = fur["kiss"]
+        if uwu == "kisses":
+            uwu = fur["kisses"]
+        if uwu == "lmao":
+            uwu = fur["lmao"]
+        if uwu == "masturbate" or uwu == "fap":
+            uwu = fur["masturbate"]
+        if uwu == "mouth":
+            uwu = fur["mouth"]
+        if uwu == "naughty":
+            uwu = fur["naughty"]
+        if uwu == "not":
+            uwu = fur["not"]
+        if uwu == "perfect":
+            uwu = fur["perfect"]
+        if uwu == "persona":
+            uwu = fur["persona"]
+        if uwu == "personas":
+            uwu = fur["personas"]
+        if uwu == "pervert":
+            uwu = fur["pervert"]
+        if uwu == "perverts":
+            uwu = fur["perverts"]
+        if uwu == "porn":
+            uwu = fur["porn"]
+        if uwu == "roar":
+            uwu = fur["roar"]
+        if uwu == "shout":
+            uwu = fur["shout"]
+        if uwu == "someone":
+            uwu = fur["someone"]
+        if uwu == "source":
+            uwu = fur["source"]
+        if uwu == "sexy":
+            uwu = fur["sexy"]
+        if uwu == "tale":
+            uwu = fur["tale"]
+        if uwu == "the":
+            uwu = fur["the"]
+        if uwu == "this":
+            uwu = fur["this"]
+        if uwu == "what":
+            uwu = fur["what"]
+        if uwu == "with":
+            uwu = fur["with"]
+        if uwu == "you":
+            uwu = fur["you"]
+        if uwu == ":)":
+            uwu = fur[":)"]
+        if uwu == ":o" or uwu == ":O":
+            uwu = fur[":o"]
+        if uwu == ":D":
+            uwu = fur[":D"]
+        if uwu == "XD" or uwu == "xD" or uwu == "xd":
+            uwu = fur["XD"]
 
         # L -> W and R -> W
         if not uwu in fur.values():
@@ -637,20 +755,15 @@ class General(Reports, commands.Cog):
         uwu += extra_punctuation + final_punctuation
 
         # Add occasional stutter
-        if (
-            len(uwu) > 2
-            and uwu[0].isalpha()
-            and "-" not in uwu
-            and not random.randint(0, 6)
-        ):
+        if len(uwu) > 2 and uwu[0].isalpha() and "-" not in uwu and not random.randint(0, 6):
             uwu = f"{uwu[0]}-{uwu}"
 
         return uwu
 
     @commands.command()
-    async def utc(self, ctx, time_or_offset = None):
+    async def utc(self, ctx, time_or_offset=None):
         """Shows the current UTC time and can convert to local.
-        
+
         **Examples:**
         - `[p]utc` will show the current time at UTC+0
         - `[p]utc 20:00` shows how long until UTC+0 is `20:00`
@@ -663,8 +776,7 @@ class General(Reports, commands.Cog):
             color=await self.bot.get_embed_color(ctx),
         )
         embed.set_author(
-            name="Find your UTC offset here",
-            url="https://www.timeanddate.com/time/map/"
+            name="Find your UTC offset here", url="https://www.timeanddate.com/time/map/"
         )
 
         try:
@@ -680,19 +792,27 @@ class General(Reports, commands.Cog):
                             await self.del_message(ctx, "Please only use minutes between 0 and 59")
                             return
                         elif int(time[0]) > 14 or int(time[0]) < -12:
-                            await self.del_message(ctx, "Please only use hours between -12 and +14")
+                            await self.del_message(
+                                ctx, "Please only use hours between -12 and +14"
+                            )
                             return
                         else:
-                            newtime = current_time + datetime.timedelta(hours=int(time[0]), minutes=int(time[1]))
+                            newtime = current_time + datetime.timedelta(
+                                hours=int(time[0]), minutes=int(time[1])
+                            )
                     else:
                         if int(cleanoffset) > 14 or int(cleanoffset) < -12:
-                            await self.del_message(ctx, "Please only use hours between -12 and +14")
+                            await self.del_message(
+                                ctx, "Please only use hours between -12 and +14"
+                            )
                             return
                         else:
                             newtime = current_time + datetime.timedelta(hours=int(cleanoffset))
                     embedtitle = f'{newtime.strftime("%H:%M")}'
-                    embeddescription = f'The local time at UTC{time_or_offset} is {newtime.strftime("%H:%M")}'
-                    
+                    embeddescription = (
+                        f'The local time at UTC{time_or_offset} is {newtime.strftime("%H:%M")}'
+                    )
+
                 elif ":" in time_or_offset:
                     time = time_or_offset.split(":")
                     if int(time[0]) >= 24 or int(time[0]) < 0:
@@ -708,7 +828,9 @@ class General(Reports, commands.Cog):
                                 newtime = newtime + datetime.timedelta(hours=24)
                             timeanswer = relativedelta(newtime, current_time)
                             if timeanswer.hours:
-                                embedtitle = f"{timeanswer.hours} hours and {timeanswer.minutes} minutes"
+                                embedtitle = (
+                                    f"{timeanswer.hours} hours and {timeanswer.minutes} minutes"
+                                )
                                 embeddescription = f"In {timeanswer.hours} hours and {timeanswer.minutes} minutes the clock will be {time[0]}:{time[1]} in UTC+0"
                             elif timeanswer.minutes:
                                 embedtitle = f"{timeanswer.minutes} minutes"
@@ -717,22 +839,20 @@ class General(Reports, commands.Cog):
                                 embedtitle = f"{time[0]}:{time[1]} is the current time!"
                                 embeddescription = ""
 
-
-                embed.set_footer(
-                    text=f'Current UTC+0 Time ◈ {current_time.strftime("%H:%M")}'
-                )
+                embed.set_footer(text=f'Current UTC+0 Time ◈ {current_time.strftime("%H:%M")}')
                 embed.title = embedtitle
                 embed.description = embeddescription
                 await ctx.send(embed=embed)
             else:
                 embed.add_field(
-                    name="Current UTC+0 Time",
-                    value=current_time.strftime("%H:%M"),
-                    inline=False
+                    name="Current UTC+0 Time", value=current_time.strftime("%H:%M"), inline=False
                 )
                 await ctx.send(embed=embed)
         except:
-            await self.del_message(ctx, f"I couldn't understand your time format. Do `{ctx.clean_prefix}help utc` for examples on using the command.")
+            await self.del_message(
+                ctx,
+                f"I couldn't understand your time format. Do `{ctx.clean_prefix}help utc` for examples on using the command.",
+            )
 
     @commands.command(aliases=["uinfo"])
     @commands.guild_only()
@@ -767,7 +887,7 @@ class General(Reports, commands.Cog):
             user_joined = joined_at.strftime("%d %b %Y %H:%M")
         else:
             since_joined = "?"
-            user_joined = ("Unknown")
+            user_joined = "Unknown"
         user_created = user.created_at.strftime("%d %b %Y %H:%M")
         voice_state = user.voice
         member_number = (
@@ -964,7 +1084,11 @@ class General(Reports, commands.Cog):
 
     @commands.guild_only()
     @commands.command(aliases=["chinfo"])
-    async def channelinfo(self, ctx, channel: Union[discord.TextChannel, discord.VoiceChannel, discord.CategoryChannel] = None):
+    async def channelinfo(
+        self,
+        ctx,
+        channel: Union[discord.TextChannel, discord.VoiceChannel, discord.CategoryChannel] = None,
+    ):
         """Shows channel information. Defaults to current text channel."""
         if channel is None:
             channel = ctx.channel
@@ -977,13 +1101,15 @@ class General(Reports, commands.Cog):
         embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
         embed.set_author(name=channel.name, icon_url=channel.guild.icon_url)
 
-        embed.set_footer(text=f'Channel ID: {channel.id} ◈ Created at')
+        embed.set_footer(text=f"Channel ID: {channel.id} ◈ Created at")
 
         embed.add_field(name="Type", value=str(channel.type).capitalize(), inline=True)
         embed.add_field(name="Position", value=channel.position, inline=True)
 
         if isinstance(channel, discord.VoiceChannel):
-            embed.add_field(name="Bitrate", value=f"{int(channel.bitrate / 1000)}kbps", inline=True)
+            embed.add_field(
+                name="Bitrate", value=f"{int(channel.bitrate / 1000)}kbps", inline=True
+            )
             embed.add_field(name="Category", value=channel.category, inline=False)
             embed.add_field(name="Users In Channel", value=len(channel.members), inline=True)
             embed.add_field(name="User Limit", value=channel.user_limit, inline=True)
@@ -1029,7 +1155,7 @@ class General(Reports, commands.Cog):
             embed.title = e.name
             embed.set_thumbnail(url=e.url)
 
-            embed.set_footer(text=f'Emote ID: {e.id} ◈ Created at')
+            embed.set_footer(text=f"Emote ID: {e.id} ◈ Created at")
 
             embed.timestamp = e.created_at
 
@@ -1144,18 +1270,22 @@ class General(Reports, commands.Cog):
             )
             return
         if check_user and not self.pass_user_hierarchy_check(ctx, role):
-            await ctx.send((
-                "I can not let you give {role.name} to {member.display_name}"
-                " because that role is higher than or equal to your highest role"
-                " in the Discord hierarchy."
-                ).format(role=role, member=member))
+            await ctx.send(
+                (
+                    "I can not let you give {role.name} to {member.display_name}"
+                    " because that role is higher than or equal to your highest role"
+                    " in the Discord hierarchy."
+                ).format(role=role, member=member)
+            )
             return
         if not self.pass_hierarchy_check(ctx, role):
-            await ctx.send((
-                "I can not give {role.name} to {member.display_name}"
-                " because that role is higher than or equal to my highest role"
-                " in the Discord hierarchy."
-                ).format(role=role, member=member))
+            await ctx.send(
+                (
+                    "I can not give {role.name} to {member.display_name}"
+                    " because that role is higher than or equal to my highest role"
+                    " in the Discord hierarchy."
+                ).format(role=role, member=member)
+            )
             return
         if not ctx.guild.me.guild_permissions.manage_roles:
             await ctx.send(("I need manage roles permission to do that."))
@@ -1163,9 +1293,12 @@ class General(Reports, commands.Cog):
         try:
             await member.add_roles(role)
         except discord.Forbidden:
-            await ctx.send((
-                "I attempted to do something that Discord denied me permissions for."
-                " Your command failed to successfully complete."))
+            await ctx.send(
+                (
+                    "I attempted to do something that Discord denied me permissions for."
+                    " Your command failed to successfully complete."
+                )
+            )
         else:
             await ctx.send(
                 ("I successfully added {role.name} to {member.display_name}").format(
@@ -1184,18 +1317,22 @@ class General(Reports, commands.Cog):
             )
             return
         if check_user and not self.pass_user_hierarchy_check(ctx, role):
-            await ctx.send((
-                "I can not let you remove {role.name} from {member.display_name}"
-                " because that role is higher than or equal to your highest role"
-                " in the Discord hierarchy."
-                ).format(role=role, member=member))
+            await ctx.send(
+                (
+                    "I can not let you remove {role.name} from {member.display_name}"
+                    " because that role is higher than or equal to your highest role"
+                    " in the Discord hierarchy."
+                ).format(role=role, member=member)
+            )
             return
         if not self.pass_hierarchy_check(ctx, role):
-            await ctx.send((
-                "I can not remove {role.name} from {member.display_name}"
-                " because that role is higher than or equal to my highest role"
-                " in the Discord hierarchy."
-                ).format(role=role, member=member))
+            await ctx.send(
+                (
+                    "I can not remove {role.name} from {member.display_name}"
+                    " because that role is higher than or equal to my highest role"
+                    " in the Discord hierarchy."
+                ).format(role=role, member=member)
+            )
             return
         if not ctx.guild.me.guild_permissions.manage_roles:
             await ctx.send(("I need manage roles permission to do that."))
@@ -1203,9 +1340,12 @@ class General(Reports, commands.Cog):
         try:
             await member.remove_roles(role)
         except discord.Forbidden:
-            await ctx.send((
-                "I attempted to do something that Discord denied me permissions for."
-                " Your command failed to successfully complete."))
+            await ctx.send(
+                (
+                    "I attempted to do something that Discord denied me permissions for."
+                    " Your command failed to successfully complete."
+                )
+            )
         else:
             await ctx.send(
                 ("I successfully removed {role.name} from {member.display_name}").format(
@@ -1247,7 +1387,7 @@ class General(Reports, commands.Cog):
                 for key in user_warnings.keys():
                     mod_id = user_warnings[key]["mod"]
                     if mod_id == 0xDE1:
-                        mod = ("Deleted Moderator")
+                        mod = "Deleted Moderator"
                     else:
                         bot = ctx.bot
                         mod = bot.get_user(mod_id) or ("Unknown Moderator ({})").format(mod_id)
@@ -1269,4 +1409,65 @@ class General(Reports, commands.Cog):
     async def support(self, ctx):
         """Sends invite to the support server."""
 
-        await ctx.send("Here's an invite link. Mestro should be able to help you in there.\n\nhttps://discord.gg/xxjdXmR")
+        await ctx.send(
+            "Here's an invite link. Mestro should be able to help you in there.\n\nhttps://discord.gg/xxjdXmR"
+        )
+
+    @commands.command()
+    async def pledge(self, ctx):
+        """Help fund the bots servercosts."""
+
+        embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
+        embed.title = "Pledge on Patreon"
+        embed.url = "https://patreon.mestro.cc"
+        embed.set_thumbnail(url=self.bot.user.avatar_url)
+        embed.description = (
+            "While I do enjoy working on Angiedale and will happily do so for free, "
+            "running her isn't. Feel free to drop off some money to help her run longer. You'll also"
+            " get some small benefits with more being added as I come up with them."
+        )
+
+        embed.add_field(name="Example Benefits", value=("Higher payouts\n" "Special Thanks!!"))
+
+        await ctx.send(embed=embed)
+
+    @commands.command()
+    async def specialthanks(self, ctx):
+        """Thanks to all of you who keep Angiedale alive."""
+        tier2 = patreons_in_tier(self.bot, 2)
+        tier3 = patreons_in_tier(self.bot, 3)
+        tier4 = patreons_in_tier(self.bot, 4)
+
+        embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
+        if len(tier2) == 0 and len(tier3) == 0 and len(tier4) == 0:
+            embed.title = "Pledge on Patreon"
+            embed.url = "https://patreon.mestro.cc"
+            embed.description = "Be the first person on this list by pledging to the patreon and help Angiedale run!"
+            embed.set_thumbnail(url=self.bot.user.avatar_url)
+        else:
+            embed.title = "Special thanks to these awesome users"
+
+            embed.set_author(name="Pledge on Patreon", url="https://patreon.mestro.cc")
+            embed.set_thumbnail(url=self.bot.user.avatar_url)
+
+            if not len(tier4) == 0:
+                templist = []
+                for u in tier4:
+                    templist.append(u.name)
+                embed.add_field(
+                    name="SUPERFRESH (€25 Tier)", value=humanize_list(templist), inline=False
+                )
+            if not len(tier3) == 0:
+                templist = []
+                for u in tier3:
+                    templist.append(u.name)
+                embed.add_field(
+                    name="Fresh (€10 Tier)", value=humanize_list(templist), inline=False
+                )
+            if not len(tier2) == 0:
+                templist = []
+                for u in tier2:
+                    templist.append(u.name)
+                embed.add_field(name="Raw (€5 Tier)", value=humanize_list(templist), inline=False)
+
+        await ctx.send(embed=embed)
