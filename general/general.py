@@ -35,16 +35,16 @@ log = logging.getLogger("red.angiedale.general")
 MAX_ROLL: Final[int] = 2 ** 64 - 1
 
 KAOMOJI_JOY = [
-    " (* ^ ω ^)",
+    " (\\* ^ ω ^)",
     " (o^▽^o)",
     " (≧◡≦)",
-    ' ☆⌒ヽ(*"､^*)chu',
+    ' ☆⌒ヽ(\\*"､^\\*)chu',
     " ( ˘⌣˘)♡(˘⌣˘ )",
     " xD",
 ]
 KAOMOJI_EMBARRASSED = [
     " (⁄ ⁄>⁄ ▽ ⁄<⁄ ⁄)..",
-    " (*^.^*)..,",
+    " (\\*^.^\\*)..,",
     "..,",
     ",,,",
     "... ",
@@ -59,17 +59,14 @@ KAOMOJI_CONFUSE = [
     " owo?",
 ]
 KAOMOJI_SPARKLES = [
-    " *:･ﾟ✧*:･ﾟ✧ ",
-    " ☆*:・ﾟ ",
+    " \\*:･ﾟ✧\\*:･ﾟ✧ ",
+    " ☆\\*:・ﾟ ",
     "〜☆ ",
-    " uguu.., ",
     "-.-",
 ]
 
 fur = {
     "ahh": "*murr*",
-    "love": "wuv",
-    "loves": "wuvs",
     "awesome": "pawsome",
     "awful": "pawful",
     "bite": "nom",
@@ -537,9 +534,17 @@ class General(Reports, commands.Cog):
     async def fuwwy(self, ctx: commands.Context, *, text: str = None):
         """Fuwwyize the pwevious message, ow youw own text."""
         if not text:
-            text = (await ctx.channel.history(limit=2).flatten())[
-                1
-            ].content or "I can't translate that!"
+            if hasattr(ctx.message, "reference") and ctx.message.reference:
+                try:
+                    text = (
+                        await ctx.fetch_message(ctx.message.reference.message_id)
+                    ).content
+                except (discord.Forbidden, discord.NotFound, discord.HTTPException):
+                    pass
+            if not text:
+                text = (await ctx.channel.history(limit=2).flatten())[
+                    1
+                ].content or "I can't translate that!"
         fuwwytext = self.fuwwyize_string(text)
         await ctx.send(
             fuwwytext[:2000] if len(fuwwytext) > 2000 else fuwwytext,
@@ -589,135 +594,133 @@ class General(Reports, commands.Cog):
         # Full Words Extra
         if uwu == "ahh":
             uwu = fur["ahh"]
-        if uwu == "love":
-            uwu = fur["love"]
-        if uwu == "awesome":
+        elif uwu == "awesome":
             uwu = fur["awesome"]
-        if uwu == "awful":
+        elif uwu == "awful":
             uwu = fur["awful"]
-        if uwu == "bite":
+        elif uwu == "bite":
             uwu = fur["bite"]
-        if uwu == "bites":
+        elif uwu == "bites":
             uwu = fur["bites"]
-        if uwu == "butthole":
+        elif uwu == "butthole":
             uwu = fur["butthole"]
-        if uwu == "buttholes":
+        elif uwu == "buttholes":
             uwu = fur["buttholes"]
-        if uwu == "bulge":
+        elif uwu == "bulge":
             uwu = fur["bulge"]
-        if uwu == "bye":
+        elif uwu == "bye":
             uwu = fur["bye"]
-        if uwu == "celebrity":
+        elif uwu == "celebrity":
             uwu = fur["celebrity"]
-        if uwu == "celebrities":
+        elif uwu == "celebrities":
             uwu = fur["celebrities"]
-        if uwu == "cheese":
+        elif uwu == "cheese":
             uwu = fur["cheese"]
-        if uwu == "child" or uwu == "kid" or uwu == "infant":
+        elif uwu == "child" or uwu == "kid" or uwu == "infant":
             uwu = fur["child"]
-        if uwu == "children" or uwu == "kids" or uwu == "infants":
+        elif uwu == "children" or uwu == "kids" or uwu == "infants":
             uwu = fur["children"]
-        if uwu == "robot" or uwu == "cyborg" or uwu == "computer":
+        elif uwu == "robot" or uwu == "cyborg" or uwu == "computer":
             uwu = fur["computer"]
-        if uwu == "robots" or uwu == "cyborgs" or uwu == "computers":
+        elif uwu == "robots" or uwu == "cyborgs" or uwu == "computers":
             uwu = fur["computers"]
-        if uwu == "disease":
+        elif uwu == "disease":
             uwu = fur["disease"]
-        if uwu == "dog":
+        elif uwu == "dog":
             uwu = fur["dog"]
-        if uwu == "dogs":
+        elif uwu == "dogs":
             uwu = fur["dogs"]
-        if uwu == "dragon":
+        elif uwu == "dragon":
             uwu = fur["dragon"]
-        if uwu == "dragons":
+        elif uwu == "dragons":
             uwu = fur["dragons"]
-        if uwu == "eat":
+        elif uwu == "eat":
             uwu = fur["eat"]
-        if uwu == "everyone":
+        elif uwu == "everyone":
             uwu = fur["everyone"]
-        if uwu == "foot":
+        elif uwu == "foot":
             uwu = fur["foot"]
-        if uwu == "feet":
+        elif uwu == "feet":
             uwu = fur["feet"]
-        if uwu == "for":
+        elif uwu == "for":
             uwu = fur["for"]
-        if uwu == "fuck":
+        elif uwu == "fuck":
             uwu = fur["fuck"]
-        if uwu == "fucking":
+        elif uwu == "fucking":
             uwu = fur["fucking"]
-        if uwu == "fucked":
+        elif uwu == "fucked":
             uwu = fur["fucked"]
-        if uwu == "hand":
+        elif uwu == "hand":
             uwu = fur["hand"]
-        if uwu == "hands":
+        elif uwu == "hands":
             uwu = fur["hands"]
-        if uwu == "hi":
+        elif uwu == "hi":
             uwu = fur["hi"]
-        if uwu == "human":
+        elif uwu == "human":
             uwu = fur["human"]
-        if uwu == "humans":
+        elif uwu == "humans":
             uwu = fur["humans"]
-        if uwu == "hyena":
+        elif uwu == "hyena":
             uwu = fur["hyena"]
-        if uwu == "hyenas":
+        elif uwu == "hyenas":
             uwu = fur["hyenas"]
-        if uwu == "innocent":
+        elif uwu == "innocent":
             uwu = fur["innocent"]
-        if uwu == "kiss":
+        elif uwu == "kiss":
             uwu = fur["kiss"]
-        if uwu == "kisses":
+        elif uwu == "kisses":
             uwu = fur["kisses"]
-        if uwu == "lmao":
+        elif uwu == "lmao":
             uwu = fur["lmao"]
-        if uwu == "masturbate" or uwu == "fap":
+        elif uwu == "masturbate" or uwu == "fap":
             uwu = fur["masturbate"]
-        if uwu == "mouth":
+        elif uwu == "mouth":
             uwu = fur["mouth"]
-        if uwu == "naughty":
+        elif uwu == "naughty":
             uwu = fur["naughty"]
-        if uwu == "not":
+        elif uwu == "not":
             uwu = fur["not"]
-        if uwu == "perfect":
+        elif uwu == "perfect":
             uwu = fur["perfect"]
-        if uwu == "persona":
+        elif uwu == "persona":
             uwu = fur["persona"]
-        if uwu == "personas":
+        elif uwu == "personas":
             uwu = fur["personas"]
-        if uwu == "pervert":
+        elif uwu == "pervert":
             uwu = fur["pervert"]
-        if uwu == "perverts":
+        elif uwu == "perverts":
             uwu = fur["perverts"]
-        if uwu == "porn":
+        elif uwu == "porn":
             uwu = fur["porn"]
-        if uwu == "roar":
+        elif uwu == "roar":
             uwu = fur["roar"]
-        if uwu == "shout":
+        elif uwu == "shout":
             uwu = fur["shout"]
-        if uwu == "someone":
+        elif uwu == "someone":
             uwu = fur["someone"]
-        if uwu == "source":
+        elif uwu == "source":
             uwu = fur["source"]
-        if uwu == "sexy":
+        elif uwu == "sexy":
             uwu = fur["sexy"]
-        if uwu == "tale":
+        elif uwu == "tale":
             uwu = fur["tale"]
-        if uwu == "the":
+        elif uwu == "the":
             uwu = fur["the"]
-        if uwu == "this":
+        elif uwu == "this":
             uwu = fur["this"]
-        if uwu == "what":
+        elif uwu == "what":
             uwu = fur["what"]
-        if uwu == "with":
+        elif uwu == "with":
             uwu = fur["with"]
-        if uwu == "you":
+        elif uwu == "you":
             uwu = fur["you"]
-        if uwu == ":)":
+        elif uwu == ":)":
             uwu = fur[":)"]
-        if uwu == ":o" or uwu == ":O":
+        elif uwu == ":o" or uwu == ":O":
             uwu = fur[":o"]
-        if uwu == ":D":
+        elif uwu == ":D":
             uwu = fur[":D"]
-        if uwu == "XD" or uwu == "xD" or uwu == "xd":
+        elif uwu == "XD" or uwu == "xD" or uwu == "xd":
             uwu = fur["XD"]
 
         # L -> W and R -> W
@@ -739,7 +742,17 @@ class General(Reports, commands.Cog):
             ):
                 protected = uwu[-3:]
                 uwu = uwu[:-3]
-            uwu = uwu.replace("l", "w").replace("r", "w") + protected
+
+            uwu = (
+                uwu.replace("l", "w")
+                .replace("r", "w")
+                .replace("na", "nya")
+                .replace("ne", "nye")
+                .replace("ni", "nyi")
+                .replace("no", "nyo")
+                .replace("nu", "nyu")
+                .replace("ove", "uv")
+            + protected)
 
         # Full words
         uwu = uwu.replace("you're", "ur")
