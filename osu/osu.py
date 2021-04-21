@@ -13,13 +13,23 @@ from redbot.core.bot import Red
 from redbot.core.data_manager import cog_data_path
 from redbot.core.utils.menus import menu
 
+from .database import Database
 from .embeds import Data, Embed
-from .tools import API, Helper, del_message, multipage, singlepage, togglepage
+from .tools import (
+    API,
+    Helper,
+    custom_menu,
+    custompage,
+    del_message,
+    multipage,
+    singlepage,
+    togglepage,
+)
 
 log = logging.getLogger("red.angiedale.osu")
 
 
-class Osu(Embed, Data, API, Helper, commands.Cog):
+class Osu(Database, Embed, Data, API, Helper, commands.Cog):
     """osu! commands.
 
     Link your account with `[p]osulink <username>`
@@ -51,6 +61,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         super().__init__()
         self.bot = bot
         self.tracking_cache = []
+        self.db = Database()
 
         self.osuconfig: Config = Config.get_conf(
             self, identifier=1387000, cog_name="Osu", force_registration=True
@@ -395,7 +406,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         mapdata = await self.fetch_api(f"beatmaps/{mapid}")
 
         if data and mapdata:
-            embeds = await self.recentembed(ctx, [data["score"]], mapdata)
+            embeds = await self.recentembed(ctx, [data["score"]], page=0, mapdata=mapdata)
             return await menu(ctx, embeds, multipage(embeds))
 
         if user:
@@ -427,7 +438,14 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         data = await self.fetch_api(f"beatmaps/{mapid}/scores/users/{userid}")
 
         if data:
-            embeds = await self.recentembed(ctx, [data["score"]], mapdata)
+            # embeds = [] # Solution for whenever peppy adds all mods in a single request
+            # page = 0
+            # for score in data["score"]:
+            #     embed = await self.recentemb(ctx, [score], page=0, mapdata=mapdata)
+            #     embeds = embeds + embed
+            #     page += 1
+
+            embeds = await self.recentembed(ctx, [data["score"]], page=0, mapdata=mapdata)
             return await menu(ctx, embeds, multipage(embeds))
 
         if user:
@@ -539,8 +557,13 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         data = await self.fetch_api(f"users/{userid}/scores/recent", ctx=ctx, params=params)
 
         if data:
-            embeds = await self.recentembed(ctx, data)
-            return await menu(ctx, embeds, multipage(embeds))
+            return await custom_menu(
+                ctx,
+                await self.recentembed(ctx, data, page=0),
+                custompage(self.bot, data),
+                data=data,
+                func=self.recentembed,
+            )
 
         if user:
             return await del_message(
@@ -567,8 +590,13 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         data = await self.fetch_api(f"users/{userid}/scores/recent", ctx=ctx, params=params)
 
         if data:
-            embeds = await self.recentembed(ctx, data)
-            return await menu(ctx, embeds, multipage(embeds))
+            return await custom_menu(
+                ctx,
+                await self.recentembed(ctx, data, page=0),
+                custompage(self.bot, data),
+                data=data,
+                func=self.recentembed,
+            )
 
         if user:
             return await del_message(
@@ -598,8 +626,13 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         data = await self.fetch_api(f"users/{userid}/scores/recent", ctx=ctx, params=params)
 
         if data:
-            embeds = await self.recentembed(ctx, data)
-            return await menu(ctx, embeds, multipage(embeds))
+            return await custom_menu(
+                ctx,
+                await self.recentembed(ctx, data, page=0),
+                custompage(self.bot, data),
+                data=data,
+                func=self.recentembed,
+            )
 
         if user:
             return await del_message(
@@ -626,8 +659,13 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         data = await self.fetch_api(f"users/{userid}/scores/recent", ctx=ctx, params=params)
 
         if data:
-            embeds = await self.recentembed(ctx, data)
-            return await menu(ctx, embeds, multipage(embeds))
+            return await custom_menu(
+                ctx,
+                await self.recentembed(ctx, data, page=0),
+                custompage(self.bot, data),
+                data=data,
+                func=self.recentembed,
+            )
 
         if user:
             return await del_message(
