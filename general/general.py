@@ -4,7 +4,7 @@ import logging
 import random
 import time
 import urllib.parse
-from typing import Optional, Tuple, Union
+from typing import Final, Optional, Tuple, Union
 
 import discord
 from dateutil.relativedelta import relativedelta
@@ -31,6 +31,8 @@ from .converters import SelfRole
 from .reports import Reports
 
 log = logging.getLogger("red.angiedale.general")
+
+MAX_ROLL: Final[int] = 2 ** 64 - 1
 
 KAOMOJI_JOY = [
     " (* ^ ω ^)",
@@ -1471,3 +1473,28 @@ class General(Reports, commands.Cog):
                 embed.add_field(name="Raw (€5 Tier)", value=humanize_list(templist), inline=False)
 
         await ctx.send(embed=embed)
+
+    @commands.command()
+    async def roll(self, ctx, number: int = 100):
+        """Roll a random number.
+
+        The result will be between 1 and `<number>`.
+
+        `<number>` defaults to 100.
+        """
+        author = ctx.author
+        if 1 < number <= MAX_ROLL:
+            n = random.randint(1, number)
+            await ctx.send(
+                "{author.mention} :game_die: {n} :game_die:".format(
+                    author=author, n=humanize_number(n)
+                )
+            )
+        elif number <= 1:
+            await ctx.send(("{author.mention} Maybe higher than 1? ;P").format(author=author))
+        else:
+            await ctx.send(
+                ("{author.mention} Max allowed number is {maxamount}.").format(
+                    author=author, maxamount=humanize_number(MAX_ROLL)
+                )
+            )
