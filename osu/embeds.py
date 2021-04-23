@@ -1,4 +1,5 @@
 import asyncio
+from .database import Database
 import logging
 import re
 import time
@@ -7,8 +8,6 @@ from math import ceil
 
 import discord
 from redbot.core.utils.chat_formatting import humanize_number, humanize_timedelta, inline
-
-from .database import Database
 
 log = logging.getLogger("red.angiedale.osu.embeds")
 
@@ -28,9 +27,6 @@ EMOJI = {
 
 class Data:
     """Simplifies api data handling."""
-
-    def __init__(self):
-        self.db = Database()
 
     def topdata(self, d):
         """/users/{user}/scores"""
@@ -52,7 +48,7 @@ class Data:
         """/users/{user}/scores"""
 
         data = self.scoredata(d)
-        data["extra_data"] = await self.db.extra_beatmap_info(data)
+        data["extra_data"] = await self.extra_beatmap_info(data)
         return data
 
     def scoredata(self, s):
@@ -329,6 +325,12 @@ class Embed(Data):
     async def topembed(self, ctx, data, recent, pos):
         d = self.topdata(data)
 
+        mode = d[0]["mode"]
+        if mode == "osu":
+            mode = "Standard"
+        elif mode == "fruits":
+            mode = "Catch"
+
         recent_text = "Top"
         if recent == True:
             d = sorted(d, key=lambda item: item["played"], reverse=True)
@@ -342,7 +344,7 @@ class Embed(Data):
         base_embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
 
         base_embed.set_author(
-            name=f'{recent_text} {author_text} for {d[0]["username"]} | osu!{d[0]["mode"].capitalize()}',
+            name=f'{recent_text} {author_text} for {d[0]["username"]} | osu!{mode.capitalize()}',
             url=f'https://osu.ppy.sh/users/{d[0]["userid"]}',
             icon_url=f'https://osu.ppy.sh/images/flags/{d[0]["userflag"]}.png',
         )

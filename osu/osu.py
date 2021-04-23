@@ -55,23 +55,31 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
             "mania": {},
         },
     }
+    default_mongodb = {
+            "host": "localhost",
+            "port": 27017,
+            "username": None,
+            "password": None,
+        }
 
     def __init__(self, bot: Red):
         super().__init__()
         self.bot = bot
         self.tracking_cache = []
-        self.db = Database()
 
         self.osuconfig: Config = Config.get_conf(
             self, identifier=1387000, cog_name="Osu", force_registration=True
         )
         self.osuconfig.register_user(**self.default_user_settings)
         self.osuconfig.register_global(**self.default_global_settings)
+        self.osuconfig.init_custom("mongodb", -1)
+        self.osuconfig.register_custom("mongodb", **self.default_mongodb)
 
         self.task: Optional[asyncio.Task] = None
         self._ready_event: asyncio.Event = asyncio.Event()
         self._init_task: asyncio.Task = self.bot.loop.create_task(self.initialize())
         self.tracking_task: asyncio.Task = self.bot.loop.create_task(self.update_tracking())
+        self.cache_task: asyncio.Task = self.bot.loop.create_task(self.get_last_cache_date())
 
     async def red_delete_data_for_user(
         self,
@@ -94,6 +102,8 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
 
         self._ready_event.set()
 
+        await self._connect_to_mongo()
+
     @commands.Cog.listener()
     async def on_red_api_tokens_update(self, service_name, api_tokens):
         if service_name == "osu":
@@ -102,8 +112,34 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
     async def cog_before_invoke(self, ctx: commands.Context):
         await self._ready_event.wait()
 
+    async def cog_check(self, ctx):
+        if (ctx.command.parent is self.osudev):
+            return True
+        return self._db_connected
+
     def cog_unload(self):
         self.tracking_task.cancel()
+        if self.mongoclient:
+            self.mongoclient.close()
+
+    @checks.is_owner()
+    @commands.group(hidden=True)
+    async def osudev(self, ctx: commands.Context):
+        """Osu cog configuration."""
+
+    @osudev.command()
+    async def cred(self, ctx: commands.Context, username: str = None, password: str = None):
+        """Set up MongoDB credentials"""
+        await self.osuconfig.custom("mongodb").username.set(username)
+        await self.osuconfig.custom("mongodb").password.set(password)
+        message = await ctx.send("MongoDB credentials set.\nNow trying to connect...")
+        client = await self._connect_to_mongo()
+        if not client:
+            return await message.edit(
+                content=message.content.replace("Now trying to connect...", "")
+                + "Failed to connect. Please try again with valid credentials."
+            )
+        await message.edit(content=message.content.replace("Now trying to connect...", ""))
 
     @commands.command()
     async def osulink(self, ctx: commands.Context, *, username: str):
