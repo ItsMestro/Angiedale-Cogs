@@ -1,5 +1,4 @@
 import asyncio
-from .database import Database
 import logging
 import re
 import time
@@ -246,7 +245,12 @@ class Data:
             data["pp4k"] = d["statistics"]["variants"][0]["pp"]
             data["pp7k"] = d["statistics"]["variants"][1]["pp"]
         except:
-            pass
+            data["globalrank4k"] = 0
+            data["globalrank7k"] = 0
+            data["countryrank4k"] = 0
+            data["countryrank7k"] = 0
+            data["pp4k"] = 0
+            data["pp7k"] = 0
 
         data["accuracy"] = d["statistics"]["hit_accuracy"]
         data["playcount"] = d["statistics"]["play_count"]

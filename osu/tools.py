@@ -211,24 +211,27 @@ class Helper:
                 userid = await self.osuconfig.user(user).userid()
 
             if not userid:
-                if not str(user).isnumeric():
-                    data = await self.fetch_api(f"users/{user}/osu", ctx)
-                    await asyncio.sleep(0.5)
-                    if data:
-                        userid = data["id"]
-                elif (
-                    user.startswith("https://osu.ppy.sh/users")
-                    or user.startswith("http://osu.ppy.sh/users")
+                tempuser = user
+                if (
+                    user.startswith("https://osu.ppy.sh/users/")
+                    or user.startswith("http://osu.ppy.sh/users/")
                     or user.startswith("https://osu.ppy.sh/u/")
                     or user.startswith("http://osu.ppy.sh/u/")
                 ):
-                    data = await self.fetch_api(
-                        f'users/{re.sub("[^0-9]", "", user.rsplit("/", 1)[-1])}/osu', ctx
+                    cleanuser = (
+                        user.replace("/osu", "")
+                        .replace("/taiko", "")
+                        .replace("/fruits", "")
+                        .replace("/mania", "")
                     )
+                    tempuser = cleanuser.rsplit("/", 1)[-1]
+
+                if not str(tempuser).isnumeric():
+                    data = await self.fetch_api(f"users/{tempuser}/osu", ctx)
                     if data:
-                        userid = data["id"]
+                        return data["id"]
                 else:
-                    userid = user
+                    userid = tempuser
 
             if not userid:
                 try:

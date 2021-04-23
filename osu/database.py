@@ -5,28 +5,25 @@ from datetime import datetime
 from pathlib import Path
 
 import aiohttp
-from redbot.core.data_manager import cog_data_path
-from redbot.core import Config
-
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo import errors as mongoerrors
+from redbot.core import Config
+from redbot.core.data_manager import cog_data_path
 
 from .utils import chunks
 
 log = logging.getLogger("red.angiedale.osu.database")
 
 
-class Database():
+class Database:
     """Handle osu data storage"""
 
     def __init__(self):
         self.mappath = Path(f'{cog_data_path(raw_name="Osu")}/db/maps')
         self.mappath.mkdir(parents=True, exist_ok=True)
 
-        self.osuconfig: Config = Config.get_conf(
-            self, identifier=1387000, cog_name="Osu"
-        )
-        
+        self.osuconfig: Config = Config.get_conf(self, identifier=1387000, cog_name="Osu")
+
         self.last_caching = None
         self._db_connected = False
         self.mongoclient = None
@@ -42,10 +39,10 @@ class Database():
         """Gathers and returns extra beatmap info.
 
         Uses database cache if possible."""
-        
+
         if not self._db_connected:
             return
-        
+
         mapdata = await self.db.beatmaps.find_one({"_id": int(beatmap["mapid"])})
         if not mapdata:
             await self.cache_beatmap(beatmap["mapid"])
@@ -95,9 +92,7 @@ class Database():
             self.mongoclient.close()
         config = await self.osuconfig.custom("mongodb").all()
         try:
-            self.mongoclient = AsyncIOMotorClient(
-                **{k: v for k, v in config.items()}
-            )
+            self.mongoclient = AsyncIOMotorClient(**{k: v for k, v in config.items()})
             await self.mongoclient.server_info()
             self.db = self.mongoclient["angiedaleosu"]
             self._db_connected = True

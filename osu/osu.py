@@ -15,15 +15,8 @@ from redbot.core.utils.menus import menu
 
 from .database import Database
 from .embeds import Data, Embed
+from .tools import API, Helper, del_message, multipage, singlepage, togglepage
 from .utils.custommenu import custom_menu, custompage
-from .tools import (
-    API,
-    Helper,
-    del_message,
-    multipage,
-    singlepage,
-    togglepage,
-)
 
 log = logging.getLogger("red.angiedale.osu")
 
@@ -56,11 +49,11 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
         },
     }
     default_mongodb = {
-            "host": "localhost",
-            "port": 27017,
-            "username": None,
-            "password": None,
-        }
+        "host": "localhost",
+        "port": 27017,
+        "username": None,
+        "password": None,
+    }
 
     def __init__(self, bot: Red):
         super().__init__()
@@ -113,7 +106,7 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
         await self._ready_event.wait()
 
     async def cog_check(self, ctx):
-        if (ctx.command.parent is self.osudev):
+        if ctx.command.parent is self.osudev:
             return True
         return self._db_connected
 
