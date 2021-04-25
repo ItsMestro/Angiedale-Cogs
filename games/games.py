@@ -8,7 +8,7 @@ import re
 from collections import Counter, deque
 from enum import Enum
 from operator import itemgetter
-from random import choice, randint
+from random import choice
 from typing import Final, Iterable, List, Literal, Union, cast
 
 import discord
@@ -18,9 +18,7 @@ from redbot.core.bot import Red
 from redbot.core.data_manager import cog_data_path
 from redbot.core.errors import BalanceTooHigh
 from redbot.core.utils import AsyncIter
-from redbot.core.utils.chat_formatting import (
-    bold, box, humanize_number, pagify
-)
+from redbot.core.utils.chat_formatting import bold, box, humanize_number, pagify
 from redbot.core.utils.menus import start_adding_reactions
 from redbot.core.utils.predicates import MessagePredicate, ReactionPredicate
 from tabulate import tabulate
@@ -61,10 +59,12 @@ def is_owner_if_bank_global():
 
     return commands.check(pred)
 
+
 class InvalidListError(Exception):
     """A Trivia list file is in invalid format."""
 
     pass
+
 
 class RPS(Enum):
     rock = "\N{MOYAI}"
@@ -85,8 +85,6 @@ class RPSParser:
             self.choice = None
 
 
-MAX_ROLL: Final[int] = 2 ** 64 - 1
-
 class SMReel(Enum):
     cherries = "<:KannaPat:755808378575650826>"
     cookie = "<:KannaPog:755808378210746400>"
@@ -98,6 +96,7 @@ class SMReel(Enum):
     mushroom = "<:KannaYay:755808378705412116>"
     heart = "<:KannaHeart:755808377946243213>"
     snowflake = "<:KannaCool:755808377933791372>"
+
 
 _ = lambda s: s
 PAYOUTS = {
@@ -188,7 +187,9 @@ class Games(Database, commands.Cog):
         self.bot = bot
         self.cycle_task = self.bot.loop.create_task(self.membership_updater())
         self.trivia_sessions = []
-        self.triviaconfig = Config.get_conf(self, identifier=1387000, cog_name="GamesTrivia", force_registration=True)
+        self.triviaconfig = Config.get_conf(
+            self, identifier=1387000, cog_name="GamesTrivia", force_registration=True
+        )
 
         self.triviaconfig.register_guild(
             max_score=5,
@@ -238,31 +239,6 @@ class Games(Database, commands.Cog):
                 await self.cog_ready_event.wait()
 
     @commands.command()
-    async def roll(self, ctx, number: int = 100):
-        """Roll a random number.
-
-        The result will be between 1 and `<number>`.
-
-        `<number>` defaults to 100.
-        """
-        author = ctx.author
-        if 1 < number <= MAX_ROLL:
-            n = randint(1, number)
-            await ctx.send(
-                "{author.mention} :game_die: {n} :game_die:".format(
-                    author=author, n=humanize_number(n)
-                )
-            )
-        elif number <= 1:
-            await ctx.send(("{author.mention} Maybe higher than 1? ;P").format(author=author))
-        else:
-            await ctx.send(
-                ("{author.mention} Max allowed number is {maxamount}.").format(
-                    author=author, maxamount=humanize_number(MAX_ROLL)
-                )
-            )
-
-    @commands.command()
     async def flip(self, ctx, user: discord.Member = None):
         """Flip a coin... or a user.
 
@@ -272,7 +248,7 @@ class Games(Database, commands.Cog):
             msg = ""
             if user.id == ctx.bot.user.id:
                 user = ctx.author
-                msg = ("Nice try. You think this is funny?\n How about *this* instead:\n\n")
+                msg = "Nice try. You think this is funny?\n How about *this* instead:\n\n"
             char = "abcdefghijklmnopqrstuvwxyz"
             tran = "ɐqɔpǝɟƃɥᴉɾʞlɯuodbɹsʇnʌʍxʎz"
             table = str.maketrans(char, tran)
@@ -478,7 +454,7 @@ class Games(Database, commands.Cog):
     async def custom_trivia_list(self, ctx: commands.Context):
         """List uploaded custom trivia."""
         personal_lists = sorted([p.resolve().stem for p in cog_data_path(self).glob("*.yaml")])
-        no_lists_uploaded = ("No custom Trivia lists uploaded.")
+        no_lists_uploaded = "No custom Trivia lists uploaded."
 
         if not personal_lists:
             if await ctx.embed_requested():
@@ -500,9 +476,7 @@ class Games(Database, commands.Cog):
                 )
             )
         else:
-            msg = box(
-                bold(("Uploaded trivia lists")) + "\n\n" + ", ".join(sorted(personal_lists))
-            )
+            msg = box(bold(("Uploaded trivia lists")) + "\n\n" + ", ".join(sorted(personal_lists)))
             if len(msg) > 1000:
                 await ctx.author.send(msg)
             else:
@@ -532,9 +506,7 @@ class Games(Database, commands.Cog):
         except yaml.error.MarkedYAMLError as exc:
             await ctx.send(("Invalid syntax: ") + str(exc))
         except yaml.error.YAMLError:
-            await ctx.send(
-                ("There was an error parsing the trivia list. See logs for more info.")
-            )
+            await ctx.send(("There was an error parsing the trivia list. See logs for more info."))
             log.exception("Custom Trivia file %s failed to upload", parsedfile.filename)
 
     @commands.is_owner()
@@ -957,7 +929,7 @@ class Games(Database, commands.Cog):
     def cog_unload(self):
         for session in self.trivia_sessions:
             session.force_stop()
-        
+
         self.cycle_task.cancel()
         if self.migration_task:
             self.migration_task.cancel()
@@ -1086,7 +1058,9 @@ class Games(Database, commands.Cog):
         guild = ctx.guild
         channel = ctx.channel
         if await bank.is_global():
-            valid_bid = await self.economyconfig.SLOT_MIN() <= bid <= await self.economyconfig.SLOT_MAX()
+            valid_bid = (
+                await self.economyconfig.SLOT_MIN() <= bid <= await self.economyconfig.SLOT_MAX()
+            )
             slot_time = await self.economyconfig.SLOT_TIME()
             last_slot = await self.economyconfig.user(author).last_slot()
         else:
@@ -1176,7 +1150,7 @@ class Games(Database, commands.Cog):
             then = await bank.get_balance(author)
             await bank.withdraw_credits(author, bid)
             now = then - bid
-            phrase = ("Nothing!")
+            phrase = "Nothing!"
         await channel.send(
             (
                 "{slot}\n{author.mention} {phrase}\n\n"
@@ -1281,7 +1255,9 @@ class Games(Database, commands.Cog):
             return await ctx.send(("This user doesn't have any credits pending."))
 
         await ctx.send(
-            ("{} has {} credits pending. Would you like to release this amount?").format(player.name, amount)
+            ("{} has {} credits pending. Would you like to release this amount?").format(
+                player.name, amount
+            )
         )
 
         pred = MessagePredicate.yes_or_no(ctx=ctx)
@@ -1317,7 +1293,9 @@ class Games(Database, commands.Cog):
         """Reset a user's cooldowns, stats, or everything."""
 
         if await super().casino_is_global() and not await ctx.bot.is_owner(ctx.author):
-            return await ctx.send(("While the casino is in global mode, only the bot owner may use this command."))
+            return await ctx.send(
+                ("While the casino is in global mode, only the bot owner may use this command.")
+            )
 
         options = (("cooldowns"), ("stats"), ("all"))
         await ctx.send(("What would you like to reset?\n`{}`.").format(utils.fmt_join(options)))
@@ -1340,7 +1318,9 @@ class Games(Database, commands.Cog):
     async def resetinstance(self, ctx: commands.Context):
         """Reset global/server cooldowns, settings, memberships, or everything."""
         if await super().casino_is_global() and not await ctx.bot.is_owner(ctx.author):
-            return await ctx.send(("While the casino is in global mode, only the bot owner may use this command."))
+            return await ctx.send(
+                ("While the casino is in global mode, only the bot owner may use this command.")
+            )
 
         options = (("settings"), ("games"), ("cooldowns"), ("memberships"), ("all"))
         await ctx.send(("What would you like to reset?\n`{}`.").format(utils.fmt_join(options)))
@@ -1527,7 +1507,7 @@ class Games(Database, commands.Cog):
 
         headers = ("Games", "Played", "Won", "Cooldowns")
         table = tabulate(zip(games, played, won, cooldowns), headers=headers)
-        disclaimer = ("Wins do not take into calculation pushed bets or surrenders.")
+        disclaimer = "Wins do not take into calculation pushed bets or surrenders."
 
         # Embed
         embed = discord.Embed(colour=color, description=description)
@@ -1597,7 +1577,9 @@ class Games(Database, commands.Cog):
         mode = "global" if await super().casino_is_global() else "local"
         alt = "local" if mode == "global" else "global"
         await ctx.send(
-            ("Casino is currently set to {} mode. Would you like to change to {} mode instead?").format(mode, alt)
+            (
+                "Casino is currently set to {} mode. Would you like to change to {} mode instead?"
+            ).format(mode, alt)
         )
         pred = MessagePredicate.yes_or_no(ctx=ctx)
 
@@ -1658,7 +1640,9 @@ class Games(Database, commands.Cog):
         settings = await super().get_data(ctx)
         status = await settings.Settings.Payout_Switch()
         await settings.Settings.Payout_Switch.set(not status)
-        msg = ("{0.name} ({0.id}) turned the payout limit {1}.").format(ctx.author, "OFF" if status else "ON")
+        msg = ("{0.name} ({0.id}) turned the payout limit {1}.").format(
+            ctx.author, "OFF" if status else "ON"
+        )
         await ctx.send(msg)
 
     @casinoset.command()
@@ -1672,7 +1656,9 @@ class Games(Database, commands.Cog):
 
         status = await settings.Settings.Casino_Open()
         await settings.Settings.Casino_Open.set(not status)
-        msg = ("{0.name} ({0.id}) {2} the {1} Casino.").format(ctx.author, name, "closed" if status else "opened")
+        msg = ("{0.name} ({0.id}) {2} the {1} Casino.").format(
+            ctx.author, name, "closed" if status else "opened"
+        )
         await ctx.send(msg)
 
     @casinoset.command()
@@ -1691,8 +1677,7 @@ class Games(Database, commands.Cog):
 
     @casinoset.command()
     async def multiplier(self, ctx: commands.Context, game: str, multiplier: float):
-        """Sets the payout multiplier for a game.
-        """
+        """Sets the payout multiplier for a game."""
         settings = await super().get_data(ctx)
         games = await settings.Games.all()
         if is_input_unsupported(multiplier):
@@ -1705,7 +1690,9 @@ class Games(Database, commands.Cog):
             return
 
         await settings.Games.set_raw(game.title(), "Multiplier", value=multiplier)
-        msg = ("{0.name} ({0.id}) set {1}'s multiplier to {2}.").format(ctx.author, game.title(), multiplier)
+        msg = ("{0.name} ({0.id}) set {1}'s multiplier to {2}.").format(
+            ctx.author, game.title(), multiplier
+        )
         if multiplier == 0:
             msg += _(
                 "\n\nWait a minute...Zero?! Really... I'm a bot and that's more "
@@ -1726,19 +1713,25 @@ class Games(Database, commands.Cog):
         try:
             seconds = utils.time_converter(cooldown)
         except ValueError:
-            return await ctx.send(("Invalid cooldown format. Must be an integer or in HH:MM:SS style."))
+            return await ctx.send(
+                ("Invalid cooldown format. Must be an integer or in HH:MM:SS style.")
+            )
 
         if seconds < 0:
             return await ctx.send(("Nice try McFly, but this isn't Back to the Future."))
 
         if game.title() not in games:
             return await ctx.send(
-                ("Invalid game name. Must be one of the following:\n`{}`.").format(utils.fmt_join(list(games)))
+                ("Invalid game name. Must be one of the following:\n`{}`.").format(
+                    utils.fmt_join(list(games))
+                )
             )
 
         await settings.Games.set_raw(game.title(), "Cooldown", value=seconds)
         cool = utils.cooldown_formatter(seconds)
-        msg = ("{0.name} ({0.id}) set {1}'s cooldown to {2}.").format(ctx.author, game.title(), cool)
+        msg = ("{0.name} ({0.id}) set {1}'s cooldown to {2}.").format(
+            ctx.author, game.title(), cool
+        )
         await ctx.send(msg)
 
     @casinoset.command(name="min")
@@ -1760,7 +1753,9 @@ class Games(Database, commands.Cog):
             return await ctx.send(("You can't set a minimum higher than the game's maximum bid."))
 
         await settings.Games.set_raw(game.title(), "Min", value=minimum)
-        msg = ("{0.name} ({0.id}) set {1}'s minimum bid to {2}.").format(ctx.author, game.title(), minimum)
+        msg = ("{0.name} ({0.id}) set {1}'s minimum bid to {2}.").format(
+            ctx.author, game.title(), minimum
+        )
         await ctx.send(msg)
 
     @casinoset.command(name="max")
@@ -1782,7 +1777,9 @@ class Games(Database, commands.Cog):
             return await ctx.send(("You can't set a maximum lower than the game's minimum bid."))
 
         await settings.Games.set_raw(game.title(), "Max", value=maximum)
-        msg = ("{0.name} ({0.id}) set {1}'s maximum bid to {2}.").format(ctx.author, game.title(), maximum)
+        msg = ("{0.name} ({0.id}) set {1}'s maximum bid to {2}.").format(
+            ctx.author, game.title(), maximum
+        )
         await ctx.send(msg)
 
     @casinoset.command()
@@ -1801,7 +1798,9 @@ class Games(Database, commands.Cog):
             return await ctx.send(("Go home. You're drunk."))
 
         await data.Games.set_raw(game.title(), "Access", value=access)
-        msg = ("{0.name} ({0.id}) changed the access level for {1} to {2}.").format(ctx.author, game, access)
+        msg = ("{0.name} ({0.id}) changed the access level for {1} to {2}.").format(
+            ctx.author, game, access
+        )
         await ctx.send(msg)
 
     @casinoset.command()
@@ -1814,7 +1813,9 @@ class Games(Database, commands.Cog):
 
         status = await instance.Games.get_raw(game.title(), "Open")
         await instance.Games.set_raw(game.title(), "Open", value=(not status))
-        msg = ("{0.name} ({0.id}) {2} the game {1}.").format(ctx.author, game, "closed" if status else "opened")
+        msg = ("{0.name} ({0.id}) {2} the game {1}.").format(
+            ctx.author, game, "closed" if status else "opened"
+        )
         await ctx.send(msg)
 
     async def membership_updater(self):
@@ -1928,7 +1929,9 @@ class Games(Database, commands.Cog):
     async def basic_check(ctx, game, games, base):
         if game.title() not in games:
             await ctx.send(
-                "Invalid game name. Must be on of the following:\n`{}`".format(utils.fmt_join(list(games)))
+                "Invalid game name. Must be on of the following:\n`{}`".format(
+                    utils.fmt_join(list(games))
+                )
             )
             return False
         elif base < 0:
@@ -1945,6 +1948,7 @@ class Games(Database, commands.Cog):
             seconds = int((cooldown + reduction - now))
             results.append(utils.cooldown_formatter(seconds, custom_msg="<<Ready to Play!"))
         return results
+
 
 class Membership(Database):
     """This class handles membership processing."""
@@ -2010,14 +2014,18 @@ class Membership(Database):
             raise ExitProcess()
 
         await self.ctx.send(
-            ("Which membership would you like to delete?\n`{}`").format(utils.fmt_join(list(memberships.keys())))
+            ("Which membership would you like to delete?\n`{}`").format(
+                utils.fmt_join(list(memberships.keys()))
+            )
         )
         membership = await self.ctx.bot.wait_for("message", timeout=25.0, check=mem_check)
 
         if membership.content == self.cancel:
             raise ExitProcess()
         await self.ctx.send(
-            ("Are you sure you wish to delete `{}`? This cannot be reverted.").format(membership.content)
+            ("Are you sure you wish to delete `{}`? This cannot be reverted.").format(
+                membership.content
+            )
         )
 
         choice = await self.ctx.bot.wait_for(
@@ -2083,7 +2091,9 @@ class Membership(Database):
 
         attrs = (("Requirements"), ("Name"), ("Access"), ("Color"), ("Reduction"), ("Bonus"))
         await self.ctx.send(
-            ("Which of the following attributes would you like to edit?\n`{}`").format(utils.fmt_join(attrs))
+            ("Which of the following attributes would you like to edit?\n`{}`").format(
+                utils.fmt_join(attrs)
+            )
         )
 
         pred = MessagePredicate.lower_contained_in(
@@ -2129,7 +2139,9 @@ class Membership(Database):
             raise ExitProcess()
 
     async def set_color(self, membership):
-        await self.ctx.send(("What color would you like to set?\n`{}`").format(utils.fmt_join(list(self.colors))))
+        await self.ctx.send(
+            ("What color would you like to set?\n`{}`").format(utils.fmt_join(list(self.colors)))
+        )
 
         color_list = list(self.colors)
         color_list.append(str(self.cancel))
@@ -2222,8 +2234,12 @@ class Membership(Database):
             membership_data[membership]["Reduction"] = user_input
 
     async def set_bonus(self, membership):
-        await self.ctx.send(("What is the bonus payout multiplier for this membership?\n*Defaults to 1.0*"))
-        bonus = await self.ctx.bot.wait_for("message", timeout=25.0, check=self.positive_float_predicate)
+        await self.ctx.send(
+            ("What is the bonus payout multiplier for this membership?\n*Defaults to 1.0*")
+        )
+        bonus = await self.ctx.bot.wait_for(
+            "message", timeout=25.0, check=self.positive_float_predicate
+        )
 
         if bonus.content.lower() == self.cancel:
             raise ExitProcess
@@ -2380,10 +2396,12 @@ class Membership(Database):
         else:
             return False
 
+
 def get_core_lists() -> List[pathlib.Path]:
     """Return a list of paths for all trivia lists packaged with the bot."""
     core_lists_path = pathlib.Path(__file__).parent.resolve() / "data/lists"
     return list(core_lists_path.glob("*.yaml"))
+
 
 class ExitProcess(Exception):
     pass

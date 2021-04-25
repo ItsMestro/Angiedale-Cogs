@@ -4,7 +4,8 @@ import logging
 import random
 import time
 import urllib.parse
-from typing import Optional, Tuple, Union
+from typing import Final, Optional, Tuple, Union
+from redbot.core.utils.predicates import MessagePredicate, ReactionPredicate
 
 import discord
 from dateutil.relativedelta import relativedelta
@@ -25,24 +26,26 @@ from redbot.core.utils.common_filters import (
     filter_invites,
     filter_mass_mentions,
 )
-from redbot.core.utils.menus import close_menu, menu
+from redbot.core.utils.menus import close_menu, menu, start_adding_reactions
 
-from .converters import SelfRole
+from .converters import ReminderTime, SelfRole
 from .reports import Reports
 
 log = logging.getLogger("red.angiedale.general")
 
+MAX_ROLL: Final[int] = 2 ** 64 - 1
+
 KAOMOJI_JOY = [
-    " (* ^ ω ^)",
+    " (\\* ^ ω ^)",
     " (o^▽^o)",
     " (≧◡≦)",
-    ' ☆⌒ヽ(*"､^*)chu',
+    ' ☆⌒ヽ(\\*"､^\\*)chu',
     " ( ˘⌣˘)♡(˘⌣˘ )",
     " xD",
 ]
 KAOMOJI_EMBARRASSED = [
     " (⁄ ⁄>⁄ ▽ ⁄<⁄ ⁄)..",
-    " (*^.^*)..,",
+    " (\\*^.^\\*)..,",
     "..,",
     ",,,",
     "... ",
@@ -57,17 +60,14 @@ KAOMOJI_CONFUSE = [
     " owo?",
 ]
 KAOMOJI_SPARKLES = [
-    " *:･ﾟ✧*:･ﾟ✧ ",
-    " ☆*:・ﾟ ",
+    " \\*:･ﾟ✧\\*:･ﾟ✧ ",
+    " ☆\\*:・ﾟ ",
     "〜☆ ",
-    " uguu.., ",
     "-.-",
 ]
 
 fur = {
     "ahh": "*murr*",
-    "love": "wuv",
-    "loves": "wuvs",
     "awesome": "pawsome",
     "awful": "pawful",
     "bite": "nom",
@@ -150,6 +150,11 @@ default_report = {
 class General(Reports, commands.Cog):
     """General commands."""
 
+    default_global_settings_reminders = {
+        "total_sent": 0,
+        "reminders": [],
+    }
+
     default_member_settings_m = {
         "past_nicks": [],
         "perms_cache": {},
@@ -170,6 +175,11 @@ class General(Reports, commands.Cog):
             self, identifier=1387000, force_registration=True, cog_name="Warnings"
         )
 
+        self.config = Config.get_conf(
+            self, identifier=1387000, force_registration=True, cog_name="Reminders"
+        )
+        self.config.register_global(**self.default_global_settings_reminders)
+
         self.modconfig = Config.get_conf(self, identifier=1387000, cog_name="Mod")
         self.modconfig.register_member(**self.default_member_settings_m)
         self.modconfig.register_user(**self.default_user_settings_m)
@@ -177,6 +187,8 @@ class General(Reports, commands.Cog):
         self.adminconfig = Config.get_conf(
             self, identifier=1387000, force_registration=True, cog_name="OwnerAdmin"
         )
+
+        self.bg_loop_task = self.bot.loop.create_task(self.bg_loop())
 
     @staticmethod
     def pass_hierarchy_check(ctx: commands.Context, role: discord.Role) -> bool:
@@ -197,6 +209,71 @@ class General(Reports, commands.Cog):
         :return:
         """
         return ctx.author.top_role > role or ctx.author == ctx.guild.owner
+
+    def cog_unload(self):
+        """Clean up when cog shuts down."""
+        if self.bg_loop_task:
+            self.bg_loop_task.cancel()
+
+    async def bg_loop(self):
+        """Background loop."""
+        await self.bot.wait_until_ready()
+        while True:
+            await self.check_reminders()
+            await asyncio.sleep(10)
+
+    async def check_reminders(self):
+        """Send reminders that have expired."""
+        to_remove = []
+        for reminder in await self.config.reminders():
+            current_time_seconds = int(time.time())
+            if reminder["FUTURE"] <= current_time_seconds:
+                user: discord.User = self.bot.get_user(reminder["USER_ID"])
+                if user is None:
+                    # Can't see the user (no shared servers): delete reminder
+                    to_remove.append(reminder)
+                    continue
+
+                delay = current_time_seconds - reminder["FUTURE"]
+                embed = discord.Embed(
+                    title=f":bell:{' (Delayed)' if delay > 30 else ''} Reminder! :bell:",
+                    color=await self.bot.get_embed_color(user),
+                )
+                if delay > 30:
+                    embed.set_footer(
+                        text=f"This was supposed to send {humanize_timedelta(seconds=delay)} ago.\n"
+                        "I might be having network or server issues, or perhaps I just started up.\n"
+                        "Sorry about that!"
+                    )
+                embed_name = f"From {reminder['FUTURE_TEXT']} ago:"
+                reminder_text = reminder["REMINDER"]
+                if "JUMP_LINK" in reminder:
+                    reminder_text += f"\n\n[original message]({reminder['JUMP_LINK']})"
+                embed.add_field(
+                    name=embed_name,
+                    value=reminder_text,
+                )
+
+                try:
+                    await user.send(embed=embed)
+                except (discord.Forbidden, discord.NotFound):
+                    # Can't send DM's to user: delete reminder
+                    to_remove.append(reminder)
+                except discord.HTTPException:
+                    # Something weird happened: retry next time
+                    pass
+                else:
+                    total_sent = await self.config.total_sent()
+                    await self.config.total_sent.set(total_sent + 1)
+                    to_remove.append(reminder)
+        if to_remove:
+            async with self.config.reminders() as current_reminders:
+                for reminder in to_remove:
+                    try:
+                        current_reminders.remove(reminder)
+                    except ValueError:
+                        pass
+
 
     @commands.command(aliases=["sw"])
     async def stopwatch(self, ctx):
@@ -535,9 +612,17 @@ class General(Reports, commands.Cog):
     async def fuwwy(self, ctx: commands.Context, *, text: str = None):
         """Fuwwyize the pwevious message, ow youw own text."""
         if not text:
-            text = (await ctx.channel.history(limit=2).flatten())[
-                1
-            ].content or "I can't translate that!"
+            if hasattr(ctx.message, "reference") and ctx.message.reference:
+                try:
+                    text = (
+                        await ctx.fetch_message(ctx.message.reference.message_id)
+                    ).content
+                except (discord.Forbidden, discord.NotFound, discord.HTTPException):
+                    pass
+            if not text:
+                text = (await ctx.channel.history(limit=2).flatten())[
+                    1
+                ].content or "I can't translate that!"
         fuwwytext = self.fuwwyize_string(text)
         await ctx.send(
             fuwwytext[:2000] if len(fuwwytext) > 2000 else fuwwytext,
@@ -587,135 +672,133 @@ class General(Reports, commands.Cog):
         # Full Words Extra
         if uwu == "ahh":
             uwu = fur["ahh"]
-        if uwu == "love":
-            uwu = fur["love"]
-        if uwu == "awesome":
+        elif uwu == "awesome":
             uwu = fur["awesome"]
-        if uwu == "awful":
+        elif uwu == "awful":
             uwu = fur["awful"]
-        if uwu == "bite":
+        elif uwu == "bite":
             uwu = fur["bite"]
-        if uwu == "bites":
+        elif uwu == "bites":
             uwu = fur["bites"]
-        if uwu == "butthole":
+        elif uwu == "butthole":
             uwu = fur["butthole"]
-        if uwu == "buttholes":
+        elif uwu == "buttholes":
             uwu = fur["buttholes"]
-        if uwu == "bulge":
+        elif uwu == "bulge":
             uwu = fur["bulge"]
-        if uwu == "bye":
+        elif uwu == "bye":
             uwu = fur["bye"]
-        if uwu == "celebrity":
+        elif uwu == "celebrity":
             uwu = fur["celebrity"]
-        if uwu == "celebrities":
+        elif uwu == "celebrities":
             uwu = fur["celebrities"]
-        if uwu == "cheese":
+        elif uwu == "cheese":
             uwu = fur["cheese"]
-        if uwu == "child" or uwu == "kid" or uwu == "infant":
+        elif uwu == "child" or uwu == "kid" or uwu == "infant":
             uwu = fur["child"]
-        if uwu == "children" or uwu == "kids" or uwu == "infants":
+        elif uwu == "children" or uwu == "kids" or uwu == "infants":
             uwu = fur["children"]
-        if uwu == "robot" or uwu == "cyborg" or uwu == "computer":
+        elif uwu == "robot" or uwu == "cyborg" or uwu == "computer":
             uwu = fur["computer"]
-        if uwu == "robots" or uwu == "cyborgs" or uwu == "computers":
+        elif uwu == "robots" or uwu == "cyborgs" or uwu == "computers":
             uwu = fur["computers"]
-        if uwu == "disease":
+        elif uwu == "disease":
             uwu = fur["disease"]
-        if uwu == "dog":
+        elif uwu == "dog":
             uwu = fur["dog"]
-        if uwu == "dogs":
+        elif uwu == "dogs":
             uwu = fur["dogs"]
-        if uwu == "dragon":
+        elif uwu == "dragon":
             uwu = fur["dragon"]
-        if uwu == "dragons":
+        elif uwu == "dragons":
             uwu = fur["dragons"]
-        if uwu == "eat":
+        elif uwu == "eat":
             uwu = fur["eat"]
-        if uwu == "everyone":
+        elif uwu == "everyone":
             uwu = fur["everyone"]
-        if uwu == "foot":
+        elif uwu == "foot":
             uwu = fur["foot"]
-        if uwu == "feet":
+        elif uwu == "feet":
             uwu = fur["feet"]
-        if uwu == "for":
+        elif uwu == "for":
             uwu = fur["for"]
-        if uwu == "fuck":
+        elif uwu == "fuck":
             uwu = fur["fuck"]
-        if uwu == "fucking":
+        elif uwu == "fucking":
             uwu = fur["fucking"]
-        if uwu == "fucked":
+        elif uwu == "fucked":
             uwu = fur["fucked"]
-        if uwu == "hand":
+        elif uwu == "hand":
             uwu = fur["hand"]
-        if uwu == "hands":
+        elif uwu == "hands":
             uwu = fur["hands"]
-        if uwu == "hi":
+        elif uwu == "hi":
             uwu = fur["hi"]
-        if uwu == "human":
+        elif uwu == "human":
             uwu = fur["human"]
-        if uwu == "humans":
+        elif uwu == "humans":
             uwu = fur["humans"]
-        if uwu == "hyena":
+        elif uwu == "hyena":
             uwu = fur["hyena"]
-        if uwu == "hyenas":
+        elif uwu == "hyenas":
             uwu = fur["hyenas"]
-        if uwu == "innocent":
+        elif uwu == "innocent":
             uwu = fur["innocent"]
-        if uwu == "kiss":
+        elif uwu == "kiss":
             uwu = fur["kiss"]
-        if uwu == "kisses":
+        elif uwu == "kisses":
             uwu = fur["kisses"]
-        if uwu == "lmao":
+        elif uwu == "lmao":
             uwu = fur["lmao"]
-        if uwu == "masturbate" or uwu == "fap":
+        elif uwu == "masturbate" or uwu == "fap":
             uwu = fur["masturbate"]
-        if uwu == "mouth":
+        elif uwu == "mouth":
             uwu = fur["mouth"]
-        if uwu == "naughty":
+        elif uwu == "naughty":
             uwu = fur["naughty"]
-        if uwu == "not":
+        elif uwu == "not":
             uwu = fur["not"]
-        if uwu == "perfect":
+        elif uwu == "perfect":
             uwu = fur["perfect"]
-        if uwu == "persona":
+        elif uwu == "persona":
             uwu = fur["persona"]
-        if uwu == "personas":
+        elif uwu == "personas":
             uwu = fur["personas"]
-        if uwu == "pervert":
+        elif uwu == "pervert":
             uwu = fur["pervert"]
-        if uwu == "perverts":
+        elif uwu == "perverts":
             uwu = fur["perverts"]
-        if uwu == "porn":
+        elif uwu == "porn":
             uwu = fur["porn"]
-        if uwu == "roar":
+        elif uwu == "roar":
             uwu = fur["roar"]
-        if uwu == "shout":
+        elif uwu == "shout":
             uwu = fur["shout"]
-        if uwu == "someone":
+        elif uwu == "someone":
             uwu = fur["someone"]
-        if uwu == "source":
+        elif uwu == "source":
             uwu = fur["source"]
-        if uwu == "sexy":
+        elif uwu == "sexy":
             uwu = fur["sexy"]
-        if uwu == "tale":
+        elif uwu == "tale":
             uwu = fur["tale"]
-        if uwu == "the":
+        elif uwu == "the":
             uwu = fur["the"]
-        if uwu == "this":
+        elif uwu == "this":
             uwu = fur["this"]
-        if uwu == "what":
+        elif uwu == "what":
             uwu = fur["what"]
-        if uwu == "with":
+        elif uwu == "with":
             uwu = fur["with"]
-        if uwu == "you":
+        elif uwu == "you":
             uwu = fur["you"]
-        if uwu == ":)":
+        elif uwu == ":)":
             uwu = fur[":)"]
-        if uwu == ":o" or uwu == ":O":
+        elif uwu == ":o" or uwu == ":O":
             uwu = fur[":o"]
-        if uwu == ":D":
+        elif uwu == ":D":
             uwu = fur[":D"]
-        if uwu == "XD" or uwu == "xD" or uwu == "xd":
+        elif uwu == "XD" or uwu == "xD" or uwu == "xd":
             uwu = fur["XD"]
 
         # L -> W and R -> W
@@ -737,7 +820,17 @@ class General(Reports, commands.Cog):
             ):
                 protected = uwu[-3:]
                 uwu = uwu[:-3]
-            uwu = uwu.replace("l", "w").replace("r", "w") + protected
+
+            uwu = (
+                uwu.replace("l", "w")
+                .replace("r", "w")
+                .replace("na", "nya")
+                .replace("ne", "nye")
+                .replace("ni", "nyi")
+                .replace("no", "nyo")
+                .replace("nu", "nyu")
+                .replace("ove", "uv")
+            + protected)
 
         # Full words
         uwu = uwu.replace("you're", "ur")
@@ -1471,3 +1564,261 @@ class General(Reports, commands.Cog):
                 embed.add_field(name="Raw (€5 Tier)", value=humanize_list(templist), inline=False)
 
         await ctx.send(embed=embed)
+
+    @commands.command()
+    async def roll(self, ctx, number: int = 100):
+        """Roll a random number.
+
+        The result will be between 1 and `<number>`.
+
+        `<number>` defaults to 100.
+        """
+        author = ctx.author
+        if 1 < number <= MAX_ROLL:
+            n = random.randint(1, number)
+            await ctx.send(
+                "{author.mention} :game_die: {n} :game_die:".format(
+                    author=author, n=humanize_number(n)
+                )
+            )
+        elif number <= 1:
+            await ctx.send(("{author.mention} Maybe higher than 1? ;P").format(author=author))
+        else:
+            await ctx.send(
+                ("{author.mention} Max allowed number is {maxamount}.").format(
+                    author=author, maxamount=humanize_number(MAX_ROLL)
+                )
+            )
+
+    @commands.group()
+    async def reminders(self, ctx: commands.Context):
+        """Manage your reminders."""
+
+    @reminders.command()
+    async def clear(self, ctx: commands.Context):
+        """Remove all of your upcoming reminders."""
+        await self._delete_reminder(ctx, "all")
+
+    @reminders.command(aliases=["get"], usage="<sorting_order>")
+    async def list(self, ctx: commands.Context, sort: str = "time"):
+        """Show a list of all of your reminders.
+
+        `<sorting_order>` can be either of:
+        `time` (default) for soonest expiring reminder first.
+        `added` for ordering by when the reminder was added.
+        `id` for ordering by ID.
+        """
+        author = ctx.message.author
+        to_send = await self.get_user_reminders(author.id)
+        if sort == "time":
+            to_send.sort(key=lambda reminder_info: reminder_info["FUTURE"])
+        elif sort == "added":
+            pass
+        elif sort == "id":
+            to_send.sort(key=lambda reminder_info: reminder_info["USER_REMINDER_ID"])
+        else:
+            await ctx.send(
+                "That is not a valid sorting option. Choose from `time`, `added`, or `id`."
+            )
+            return
+
+        if not to_send:
+            await ctx.send("You don't have any upcoming reminders.")
+            return
+
+        embed = discord.Embed(
+            title=f"Reminders for {author.display_name}",
+            color=await ctx.embed_color(),
+        )
+        embed.set_thumbnail(url=author.avatar_url)
+        current_time_seconds = int(time.time())
+        for reminder in to_send:
+            delta = reminder["FUTURE"] - current_time_seconds
+            reminder_title = "ID# {} — {}".format(
+                reminder["USER_REMINDER_ID"],
+                "In {}".format(humanize_timedelta(seconds=delta))
+                if delta > 0
+                else "Now!",
+            )
+            reminder_text = reminder["REMINDER"]
+            if len(reminder_text) > 500:
+                reminder_text = reminder_text[:500] + "..."
+            if "JUMP_LINK" in reminder:
+                reminder_text += f"\n([original message]({reminder['JUMP_LINK']}))"
+            reminder_text = reminder_text or "(no reminder text or jump link)"
+            embed.add_field(
+                name=reminder_title,
+                value=reminder_text,
+                inline=False,
+            )
+        try:
+            await ctx.author.send(embed=embed)
+            if ctx.guild:
+                await ctx.tick()
+        except discord.Forbidden:
+            await ctx.send("I'm unable to DM you...")
+
+    @reminders.command(aliases=["delete", "del"])
+    async def remove(self, ctx: commands.Context, index: str):
+        """Remove a reminder.
+
+        `<index>` can be either of:
+        - a number for a specific reminder to delete.
+        - `last` to delete the most recently created reminder.
+        - `all` to delete all reminders.
+        """
+        await self._delete_reminder(ctx, index)
+
+    @commands.command(aliases=["reminder"], usage="<time> [reminder_text]")
+    async def remindme(
+        self, ctx: commands.Context, *, time_and_optional_text: ReminderTime = {}
+    ):
+        """Create a reminder with optional reminder text.
+
+        `<time>` is a string of time that you want to be reminded in. Time is
+        any valid time length such as `30 minutes` or `2 days`.
+        Accepts seconds, minutes, hours, days, and weeks.
+
+        Examples:
+        `[p]remindme 10min45sec to add a new reminder`
+        `[p]remindme to water my plants in 5 hours`
+        `[p]remindme 3days`
+        `[p]remindme 8h`
+        """
+        await self._create_reminder(ctx, time_and_optional_text)
+
+    async def _create_reminder(
+        self, ctx: commands.Context, time_and_optional_text
+    ):
+        """Reminder creation function."""
+        author = ctx.message.author
+        users_reminders = await self.get_user_reminders(author.id)
+        if len(users_reminders) >= 10:
+            await ctx.send(
+                "You have too many reminders! "
+                "You can have a maximum of 10 reminders at a time."
+            )
+            return
+
+        reminder_time = time_and_optional_text.get("duration", None)
+        reminder_text = time_and_optional_text.get("reminder", None)
+        if not reminder_time:
+            await ctx.send_help()
+            return
+        if len(reminder_text) > 700:
+            await ctx.send("Your reminder text is too long.")
+            return
+
+        next_reminder_id = self.get_next_user_reminder_id(users_reminders)
+        future = int(time.time() + reminder_time.total_seconds())
+        future_text = humanize_timedelta(timedelta=reminder_time)
+
+        reminder = {
+            "USER_REMINDER_ID": next_reminder_id,
+            "USER_ID": author.id,
+            "REMINDER": reminder_text,
+            "FUTURE": future,
+            "FUTURE_TEXT": future_text,
+            "JUMP_LINK": ctx.message.jump_url,
+        }
+        async with self.config.reminders() as current_reminders:
+            current_reminders.append(reminder)
+        await ctx.send(f"I will remind you of {'that' if reminder_text else 'this'} in {future_text}.")
+
+    async def _delete_reminder(self, ctx: commands.Context, index: str):
+        """Logic to delete reminders."""
+        if not index:
+            return
+        author = ctx.message.author
+        users_reminders = await self.get_user_reminders(author.id)
+
+        if not users_reminders:
+            await ctx.send("You don't have any upcoming reminders.")
+            return
+
+        if index == "all":
+            can_react = ctx.channel.permissions_for(ctx.me).add_reactions
+            # Ask if the user really wants to do this
+            msg: discord.Message = await ctx.send(
+                "Are you **sure** you want to remove all of your reminders? (yes/no)"
+            )
+            if can_react:
+                start_adding_reactions(msg, ReactionPredicate.YES_OR_NO_EMOJIS)
+                pred = ReactionPredicate.yes_or_no(msg, ctx.author)
+                event = "reaction_add"
+            else:
+                pred = MessagePredicate.yes_or_no(ctx)
+                event = "message"
+            try:
+                await ctx.bot.wait_for(event, check=pred, timeout=30)
+            except asyncio.TimeoutError:
+                msg.delete()
+            if pred.result:
+                await self._do_reminder_delete(users_reminders)
+                await ctx.send("All of your reminders have been removed.")
+                return
+            else:
+                await ctx.send("I have left your reminders alone.")
+                return
+
+        if index == "last":
+            reminder_to_delete = users_reminders[len(users_reminders) - 1]
+            await self._do_reminder_delete(reminder_to_delete)
+            await ctx.send(
+                "Your most recently created reminder (ID# **{}**) has been removed.".format(
+                    reminder_to_delete["USER_REMINDER_ID"]
+                ),
+            )
+            return
+
+        try:
+            int_index = int(index)
+        except ValueError:
+            await ctx.send_help()
+            return
+
+        reminder_to_delete = self._get_reminder(users_reminders, int_index)
+        if reminder_to_delete:
+            await self._do_reminder_delete(reminder_to_delete)
+            await ctx.send(f"Reminder with ID# **{int_index}** has been removed.")
+        else:
+            await ctx.send(f"Reminder with ID# **{int_index}** does not exist! "
+            "Check the reminder list and verify you typed the correct ID#.")
+
+    async def get_user_reminders(self, user_id: int):
+        """Return all of a users reminders."""
+        result = []
+        async with self.config.reminders() as current_reminders:
+            for reminder in current_reminders:
+                if reminder["USER_ID"] == user_id:
+                    result.append(reminder)
+        return result
+
+    async def _do_reminder_delete(self, reminders):
+        """Actually delete a reminder."""
+        if not reminders:
+            return
+        if not isinstance(reminders, list):
+            reminders = [reminders]
+        async with self.config.reminders() as current_reminders:
+            for reminder in reminders:
+                current_reminders.remove(reminder)
+
+    @staticmethod
+    def get_next_user_reminder_id(reminder_list):
+        """Get the next reminder ID for a user."""
+        next_reminder_id = 1
+        used_reminder_ids = set()
+        for reminder in reminder_list:
+            used_reminder_ids.add(reminder["USER_REMINDER_ID"])
+        while next_reminder_id in used_reminder_ids:
+            next_reminder_id += 1
+        return next_reminder_id
+
+    @staticmethod
+    def _get_reminder(reminder_list, reminder_id: int):
+        """Get the reminder from reminder_list with the specified reminder_id."""
+        for reminder in reminder_list:
+            if reminder["USER_REMINDER_ID"] == reminder_id:
+                return reminder
+        return None
