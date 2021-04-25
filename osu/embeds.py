@@ -6,11 +6,8 @@ from datetime import datetime, timedelta
 from math import ceil
 
 import discord
-from redbot.core.utils.chat_formatting import (
-    humanize_number,
-    humanize_timedelta,
-    inline,
-)
+from redbot.core import commands
+from redbot.core.utils.chat_formatting import humanize_number, humanize_timedelta, inline
 
 log = logging.getLogger("red.angiedale.osu.embeds")
 
@@ -24,6 +21,7 @@ EMOJI = {
     "C": "<:C_Rank:794823687488012308>",
     "D": "<:F_Rank:794823687781613609>",
     "F": "<:F_Rank:794823687781613609>",
+    "BPM": "<:BPM:833130972668493824>",
 }
 
 
@@ -37,64 +35,107 @@ class Data:
         index = 0
 
         for s in d:
-            score = {}
+            score = self.scoredata(s)
 
             score["index"] = index
-
-            try:
-                score["mods"] = s["mods"]
-                score["scorepp"] = s["pp"]
-                score["accuracy"] = s["accuracy"]
-                score["score"] = s["score"]
-                score["combo"] = s["max_combo"]
-                score["scorerank"] = s["rank"]
-                score["played"] = s["created_at"]
-                score["scoregeki"] = s["statistics"]["count_geki"]
-                score["score300"] = s["statistics"]["count_300"]
-                score["scorekatu"] = s["statistics"]["count_katu"]
-                score["score100"] = s["statistics"]["count_100"]
-                score["score50"] = s["statistics"]["count_50"]
-                score["scoremiss"] = s["statistics"]["count_miss"]
-                try:
-                    score["weightpercentage"] = s["weight"]["percentage"]
-                    score["weightpp"] = s["weight"]["pp"]
-                except:
-                    pass
-                score["mode"] = s["mode"]
-
-                score = {**score, **Data.userbasicdata(s["user"])}
-
-                score["mapmode"] = s["beatmap"]["mode_int"]
-                score["version"] = s["beatmap"]["version"]
-                score["mapurl"] = s["beatmap"]["url"]
-                score["mapid"] = s["beatmap"]["id"]
-                score["sr"] = s["beatmap"]["difficulty_rating"]
-                score["ar"] = s["beatmap"]["ar"]
-                score["cs"] = s["beatmap"]["cs"]
-                score["hp"] = s["beatmap"]["drain"]
-                score["od"] = s["beatmap"]["accuracy"]
-                score["bpm"] = s["beatmap"]["bpm"]
-                score["circles"] = s["beatmap"]["count_circles"]
-                score["sliders"] = s["beatmap"]["count_sliders"]
-                score["spinners"] = s["beatmap"]["count_spinners"]
-
-                try:
-                    score["title"] = s["beatmapset"]["title"]
-                    score["artist"] = s["beatmapset"]["artist"]
-                    score["creator"] = s["beatmapset"]["creator"]
-                    score["creatorid"] = s["beatmapset"]["user_id"]
-                    score["status"] = s["beatmapset"]["status"]
-                    score["setid"] = s["beatmapset"]["id"]
-                except:
-                    pass
-            except:
-                log.error(s)
+            index += 1
 
             data.append(score)
-            index += 1
 
         return data
 
+    async def recentdata(self, d):
+        """/users/{user}/scores"""
+
+        data = self.scoredata(d)
+        data["extra_data"] = await self.extra_beatmap_info(data)
+        return data
+
+    def scoredata(self, s):
+        """/users/{user}/scores"""
+
+        score = {}
+
+        score["mods"] = s["mods"]
+        score["scorepp"] = s["pp"]
+        score["accuracy"] = s["accuracy"]
+        score["score"] = s["score"]
+        score["combo"] = s["max_combo"]
+        score["scorerank"] = s["rank"]
+        score["played"] = s["created_at"]
+        score["scoregeki"] = s["statistics"]["count_geki"]
+        score["score300"] = s["statistics"]["count_300"]
+        score["scorekatu"] = s["statistics"]["count_katu"]
+        score["score100"] = s["statistics"]["count_100"]
+        score["score50"] = s["statistics"]["count_50"]
+        score["scoremiss"] = s["statistics"]["count_miss"]
+        try:
+            score["weightpercentage"] = s["weight"]["percentage"]
+            score["weightpp"] = s["weight"]["pp"]
+        except:
+            pass
+        score["mode"] = s["mode"]
+
+        score = {**score, **self.userbasicdata(s["user"])}
+
+        score["mapmode"] = s["beatmap"]["mode_int"]
+        score["version"] = s["beatmap"]["version"]
+        score["mapurl"] = s["beatmap"]["url"]
+        score["mapid"] = s["beatmap"]["id"]
+        score["sr"] = s["beatmap"]["difficulty_rating"]
+        score["ar"] = s["beatmap"]["ar"]
+        score["cs"] = s["beatmap"]["cs"]
+        score["hp"] = s["beatmap"]["drain"]
+        score["od"] = s["beatmap"]["accuracy"]
+        score["bpm"] = s["beatmap"]["bpm"]
+        score["circles"] = s["beatmap"]["count_circles"]
+        score["sliders"] = s["beatmap"]["count_sliders"]
+        score["spinners"] = s["beatmap"]["count_spinners"]
+        score["updated"] = s["beatmap"]["last_updated"]
+
+        try:
+            score["title"] = s["beatmapset"]["title"]
+            score["artist"] = s["beatmapset"]["artist"]
+            score["creator"] = s["beatmapset"]["creator"]
+            score["creatorid"] = s["beatmapset"]["user_id"]
+            score["status"] = s["beatmapset"]["status"]
+            score["setid"] = s["beatmapset"]["id"]
+        except:
+            pass
+
+        return score
+
+    def leaderboarddata(self, d):
+        """/users/{user}/scores"""
+
+        data = []
+
+        for s in d:
+            if s["beatmapset"]["status"] in ["ranked", "loved"] or s["rank"] == "F":
+                continue
+            score = {}
+
+            score["mapid"] = s["beatmap"]["id"]
+            score["mods"] = s["mods"]
+            score["accuracy"] = s["accuracy"]
+            score["score"] = s["score"]
+            score["combo"] = s["max_combo"]
+            score["scorerank"] = s["rank"]
+            score["played"] = s["created_at"]
+            score["scoregeki"] = s["statistics"]["count_geki"]
+            score["score300"] = s["statistics"]["count_300"]
+            score["scorekatu"] = s["statistics"]["count_katu"]
+            score["score100"] = s["statistics"]["count_100"]
+            score["score50"] = s["statistics"]["count_50"]
+            score["scoremiss"] = s["statistics"]["count_miss"]
+
+            score = {**score, **self.userbasicdata(s["user"])}
+
+            data.append(score)
+
+        return data
+
+    @staticmethod
     def mapdata(self, d):
         """/beatmaps/{map}"""
 
@@ -134,7 +175,8 @@ class Data:
 
         return data
 
-    def changelogdata(self, d):
+    @staticmethod
+    def changelogdata(d):
         """/changelog"""
 
         data = []
@@ -176,7 +218,7 @@ class Data:
 
         data = {}
 
-        data = {**data, **Data.userbasicdata(d["user"])}
+        data = {**data, **self.userbasicdata(d["user"])}
 
         data["pp"] = d["pp"]
         data["accuracy"] = d["hit_accuracy"]
@@ -185,6 +227,7 @@ class Data:
 
         return data
 
+    @staticmethod
     def userbasicdata(d):
         data = {}
 
@@ -202,7 +245,7 @@ class Data:
 
         data = {}
 
-        data = {**data, **Data.userbasicdata(d)}
+        data = {**data, **self.userbasicdata(d)}
 
         data["lastonline"] = d["last_visit"]
         data["mappingfollowers"] = d["mapping_follower_count"]
@@ -236,7 +279,12 @@ class Data:
             data["pp4k"] = d["statistics"]["variants"][0]["pp"]
             data["pp7k"] = d["statistics"]["variants"][1]["pp"]
         except:
-            pass
+            data["globalrank4k"] = 0
+            data["globalrank7k"] = 0
+            data["countryrank4k"] = 0
+            data["countryrank7k"] = 0
+            data["pp4k"] = 0
+            data["pp7k"] = 0
 
         data["accuracy"] = d["statistics"]["hit_accuracy"]
         data["playcount"] = d["statistics"]["play_count"]
@@ -262,7 +310,7 @@ class Data:
 class Embed(Data):
     """Puts data into embeds. Because why not."""
 
-    async def ppembed(self, ctx, data, pp_num):
+    async def ppembed(self, ctx: commands.Context, data, pp_num):
         d = self.topdata(data)
 
         pp_list = []
@@ -312,8 +360,14 @@ class Embed(Data):
 
         return embed_list
 
-    async def topembed(self, ctx, data, recent, pos):
+    async def topembed(self, ctx: commands.Context, data, recent, pos):
         d = self.topdata(data)
+
+        mode = d[0]["mode"]
+        if mode == "osu":
+            mode = "Standard"
+        elif mode == "fruits":
+            mode = "Catch"
 
         recent_text = "Top"
         if recent == True:
@@ -328,7 +382,7 @@ class Embed(Data):
         base_embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
 
         base_embed.set_author(
-            name=f'{recent_text} {author_text} for {d[0]["username"]} | osu!{d[0]["mode"].capitalize()}',
+            name=f'{recent_text} {author_text} for {d[0]["username"]} | osu!{mode.capitalize()}',
             url=f'https://osu.ppy.sh/users/{d[0]["userid"]}',
             icon_url=f'https://osu.ppy.sh/images/flags/{d[0]["userflag"]}.png',
         )
@@ -419,7 +473,7 @@ class Embed(Data):
 
         return embed_list
 
-    async def topcompareembed(self, ctx, adata, udata):
+    async def topcompareembed(self, ctx: commands.Context, adata, udata):
         ad = self.topdata(adata)
         ud = self.topdata(udata)
 
@@ -491,7 +545,7 @@ class Embed(Data):
         else:
             return
 
-    async def mapembed(self, ctx, data):
+    async def mapembed(self, ctx: commands.Context, data):
         d = self.mapdata(data)
 
         submitted = datetime.strptime(d["submitted"], "%Y-%m-%dT%H:%M:%S%z").strftime("%B %-d, %Y")
@@ -551,7 +605,7 @@ class Embed(Data):
             inline=False,
         )
         embed.add_field(name="Length / Drain", value=f"{length} / {draintime}", inline=True)
-        embed.add_field(name="BPM", value=d["bpm"], inline=True)
+        embed.add_field(name=EMOJI["BPM"], value=d["bpm"], inline=True)
         embed.add_field(name=max_combo_text, value=max_combo, inline=True)
         embed.add_field(name="Playcount", value=humanize_number(d["playcount"]), inline=True)
         embed.add_field(name="Favorites", value=humanize_number(d["favouritecount"]), inline=True)
@@ -605,7 +659,7 @@ class Embed(Data):
 
         return embed_list
 
-    async def newsembed(self, ctx, data):
+    async def newsembed(self, ctx: commands.Context, data):
         posts = data["news_posts"]
         count = len(posts)
 
@@ -632,7 +686,7 @@ class Embed(Data):
 
         return embed_list
 
-    async def changelogembed(self, ctx, data):
+    async def changelogembed(self, ctx: commands.Context, data):
         d = self.changelogdata(data["builds"])
 
         embed_list = []
@@ -750,7 +804,7 @@ class Embed(Data):
 
         return embed_list
 
-    async def rankingsembed(self, ctx, data, mode, type, country, variant):
+    async def rankingsembed(self, ctx: commands.Context, data, mode, type, country, variant):
         d = []
         for u in data["ranking"]:
             d.append(self.rankingsdata(u))
@@ -811,7 +865,7 @@ class Embed(Data):
 
         return embed_list
 
-    async def profileembed(self, ctx, data, mode="osu"):
+    async def profileembed(self, ctx: commands.Context, data, mode="osu"):
         d = self.userdata(data)
 
         if mode == "osu":
@@ -974,87 +1028,143 @@ class Embed(Data):
 
         return embed_list
 
-    async def recentembed(self, ctx, data, mapdata=None):
+    async def recentembed(self, ctx: commands.Context, data, page, mapdata=None):
         if mapdata:
             m = self.mapdata(mapdata)
-            da = self.topdata(data)
-            s = []
-            for sd in da:
-                c = {**m, **sd}
-                s.append(c)
+            da = self.topdata(data)[0]
+            embeddata = {**m, **da}
         else:
-            s = self.topdata(data)
+            embeddata = await self.recentdata(data[page])
 
-        embed_list = []
-        p = 1
-        for d in s:
-            if d["mode"] == "osu":
-                mode = "standard"
-            elif d["mode"] == "fruits":
-                mode = "catch"
-            else:
-                mode = d["mode"]
+        mode = embeddata["mode"]
+        if embeddata["mode"] == "osu":
+            mode = "standard"
+        elif embeddata["mode"] == "fruits":
+            mode = "catch"
 
-            if d["mode"] == "mania":
-                comboratio = "Combo / Ratio"
-                version = re.sub(r"^\S*\s", "", d["version"])
-                try:
-                    ratio = round(d["scoregeki"] / d["score300"], 2)
-                except:
-                    ratio = "Perfect"
-                combo = f'**{d["combo"]:,}x** / {ratio}'
-                hits = f'{humanize_number(d["scoregeki"])}/{humanize_number(d["score300"])}/{humanize_number(d["scorekatu"])}/{humanize_number(d["score100"])}/{humanize_number(d["score50"])}/{humanize_number(d["scoremiss"])}'
-                stats = f'OD: `{d["od"]}` | HP: `{d["hp"]}`'
-            else:
-                version = d["version"]
-                comboratio = "Combo"
-                combo = f'**{d["combo"]:,}x**'
-                hits = f'{humanize_number(d["score300"])}/{humanize_number(d["score100"])}/{humanize_number(d["score50"])}/{humanize_number(d["scoremiss"])}'
-                stats = f'CS: `{d["cs"]}` | AR: `{d["ar"]}` | OD: `{d["od"]}` | HP: `{d["hp"]}`'
-
-            mods = ""
-            if d["mods"]:
-                mods = mods.join(d["mods"])
-                mods = f" +{mods}"
-
+        if embeddata["mode"] == "mania":
+            comboratio = "Combo / Ratio"
+            version = re.sub(r"^\S*\s", "", embeddata["version"])
             try:
-                performance = humanize_number(round(d["scorepp"], 2))
-            except TypeError:
-                performance = 0
+                ratio = round(embeddata["scoregeki"] / embeddata["score300"], 2)
+            except:
+                ratio = "Perfect"
+            combo = f'**{embeddata["combo"]:,}x** / {ratio}'
+            hits = f'{humanize_number(embeddata["scoregeki"])}/{humanize_number(embeddata["score300"])}/{humanize_number(embeddata["scorekatu"])}/{humanize_number(embeddata["score100"])}/{humanize_number(embeddata["score50"])}/{humanize_number(embeddata["scoremiss"])}'
+            stats = f'OD: `{embeddata["od"]}` | HP: `{embeddata["hp"]}`'
+        else:
+            version = embeddata["version"]
+            comboratio = "Combo"
+            combo = f'**{embeddata["combo"]:,}x**'
+            hits = f'{humanize_number(embeddata["score300"])}/{humanize_number(embeddata["score100"])}/{humanize_number(embeddata["score50"])}/{humanize_number(embeddata["scoremiss"])}'
+            stats = f'CS: `{embeddata["cs"]}` | AR: `{embeddata["ar"]}` | OD: `{embeddata["od"]}` | HP: `{embeddata["hp"]}`'
 
-            embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
+        if embeddata["scorerank"] == "F":
+            if embeddata["mode"] == "osu":
+                failpoint = (
+                    embeddata["score300"]
+                    + embeddata["score100"]
+                    + embeddata["score50"]
+                    + embeddata["scoremiss"]
+                    - 1
+                )
+            elif embeddata["mode"] == "fruits":
+                failpoint = (
+                    embeddata["scoregeki"]
+                    + embeddata["score300"]
+                    + embeddata["scorekatu"]
+                    + embeddata["score100"]
+                    + embeddata["score50"]
+                    + embeddata["scoremiss"]
+                    - 1
+                )
+            elif embeddata["mode"] == "taiko":
+                taikohitobjects = embeddata["extra_data"]["Hitobjects"]
+                for object, item in enumerate(embeddata["extra_data"]["Hitobjects"]):
+                    if (
+                        item["type"] == "8"
+                        or item["type"] == "12"
+                        or item["type"] == "2"
+                        or item["type"] == "6"
+                    ):
+                        taikohitobjects.pop(object)
+                    embeddata["extra_data"]["Hitobjects"] = taikohitobjects
+                failpoint = (
+                    embeddata["scoregeki"]
+                    + embeddata["score300"]
+                    + embeddata["scorekatu"]
+                    + embeddata["score100"]
+                    + embeddata["score50"]
+                    + embeddata["scoremiss"]
+                    - 1
+                )
+            elif embeddata["mode"] == "mania":
+                failpoint = (
+                    embeddata["scoregeki"]
+                    + embeddata["score300"]
+                    + embeddata["scorekatu"]
+                    + embeddata["score100"]
+                    + embeddata["score50"]
+                    + embeddata["scoremiss"]
+                    - 1
+                )
 
-            embed.set_author(
-                name=f'{d["artist"]} - {d["title"]} [{version}] [{str(d["sr"])}★]',
-                url=d["mapurl"],
-                icon_url=f'https://a.ppy.sh/{d["userid"]}',
-            )
+            mapstart = int(embeddata["extra_data"]["Hitobjects"][0]["time"])
+            mapend = int(embeddata["extra_data"]["Hitobjects"][-1]["time"])
+            mapfail = int(embeddata["extra_data"]["Hitobjects"][failpoint]["time"])
+            failedat = "{:.2%}".format((mapfail - mapstart) / (mapend - mapstart))
 
-            embed.set_image(url=f'https://assets.ppy.sh/beatmaps/{d["setid"]}/covers/cover.jpg')
+        mods = ""
+        if embeddata["mods"]:
+            mods = mods.join(embeddata["mods"])
+            mods = f" +{mods}"
 
-            embed.add_field(name="Grade", value=f'{EMOJI[d["scorerank"]]}{mods}', inline=True)
-            embed.add_field(name="Score", value=humanize_number(d["score"]), inline=True)
-            embed.add_field(name="Accuracy", value="{:.2%}".format(d["accuracy"]), inline=True)
-            embed.add_field(name="PP", value=f"**{performance}pp**", inline=True)
-            embed.add_field(name=comboratio, value=combo, inline=True)
-            embed.add_field(name="Hits", value=hits, inline=True)
-            embed.add_field(
-                name="Map Info",
-                value=f'Mapper: [{d["creator"]}](https://osu.ppy.sh/users/{d["creatorid"]}) | BPM: `{d["bpm"]}` | Objects: `{humanize_number(d["circles"] + d["sliders"] + d["spinners"])}` \n'
-                f'Status: {inline(d["status"].capitalize())} | {stats}',
-                inline=False,
-            )
+        try:
+            performance = humanize_number(round(embeddata["scorepp"], 2))
+        except TypeError:
+            performance = 0
 
-            embed.set_footer(
-                text=f'Play {p}/{len(data)} | {d["username"]} | osu!{mode.capitalize()} | Played'
-            )
+        embed_out = []
 
-            embed.timestamp = datetime.strptime(d["played"], "%Y-%m-%dT%H:%M:%S%z")
+        embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
 
-            embed_list.append(embed)
-            p += 1
+        embed.set_author(
+            name=f'{embeddata["artist"]} - {embeddata["title"]} [{version}] [{str(embeddata["sr"])}★]',
+            url=embeddata["mapurl"],
+            icon_url=f'https://a.ppy.sh/{embeddata["userid"]}',
+        )
 
-        return embed_list
+        if embeddata["scorerank"] == "F":
+            embed.title = f"Failed at {failedat}"
+        else:
+            embed.title = "Passed"
+
+        embed.set_image(
+            url=f'https://assets.ppy.sh/beatmaps/{embeddata["setid"]}/covers/cover.jpg'
+        )
+
+        embed.add_field(name="Grade", value=f'{EMOJI[embeddata["scorerank"]]}{mods}', inline=True)
+        embed.add_field(name="Score", value=humanize_number(embeddata["score"]), inline=True)
+        embed.add_field(name="Accuracy", value="{:.2%}".format(embeddata["accuracy"]), inline=True)
+        embed.add_field(name="PP", value=f"**{performance}pp**", inline=True)
+        embed.add_field(name=comboratio, value=combo, inline=True)
+        embed.add_field(name="Hits", value=hits, inline=True)
+        embed.add_field(
+            name="Map Info",
+            value=f'Mapper: [{embeddata["creator"]}](https://osu.ppy.sh/users/{embeddata["creatorid"]}) | {EMOJI["BPM"]} `{embeddata["bpm"]}` | Objects: `{humanize_number(embeddata["circles"] + embeddata["sliders"] + embeddata["spinners"])}` \n'
+            f'Status: {inline(embeddata["status"].capitalize())} | {stats}',
+            inline=False,
+        )
+
+        embed.set_footer(
+            text=f'Play {page + 1}/{len(data)} | {embeddata["username"]} | osu!{mode.capitalize()} | Played'
+        )
+
+        embed.timestamp = datetime.strptime(embeddata["played"], "%Y-%m-%dT%H:%M:%S%z")
+
+        embed_out.append(embed)
+
+        return embed_out
 
     async def trackingembed(self, channels, udata, ndata):
         for p in enumerate(udata):
@@ -1144,7 +1254,7 @@ class Embed(Data):
             embed.add_field(name="Hits", value=hits, inline=True)
             embed.add_field(
                 name="Map Info",
-                value=f'Mapper: [{d["creator"]}](https://osu.ppy.sh/users/{d["creatorid"]}) | BPM: `{d["bpm"]}` | Objects: `{humanize_number(d["circles"] + d["sliders"] + d["spinners"])}` \n'
+                value=f'Mapper: [{d["creator"]}](https://osu.ppy.sh/users/{d["creatorid"]}) | {EMOJI["BPM"]} `{d["bpm"]}` | Objects: `{humanize_number(d["circles"] + d["sliders"] + d["spinners"])}` \n'
                 f'Status: {inline(d["status"].capitalize())} | {stats}',
                 inline=False,
             )
@@ -1167,3 +1277,110 @@ class Embed(Data):
             await asyncio.sleep(1)
 
         return badchannels
+
+    async def leaderboardembed(
+        self, ctx: commands.Context, data, mode, userid, guildonly, findself
+    ):
+
+        mapdata = data["map"]
+        leaderboard = data["leaderboard"]
+
+        version = mapdata["version"]
+        if mode == "mania":
+            version = re.sub(r"^\S*\s", "", mapdata["version"])
+
+        if mode == "osu":
+            mode = "Standard"
+        elif mode == "fruits":
+            mode = "Catch"
+
+        embed_list = []
+        base_embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
+
+        base_embed.set_author(
+            name=f'Unranked leaderboard ◈ {mapdata["artist"]} - {mapdata["title"]} [{version}]',
+            url=f'https://osu.ppy.sh/beatmaps/{data["_id"]}',
+            icon_url="https://osu.ppy.sh/favicon-32x32.png",
+        )
+
+        leaderboard = dict(
+            sorted(leaderboard.items(), key=lambda item: item[1]["score"], reverse=True)
+        )
+
+        scorestrings = []
+        index = 1
+        selfuser = None
+        page_start = 0
+        if guildonly:
+            guildusers = []
+            allconfig = await self.osuconfig.all_users()
+            for u, d in allconfig.items():
+                if ctx.guild.get_member(u):
+                    guildusers.append(d["userid"])
+
+        if findself:
+            selfuser = await self.osuconfig.user(ctx.author).userid()
+
+        for id, score in leaderboard.items():
+            if guildonly:
+                if not int(id) in guildusers:
+                    continue
+
+            if int(id) == selfuser:
+                page_start = ceil(index / 5) - 1
+
+            extra = ""
+            if int(id) == userid:
+                extra = "**"
+
+            mods = ""
+            if score["mods"]:
+                mods = f'+{mods.join(score["mods"])}'
+
+            if mode == "mania":
+                hits = f'{humanize_number(score["scoregeki"])}/{humanize_number(score["score300"])}/{humanize_number(score["scorekatu"])}/{humanize_number(score["score100"])}/{humanize_number(score["score50"])}/{humanize_number(score["scoremiss"])}'
+            else:
+                hits = f'{humanize_number(score["score300"])}/{humanize_number(score["score100"])}/{humanize_number(score["score50"])}/{humanize_number(score["scoremiss"])}'
+
+            date = datetime.now() - datetime.strptime(
+                score["played"], "%Y-%m-%dT%H:%M:%S%z"
+            ).replace(tzinfo=None)
+            time = re.split(r",\s", humanize_timedelta(timedelta=date))
+            try:
+                time = f"{time[0]} {time[1]}"
+            except ValueError:
+                pass
+            except IndexError:
+                time = time[0]
+
+            scorestrings.append(
+                (
+                    f'**{index}.** {extra}{humanize_number(score["score"])}{extra} ◈ {extra}{score["username"]}{extra} ◈ :flag_{score["userflag"].lower()}: ◈ {time}\n'
+                    f'{"{:.2%}".format(score["accuracy"])} ◈ {humanize_number(score["combo"])}x ◈ {hits} ◈ {EMOJI[score["scorerank"]]}{mods}'
+                )
+            )
+            index += 1
+
+        if (index - 1) == 0:
+            return [], 0
+
+        page_num = 1
+        while page_num <= ceil(len(scorestrings) / 5):
+            scores = ""
+            start_index = (page_num - 1) * 5
+            end_index = (page_num - 1) * 5 + 5
+            for s in scorestrings[start_index:end_index]:
+                scores += f"{s}\n\n"
+
+            embed = base_embed.copy()
+
+            embed.description = scores
+
+            embed.set_footer(
+                text=f"Page {page_num}/{ceil(len(scorestrings) / 5)} ◈ {index - 1} submitted scores"
+            )
+
+            embed_list.append(embed)
+            page_num += 1
+
+        return embed_list, page_start

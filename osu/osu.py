@@ -4,21 +4,24 @@ import logging
 import os
 from asyncio.exceptions import CancelledError
 from math import ceil
+from pathlib import Path
 from typing import Literal, Optional
 
 import discord
 from redbot.core import Config, checks, commands
 from redbot.core.bot import Red
-from redbot.core.data_manager import bundled_data_path
+from redbot.core.data_manager import cog_data_path
 from redbot.core.utils.menus import menu
 
+from .database import Database
 from .embeds import Data, Embed
 from .tools import API, Helper, del_message, multipage, singlepage, togglepage
+from .utils.custommenu import custom_menu, custompage
 
 log = logging.getLogger("red.angiedale.osu")
 
 
-class Osu(Embed, Data, API, Helper, commands.Cog):
+class Osu(Database, Embed, Data, API, Helper, commands.Cog):
     """osu! commands.
 
     Link your account with `[p]osulink <username>`
@@ -45,20 +48,31 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
             "mania": {},
         },
     }
+    default_mongodb = {
+        "host": "localhost",
+        "port": 27017,
+        "username": None,
+        "password": None,
+    }
 
     def __init__(self, bot: Red):
         super().__init__()
         self.bot = bot
+        self.tracking_cache = []
+
         self.osuconfig: Config = Config.get_conf(
             self, identifier=1387000, cog_name="Osu", force_registration=True
         )
         self.osuconfig.register_user(**self.default_user_settings)
         self.osuconfig.register_global(**self.default_global_settings)
+        self.osuconfig.init_custom("mongodb", -1)
+        self.osuconfig.register_custom("mongodb", **self.default_mongodb)
 
         self.task: Optional[asyncio.Task] = None
         self._ready_event: asyncio.Event = asyncio.Event()
         self._init_task: asyncio.Task = self.bot.loop.create_task(self.initialize())
         self.tracking_task: asyncio.Task = self.bot.loop.create_task(self.update_tracking())
+        self.cache_task: asyncio.Task = self.bot.loop.create_task(self.get_last_cache_date())
 
     async def red_delete_data_for_user(
         self,
@@ -81,6 +95,8 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
         self._ready_event.set()
 
+        await self._connect_to_mongo()
+
     @commands.Cog.listener()
     async def on_red_api_tokens_update(self, service_name, api_tokens):
         if service_name == "osu":
@@ -89,8 +105,34 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
     async def cog_before_invoke(self, ctx: commands.Context):
         await self._ready_event.wait()
 
+    async def cog_check(self, ctx):
+        if ctx.command.parent is self.osudev:
+            return True
+        return self._db_connected
+
     def cog_unload(self):
         self.tracking_task.cancel()
+        if self.mongoclient:
+            self.mongoclient.close()
+
+    @checks.is_owner()
+    @commands.group(hidden=True)
+    async def osudev(self, ctx: commands.Context):
+        """Osu cog configuration."""
+
+    @osudev.command()
+    async def cred(self, ctx: commands.Context, username: str = None, password: str = None):
+        """Set up MongoDB credentials"""
+        await self.osuconfig.custom("mongodb").username.set(username)
+        await self.osuconfig.custom("mongodb").password.set(password)
+        message = await ctx.send("MongoDB credentials set.\nNow trying to connect...")
+        client = await self._connect_to_mongo()
+        if not client:
+            return await message.edit(
+                content=message.content.replace("Now trying to connect...", "")
+                + "Failed to connect. Please try again with valid credentials."
+            )
+        await message.edit(content=message.content.replace("Now trying to connect...", ""))
 
     @commands.command()
     async def osulink(self, ctx: commands.Context, *, username: str):
@@ -160,6 +202,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
             )
 
         await self.removetracking(user=str(data["id"]), channel=channel, mode=mode)
+        await self.refresh_tracking_cache()
         await ctx.maybe_send_embed(
             f'Now tracking top 100 plays for {data["username"]} in {channel.mention}'
         )
@@ -181,6 +224,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
             )
 
         await self.removetracking(user=str(data["id"]), channel=ctx.channel)
+        await self.refresh_tracking_cache()
         await ctx.maybe_send_embed(f'Stopped tracking {data["username"]}')
 
     @osutrack.command()
@@ -251,6 +295,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
             return await del_message(ctx, f"Could not find the user {username}.")
 
         await self.removetracking(user=str(data["id"]), channel=channel, mode=mode, dev=True)
+        await self.refresh_tracking_cache()
         await ctx.maybe_send_embed(
             f'Now tracking top 100 plays for {data["username"]} in {channel.mention}'
         )
@@ -389,7 +434,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         mapdata = await self.fetch_api(f"beatmaps/{mapid}")
 
         if data and mapdata:
-            embeds = await self.recentembed(ctx, [data["score"]], mapdata)
+            embeds = await self.recentembed(ctx, [data["score"]], page=0, mapdata=mapdata)
             return await menu(ctx, embeds, multipage(embeds))
 
         if user:
@@ -421,13 +466,81 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         data = await self.fetch_api(f"beatmaps/{mapid}/scores/users/{userid}")
 
         if data:
-            embeds = await self.recentembed(ctx, [data["score"]], mapdata)
+            # embeds = [] # Solution for whenever peppy adds all mods in a single request
+            # page = 0
+            # for score in data["score"]:
+            #     embed = await self.recentemb(ctx, [score], page=0, mapdata=mapdata)
+            #     embeds = embeds + embed
+            #     page += 1
+
+            embeds = await self.recentembed(ctx, [data["score"]], page=0, mapdata=mapdata)
             return await menu(ctx, embeds, multipage(embeds))
 
         if user:
             await del_message(ctx, f"Can't find any plays on that map by {user}.")
         else:
             await del_message(ctx, "Can't find any plays on that map by you.")
+
+    @commands.command(aliases=["osl"], usage="[beatmap] [args]")
+    @commands.cooldown(1, 10, commands.BucketType.user)
+    async def osuleaderboard(self, ctx: commands.Context, *beatmap_or_args):
+        """Unranked leaderboards.
+
+        To submit scores, use the recent commands after having set scores on a map.
+        You need to have your account linked for it to be submitted. Link yours with `[p]osulink`.
+        Only works for maps that are not ranked or loved.
+
+        **Arguments:**
+        `-m <mode>` Choose the mode to display. Only needed for converts.
+        `-me` Starts the embed at the page your score is if your account is linked.
+        `-g` Show only scores by users in this guild that have linked accounts.
+        """
+
+        beatmap, guildonly, findself, mode = await self.leaderboard(ctx, beatmap_or_args)
+
+        if not beatmap:
+            return
+
+        beatmap = self.findmap(beatmap)
+
+        if not beatmap:
+            return await del_message(ctx, "No valid beatmap was provided.")
+
+        mapdata = await self.fetch_api(f"beatmaps/{beatmap}", ctx=ctx)
+
+        if not mapdata:
+            return await del_message(ctx, "I can't find the map specified.")
+
+        if (
+            mapdata["beatmapset"]["status"] == "ranked"
+            or mapdata["beatmapset"]["status"] == "loved"
+        ):
+            return await del_message(
+                ctx, "Leaderboards aren't available for ranked and loved maps."
+            )
+
+        if not mode:
+            mode = mapdata["mode"]
+
+        storeddata = await self._get_leaderboard(beatmap, mode)
+
+        if not storeddata or len(storeddata["leaderboard"]) == 0:
+            return await del_message(
+                ctx, "Nobody has set any plays on this map yet. Go ahead and be the first one!"
+            )
+
+        userid = await self.osuconfig.user(ctx.author).userid()
+
+        embeds, page_start = await self.leaderboardembed(
+            ctx, storeddata, mode, userid, guildonly, findself
+        )
+
+        if not embeds:
+            return await del_message(
+                "Nobody in this server with linked accounts have set scores on that map."
+            )
+
+        await menu(ctx, embeds, multipage(embeds), page=page_start)
 
     @commands.command(aliases=["osu", "std"])
     @commands.cooldown(1, 10, commands.BucketType.user)
@@ -523,18 +636,33 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         Includes failed plays.
         """
 
-        userid = await self.user(ctx, user)
+        userid = await self.user(ctx, user, withleaderboard=True)
 
         if not userid:
             return
+
+        if len(userid) > 1:
+            useleaderboard = True
+            userid = userid[0]
+        else:
+            useleaderboard = False
 
         params = {"include_fails": "1", "mode": "osu", "limit": "10"}
 
         data = await self.fetch_api(f"users/{userid}/scores/recent", ctx=ctx, params=params)
 
         if data:
-            embeds = await self.recentembed(ctx, data)
-            return await menu(ctx, embeds, multipage(embeds))
+            await custom_menu(
+                ctx,
+                await self.recentembed(ctx, data, page=0),
+                custompage(self.bot, data),
+                data=data,
+                func=self.recentembed,
+            )
+            if useleaderboard:
+                cleandata = self.leaderboarddata(data)
+                await self.addtoleaderboard(cleandata, "osu")
+            return
 
         if user:
             return await del_message(
@@ -551,18 +679,33 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         Includes failed plays.
         """
 
-        userid = await self.user(ctx, user)
+        userid = await self.user(ctx, user, withleaderboard=True)
 
         if not userid:
             return
+
+        if len(userid) > 1:
+            useleaderboard = True
+            userid = userid[0]
+        else:
+            useleaderboard = False
 
         params = {"include_fails": "1", "mode": "taiko", "limit": "10"}
 
         data = await self.fetch_api(f"users/{userid}/scores/recent", ctx=ctx, params=params)
 
         if data:
-            embeds = await self.recentembed(ctx, data)
-            return await menu(ctx, embeds, multipage(embeds))
+            await custom_menu(
+                ctx,
+                await self.recentembed(ctx, data, page=0),
+                custompage(self.bot, data),
+                data=data,
+                func=self.recentembed,
+            )
+            if useleaderboard:
+                cleandata = self.leaderboarddata(data)
+                await self.addtoleaderboard(cleandata, "taiko")
+            return
 
         if user:
             return await del_message(
@@ -582,18 +725,33 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         Includes failed plays.
         """
 
-        userid = await self.user(ctx, user)
+        userid = await self.user(ctx, user, withleaderboard=True)
 
         if not userid:
             return
+
+        if len(userid) > 1:
+            useleaderboard = True
+            userid = userid[0]
+        else:
+            useleaderboard = False
 
         params = {"include_fails": "1", "mode": "fruits", "limit": "10"}
 
         data = await self.fetch_api(f"users/{userid}/scores/recent", ctx=ctx, params=params)
 
         if data:
-            embeds = await self.recentembed(ctx, data)
-            return await menu(ctx, embeds, multipage(embeds))
+            await custom_menu(
+                ctx,
+                await self.recentembed(ctx, data, page=0),
+                custompage(self.bot, data),
+                data=data,
+                func=self.recentembed,
+            )
+            if useleaderboard:
+                cleandata = self.leaderboarddata(data)
+                await self.addtoleaderboard(cleandata, "fruits")
+            return
 
         if user:
             return await del_message(
@@ -610,18 +768,33 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         Includes failed plays.
         """
 
-        userid = await self.user(ctx, user)
+        userid = await self.user(ctx, user, withleaderboard=True)
 
         if not userid:
             return
+
+        if len(userid) > 1:
+            useleaderboard = True
+            userid = userid[0]
+        else:
+            useleaderboard = False
 
         params = {"include_fails": "1", "mode": "mania", "limit": "10"}
 
         data = await self.fetch_api(f"users/{userid}/scores/recent", ctx=ctx, params=params)
 
         if data:
-            embeds = await self.recentembed(ctx, data)
-            return await menu(ctx, embeds, multipage(embeds))
+            await custom_menu(
+                ctx,
+                await self.recentembed(ctx, data, page=0),
+                custompage(self.bot, data),
+                data=data,
+                func=self.recentembed,
+            )
+            if useleaderboard:
+                cleandata = self.leaderboarddata(data)
+                await self.addtoleaderboard(cleandata, "mania")
+            return
 
         if user:
             return await del_message(
@@ -940,7 +1113,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
         udata1 = await self.fetch_api(f"users/{userid}/scores/best", ctx=ctx, params=params)
 
-        if udata1:
+        if not udata1:
             return await del_message(
                 ctx, "That user doesn't seem to have any top plays in this mode."
             )
@@ -1005,7 +1178,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
         udata1 = await self.fetch_api(f"users/{userid}/scores/best", ctx=ctx, params=params)
 
-        if udata1:
+        if not udata1:
             return await del_message(
                 ctx, "That user doesn't seem to have any top plays in this mode."
             )
@@ -1080,7 +1253,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
         udata1 = await self.fetch_api(f"users/{userid}/scores/best", ctx=ctx, params=params)
 
-        if udata1:
+        if not udata1:
             return await del_message(
                 ctx, "That user doesn't seem to have any top plays in this mode."
             )
@@ -1145,7 +1318,7 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
 
         udata1 = await self.fetch_api(f"users/{userid}/scores/best", ctx=ctx, params=params)
 
-        if udata1:
+        if not udata1:
             return await del_message(
                 ctx, "That user doesn't seem to have any top plays in this mode."
             )
@@ -1179,19 +1352,22 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
         """Checks for new top plays based on list of tracked users."""
 
         await self.bot.wait_until_ready()
-        log.error("Tracking waited until ready")
+
+        await self.refresh_tracking_cache()
+
+        path = Path(f"{cog_data_path(self)}/tracking")
+        path.mkdir(exist_ok=True)
 
         while True:
             try:
                 await asyncio.sleep(60)
-                async with self.osuconfig.tracking() as t:
-                    modes = t
 
-                path = bundled_data_path(self)
+                modes = self.tracking_cache
+
                 for mode, users in modes.items():
                     for user, channels in users.items():
                         userdata = ""
-                        userpath = f"{path}/{user}{mode}.json"
+                        userpath = f"{path}/{user}_{mode}.json"
 
                         params = {"mode": mode, "limit": "50"}
                         newdata = await self.fetch_api(f"users/{user}/scores/best", params=params)
@@ -1206,21 +1382,22 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
                             newdata = self.topdata(newdata)
 
                             if not os.path.exists(userpath):
-                                f = open(userpath, "x")
-                                f.close()
-                                with open(userpath, "w") as data:
+                                with open(userpath, "w+") as data:
                                     json.dump(newdata, data, indent=4)
                             elif a:
-                                with open(userpath, "w") as data:
+                                with open(userpath, "w+") as data:
                                     json.dump(newdata, data, indent=4)
 
                                 await asyncio.sleep(15)
                             else:
-                                with open(userpath) as data:
-                                    userdata = json.load(data)
+                                try:
+                                    with open(userpath) as data:
+                                        userdata = json.load(data)
+                                except FileNotFoundError:
+                                    pass
 
                                 if not userdata == newdata:
-                                    with open(userpath, "w") as data:
+                                    with open(userpath, "w+") as data:
                                         json.dump(newdata, data, indent=4)
 
                                     badchannels = await self.trackingembed(
@@ -1229,14 +1406,22 @@ class Osu(Embed, Data, API, Helper, commands.Cog):
                                     if len(badchannels) > 0:
                                         for bch in badchannels:
                                             await self.removetracking(channel=bch)
+                                            await self.refresh_tracking_cache()
                                     await asyncio.sleep(15)
 
                             await asyncio.sleep(5)
                         else:
                             await self.removetracking(user=user, mode=mode)
+                            await self.refresh_tracking_cache()
                 a = False
             except CancelledError:
                 break
             except:
                 log.error("Loop broke", exc_info=1)
                 break
+
+    async def refresh_tracking_cache(self):
+        """Should be called after every config change to flush the cache with new data."""
+
+        async with self.osuconfig.tracking() as t:
+            self.tracking_cache = t
