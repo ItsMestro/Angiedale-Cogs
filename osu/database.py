@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import aiohttp
@@ -84,6 +84,68 @@ class Database:
                         f.write(await r.read())
 
         await asyncio.sleep(0.5)
+
+    async def addtoleaderboard(self, scores, mode):
+        """Takes a set of scores and adds it to the leaderboard."""
+
+        dbcollection = self.db[f"leaderboard_{mode}"]
+
+        for score in scores:
+            entry = await dbcollection.find_one({"_id": int(score["mapid"])}, {"map": 1})
+
+            if not entry or datetime.strptime(
+                entry["map"]["updated"], "%Y-%m-%dT%H:%M:%S%z"
+            ) > datetime.now(timezone.utc):
+                newentry = {"_id": score["mapid"]}
+                bmdata = await self.fetch_api(f'beatmaps/{score["mapid"]}')
+                await asyncio.sleep(0.5)
+                newentry["map"] = {
+                    "title": bmdata["beatmapset"]["title"],
+                    "version": bmdata["version"],
+                    "artist": bmdata["beatmapset"]["artist"],
+                    "updated": bmdata["beatmapset"]["last_updated"],
+                }
+                newentry["leaderboard"] = {}
+                await dbcollection.replace_one({"_id": int(score["mapid"])}, newentry, upsert=True)
+
+            scoreentry = await dbcollection.find_one(
+                {"_id": int(score["mapid"])}, {f'leaderboard.{score["userid"]}': 1}
+            )
+
+            if not scoreentry["leaderboard"]:
+                await self._push_to_leaderboard(score, dbcollection)
+            elif scoreentry["leaderboard"][str(score["userid"])]["score"] > score["score"]:
+                await self._push_to_leaderboard(score, dbcollection)
+
+    async def _push_to_leaderboard(self, score, dbc):
+        """Creates dict with needed entries and updates database."""
+
+        newdata = {
+            "score": score["score"],
+            "userid": score["userid"],
+            "username": score["username"],
+            "userflag": score["userflag"],
+            "accuracy": score["accuracy"],
+            "mods": score["mods"],
+            "combo": score["combo"],
+            "scorerank": score["scorerank"],
+            "played": score["played"],
+            "scoregeki": score["scoregeki"],
+            "score300": score["score300"],
+            "scorekatu": score["scorekatu"],
+            "score100": score["score100"],
+            "score50": score["score50"],
+            "scoremiss": score["scoremiss"],
+        }
+        return await dbc.update_one(
+            {"_id": int(score["mapid"])},
+            {"$set": {f'leaderboard.{score["userid"]}': newdata}},
+            upsert=True,
+        )
+
+    async def _get_leaderboard(self, map, mode):
+        dbc = self.db[f"leaderboard_{mode}"]
+        return await dbc.find_one({"_id": int(map)})
 
     async def _connect_to_mongo(self):
         if self._db_connected:

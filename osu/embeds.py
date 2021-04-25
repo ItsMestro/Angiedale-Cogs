@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from math import ceil
 
 import discord
+from redbot.core import commands
 from redbot.core.utils.chat_formatting import humanize_number, humanize_timedelta, inline
 
 log = logging.getLogger("red.angiedale.osu.embeds")
@@ -75,7 +76,7 @@ class Data:
             pass
         score["mode"] = s["mode"]
 
-        score = {**score, **Data.userbasicdata(s["user"])}
+        score = {**score, **self.userbasicdata(s["user"])}
 
         score["mapmode"] = s["beatmap"]["mode_int"]
         score["version"] = s["beatmap"]["version"]
@@ -104,6 +105,37 @@ class Data:
 
         return score
 
+    def leaderboarddata(self, d):
+        """/users/{user}/scores"""
+
+        data = []
+
+        for s in d:
+            if s["beatmapset"]["status"] in ["ranked", "loved"] or s["rank"] == "F":
+                continue
+            score = {}
+
+            score["mapid"] = s["beatmap"]["id"]
+            score["mods"] = s["mods"]
+            score["accuracy"] = s["accuracy"]
+            score["score"] = s["score"]
+            score["combo"] = s["max_combo"]
+            score["scorerank"] = s["rank"]
+            score["played"] = s["created_at"]
+            score["scoregeki"] = s["statistics"]["count_geki"]
+            score["score300"] = s["statistics"]["count_300"]
+            score["scorekatu"] = s["statistics"]["count_katu"]
+            score["score100"] = s["statistics"]["count_100"]
+            score["score50"] = s["statistics"]["count_50"]
+            score["scoremiss"] = s["statistics"]["count_miss"]
+
+            score = {**score, **self.userbasicdata(s["user"])}
+
+            data.append(score)
+
+        return data
+
+    @staticmethod
     def mapdata(self, d):
         """/beatmaps/{map}"""
 
@@ -143,7 +175,8 @@ class Data:
 
         return data
 
-    def changelogdata(self, d):
+    @staticmethod
+    def changelogdata(d):
         """/changelog"""
 
         data = []
@@ -185,7 +218,7 @@ class Data:
 
         data = {}
 
-        data = {**data, **Data.userbasicdata(d["user"])}
+        data = {**data, **self.userbasicdata(d["user"])}
 
         data["pp"] = d["pp"]
         data["accuracy"] = d["hit_accuracy"]
@@ -194,6 +227,7 @@ class Data:
 
         return data
 
+    @staticmethod
     def userbasicdata(d):
         data = {}
 
@@ -211,7 +245,7 @@ class Data:
 
         data = {}
 
-        data = {**data, **Data.userbasicdata(d)}
+        data = {**data, **self.userbasicdata(d)}
 
         data["lastonline"] = d["last_visit"]
         data["mappingfollowers"] = d["mapping_follower_count"]
@@ -276,7 +310,7 @@ class Data:
 class Embed(Data):
     """Puts data into embeds. Because why not."""
 
-    async def ppembed(self, ctx, data, pp_num):
+    async def ppembed(self, ctx: commands.Context, data, pp_num):
         d = self.topdata(data)
 
         pp_list = []
@@ -326,7 +360,7 @@ class Embed(Data):
 
         return embed_list
 
-    async def topembed(self, ctx, data, recent, pos):
+    async def topembed(self, ctx: commands.Context, data, recent, pos):
         d = self.topdata(data)
 
         mode = d[0]["mode"]
@@ -439,7 +473,7 @@ class Embed(Data):
 
         return embed_list
 
-    async def topcompareembed(self, ctx, adata, udata):
+    async def topcompareembed(self, ctx: commands.Context, adata, udata):
         ad = self.topdata(adata)
         ud = self.topdata(udata)
 
@@ -511,7 +545,7 @@ class Embed(Data):
         else:
             return
 
-    async def mapembed(self, ctx, data):
+    async def mapembed(self, ctx: commands.Context, data):
         d = self.mapdata(data)
 
         submitted = datetime.strptime(d["submitted"], "%Y-%m-%dT%H:%M:%S%z").strftime("%B %-d, %Y")
@@ -625,7 +659,7 @@ class Embed(Data):
 
         return embed_list
 
-    async def newsembed(self, ctx, data):
+    async def newsembed(self, ctx: commands.Context, data):
         posts = data["news_posts"]
         count = len(posts)
 
@@ -652,7 +686,7 @@ class Embed(Data):
 
         return embed_list
 
-    async def changelogembed(self, ctx, data):
+    async def changelogembed(self, ctx: commands.Context, data):
         d = self.changelogdata(data["builds"])
 
         embed_list = []
@@ -770,7 +804,7 @@ class Embed(Data):
 
         return embed_list
 
-    async def rankingsembed(self, ctx, data, mode, type, country, variant):
+    async def rankingsembed(self, ctx: commands.Context, data, mode, type, country, variant):
         d = []
         for u in data["ranking"]:
             d.append(self.rankingsdata(u))
@@ -831,7 +865,7 @@ class Embed(Data):
 
         return embed_list
 
-    async def profileembed(self, ctx, data, mode="osu"):
+    async def profileembed(self, ctx: commands.Context, data, mode="osu"):
         d = self.userdata(data)
 
         if mode == "osu":
@@ -994,7 +1028,7 @@ class Embed(Data):
 
         return embed_list
 
-    async def recentembed(self, ctx, data, page, mapdata=None):
+    async def recentembed(self, ctx: commands.Context, data, page, mapdata=None):
         if mapdata:
             m = self.mapdata(mapdata)
             da = self.topdata(data)[0]
@@ -1243,3 +1277,110 @@ class Embed(Data):
             await asyncio.sleep(1)
 
         return badchannels
+
+    async def leaderboardembed(
+        self, ctx: commands.Context, data, mode, userid, guildonly, findself
+    ):
+
+        mapdata = data["map"]
+        leaderboard = data["leaderboard"]
+
+        version = mapdata["version"]
+        if mode == "mania":
+            version = re.sub(r"^\S*\s", "", mapdata["version"])
+
+        if mode == "osu":
+            mode = "Standard"
+        elif mode == "fruits":
+            mode = "Catch"
+
+        embed_list = []
+        base_embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
+
+        base_embed.set_author(
+            name=f'Unranked leaderboard ◈ {mapdata["artist"]} - {mapdata["title"]} [{version}]',
+            url=f'https://osu.ppy.sh/beatmaps/{data["_id"]}',
+            icon_url="https://osu.ppy.sh/favicon-32x32.png",
+        )
+
+        leaderboard = dict(
+            sorted(leaderboard.items(), key=lambda item: item[1]["score"], reverse=True)
+        )
+
+        scorestrings = []
+        index = 1
+        selfuser = None
+        page_start = 0
+        if guildonly:
+            guildusers = []
+            allconfig = await self.osuconfig.all_users()
+            for u, d in allconfig.items():
+                if ctx.guild.get_member(u):
+                    guildusers.append(d["userid"])
+
+        if findself:
+            selfuser = await self.osuconfig.user(ctx.author).userid()
+
+        for id, score in leaderboard.items():
+            if guildonly:
+                if not int(id) in guildusers:
+                    continue
+
+            if int(id) == selfuser:
+                page_start = ceil(index / 5) - 1
+
+            extra = ""
+            if int(id) == userid:
+                extra = "**"
+
+            mods = ""
+            if score["mods"]:
+                mods = f'+{mods.join(score["mods"])}'
+
+            if mode == "mania":
+                hits = f'{humanize_number(score["scoregeki"])}/{humanize_number(score["score300"])}/{humanize_number(score["scorekatu"])}/{humanize_number(score["score100"])}/{humanize_number(score["score50"])}/{humanize_number(score["scoremiss"])}'
+            else:
+                hits = f'{humanize_number(score["score300"])}/{humanize_number(score["score100"])}/{humanize_number(score["score50"])}/{humanize_number(score["scoremiss"])}'
+
+            date = datetime.now() - datetime.strptime(
+                score["played"], "%Y-%m-%dT%H:%M:%S%z"
+            ).replace(tzinfo=None)
+            time = re.split(r",\s", humanize_timedelta(timedelta=date))
+            try:
+                time = f"{time[0]} {time[1]}"
+            except ValueError:
+                pass
+            except IndexError:
+                time = time[0]
+
+            scorestrings.append(
+                (
+                    f'**{index}.** {extra}{humanize_number(score["score"])}{extra} ◈ {extra}{score["username"]}{extra} ◈ :flag_{score["userflag"].lower()}: ◈ {time}\n'
+                    f'{"{:.2%}".format(score["accuracy"])} ◈ {humanize_number(score["combo"])}x ◈ {hits} ◈ {EMOJI[score["scorerank"]]}{mods}'
+                )
+            )
+            index += 1
+
+        if (index - 1) == 0:
+            return [], 0
+
+        page_num = 1
+        while page_num <= ceil(len(scorestrings) / 5):
+            scores = ""
+            start_index = (page_num - 1) * 5
+            end_index = (page_num - 1) * 5 + 5
+            for s in scorestrings[start_index:end_index]:
+                scores += f"{s}\n\n"
+
+            embed = base_embed.copy()
+
+            embed.description = scores
+
+            embed.set_footer(
+                text=f"Page {page_num}/{ceil(len(scorestrings) / 5)} ◈ {index - 1} submitted scores"
+            )
+
+            embed_list.append(embed)
+            page_num += 1
+
+        return embed_list, page_start

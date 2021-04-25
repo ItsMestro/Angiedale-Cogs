@@ -481,6 +481,67 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
         else:
             await del_message(ctx, "Can't find any plays on that map by you.")
 
+    @commands.command(aliases=["osl"], usage="[beatmap] [args]")
+    @commands.cooldown(1, 10, commands.BucketType.user)
+    async def osuleaderboard(self, ctx: commands.Context, *beatmap_or_args):
+        """Unranked leaderboards.
+
+        To submit scores, use the recent commands after having set scores on a map.
+        You need to have your account linked for it to be submitted. Link yours with `[p]osulink`.
+        Only works for maps that are not ranked or loved.
+
+        **Arguments:**
+        `-m <mode>` Choose the mode to display. Only needed for converts.
+        `-me` Starts the embed at the page your score is if your account is linked.
+        `-g` Show only scores by users in this guild that have linked accounts.
+        """
+
+        beatmap, guildonly, findself, mode = await self.leaderboard(ctx, beatmap_or_args)
+
+        if not beatmap:
+            return
+
+        beatmap = self.findmap(beatmap)
+
+        if not beatmap:
+            return await del_message(ctx, "No valid beatmap was provided.")
+
+        mapdata = await self.fetch_api(f"beatmaps/{beatmap}", ctx=ctx)
+
+        if not mapdata:
+            return await del_message(ctx, "I can't find the map specified.")
+
+        if (
+            mapdata["beatmapset"]["status"] == "ranked"
+            or mapdata["beatmapset"]["status"] == "loved"
+        ):
+            return await del_message(
+                ctx, "Leaderboards aren't available for ranked and loved maps."
+            )
+
+        if not mode:
+            mode = mapdata["mode"]
+
+        storeddata = await self._get_leaderboard(beatmap, mode)
+
+        if not storeddata or len(storeddata["leaderboard"]) == 0:
+            return await del_message(
+                ctx, "Nobody has set any plays on this map yet. Go ahead and be the first one!"
+            )
+
+        userid = await self.osuconfig.user(ctx.author).userid()
+
+        embeds, page_start = await self.leaderboardembed(
+            ctx, storeddata, mode, userid, guildonly, findself
+        )
+
+        if not embeds:
+            return await del_message(
+                "Nobody in this server with linked accounts have set scores on that map."
+            )
+
+        await menu(ctx, embeds, multipage(embeds), page=page_start)
+
     @commands.command(aliases=["osu", "std"])
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def standard(self, ctx: commands.Context, *, user=None):
@@ -575,23 +636,33 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
         Includes failed plays.
         """
 
-        userid = await self.user(ctx, user)
+        userid = await self.user(ctx, user, withleaderboard=True)
 
         if not userid:
             return
+
+        if len(userid) > 1:
+            useleaderboard = True
+            userid = userid[0]
+        else:
+            useleaderboard = False
 
         params = {"include_fails": "1", "mode": "osu", "limit": "10"}
 
         data = await self.fetch_api(f"users/{userid}/scores/recent", ctx=ctx, params=params)
 
         if data:
-            return await custom_menu(
+            await custom_menu(
                 ctx,
                 await self.recentembed(ctx, data, page=0),
                 custompage(self.bot, data),
                 data=data,
                 func=self.recentembed,
             )
+            if useleaderboard:
+                cleandata = self.leaderboarddata(data)
+                await self.addtoleaderboard(cleandata, "osu")
+            return
 
         if user:
             return await del_message(
@@ -608,23 +679,33 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
         Includes failed plays.
         """
 
-        userid = await self.user(ctx, user)
+        userid = await self.user(ctx, user, withleaderboard=True)
 
         if not userid:
             return
+
+        if len(userid) > 1:
+            useleaderboard = True
+            userid = userid[0]
+        else:
+            useleaderboard = False
 
         params = {"include_fails": "1", "mode": "taiko", "limit": "10"}
 
         data = await self.fetch_api(f"users/{userid}/scores/recent", ctx=ctx, params=params)
 
         if data:
-            return await custom_menu(
+            await custom_menu(
                 ctx,
                 await self.recentembed(ctx, data, page=0),
                 custompage(self.bot, data),
                 data=data,
                 func=self.recentembed,
             )
+            if useleaderboard:
+                cleandata = self.leaderboarddata(data)
+                await self.addtoleaderboard(cleandata, "taiko")
+            return
 
         if user:
             return await del_message(
@@ -644,23 +725,33 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
         Includes failed plays.
         """
 
-        userid = await self.user(ctx, user)
+        userid = await self.user(ctx, user, withleaderboard=True)
 
         if not userid:
             return
+
+        if len(userid) > 1:
+            useleaderboard = True
+            userid = userid[0]
+        else:
+            useleaderboard = False
 
         params = {"include_fails": "1", "mode": "fruits", "limit": "10"}
 
         data = await self.fetch_api(f"users/{userid}/scores/recent", ctx=ctx, params=params)
 
         if data:
-            return await custom_menu(
+            await custom_menu(
                 ctx,
                 await self.recentembed(ctx, data, page=0),
                 custompage(self.bot, data),
                 data=data,
                 func=self.recentembed,
             )
+            if useleaderboard:
+                cleandata = self.leaderboarddata(data)
+                await self.addtoleaderboard(cleandata, "fruits")
+            return
 
         if user:
             return await del_message(
@@ -677,23 +768,33 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
         Includes failed plays.
         """
 
-        userid = await self.user(ctx, user)
+        userid = await self.user(ctx, user, withleaderboard=True)
 
         if not userid:
             return
+
+        if len(userid) > 1:
+            useleaderboard = True
+            userid = userid[0]
+        else:
+            useleaderboard = False
 
         params = {"include_fails": "1", "mode": "mania", "limit": "10"}
 
         data = await self.fetch_api(f"users/{userid}/scores/recent", ctx=ctx, params=params)
 
         if data:
-            return await custom_menu(
+            await custom_menu(
                 ctx,
                 await self.recentembed(ctx, data, page=0),
                 custompage(self.bot, data),
                 data=data,
                 func=self.recentembed,
             )
+            if useleaderboard:
+                cleandata = self.leaderboarddata(data)
+                await self.addtoleaderboard(cleandata, "mania")
+            return
 
         if user:
             return await del_message(
