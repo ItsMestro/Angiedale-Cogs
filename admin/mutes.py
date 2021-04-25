@@ -128,7 +128,7 @@ class Mutes:
         `[p]mutesetrole ROLE_NAME_HERE`
         """
         if await self.mutesconfig.guild(ctx.guild).mute_role():
-            command = f"`{ctx.clean_prefix}mutesetrole`"
+            command = f"`{ctx.clean_prefix}muteset role`"
             return await ctx.send(
                 (
                     "There is already a mute role setup in this server. "
