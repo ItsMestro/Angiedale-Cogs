@@ -7,9 +7,8 @@ from typing import Dict, Optional
 
 import aiohttp
 import discord
-from discord.errors import HTTPException
 from redbot.core import Config, commands
-from redbot.core.data_manager import bundled_data_path
+from redbot.core.data_manager import cog_data_path
 from redbot.core.utils.menus import DEFAULT_CONTROLS, close_menu, next_page
 
 log = logging.getLogger("red.angiedale.osu")
@@ -122,7 +121,8 @@ class Helper:
     def __init__(self):
         self.osuconfig: Config = Config.get_conf(self, identifier=1387000, cog_name="Osu")
 
-    def findmap(self, map):
+    @staticmethod
+    def findmap(map):
         if (
             map.startswith("https://osu.ppy.sh/b/")
             or map.startswith("http://osu.ppy.sh/b/")
@@ -135,7 +135,50 @@ class Helper:
         else:
             return None
 
-    def stream(self, stream):
+    async def leaderboard(self, ctx, args):
+        args = self.ttol(args)
+
+        findself = False
+        guildonly = False
+        mode = None
+        if "-me" in args:
+            findself = True
+            args.remove("-me")
+        if "-g" in args:
+            guildonly = True
+            args.remove("-g")
+        if "-m" in args:
+            l = args.index("-m")
+            try:
+                if not int(args[l + 1]) in [0, 1, 2, 3]:
+                    await del_message(
+                        ctx, "Please use one of the mode numbers between 0-3 for `-m`"
+                    )
+                    return None, False, False, None
+                else:
+                    mode = int(args[l + 1])
+                    args.pop(l + 1)
+                    args.pop(l)
+                    if mode == 0:
+                        mode = "osu"
+                    elif mode == 1:
+                        mode = "taiko"
+                    elif mode == 2:
+                        mode = "fruits"
+                    elif mode == 3:
+                        mode = "mania"
+            except IndexError:
+                await del_message(ctx, "Please provide a number for `-m`")
+                return None, False, False, None
+
+        if len(args) > 1:
+            await del_message(ctx, "Seems like you used too many arguments.")
+            return None, False, False, None
+
+        return args[0], guildonly, findself, mode
+
+    @staticmethod
+    def stream(stream):
         if stream == "stable":
             return "stable40"
         elif stream == "fallback":
@@ -197,39 +240,44 @@ class Helper:
 
         return mode, type, country, variant
 
-    def ttol(self, args):
+    @staticmethod
+    def ttol(args):
         return [(x.lower()) for x in args]
 
-    async def user(self, ctx: commands.Context, user):
+    async def user(self, ctx: commands.Context, user, withleaderboard=False):
         userid = None
         if not user:
             userid = await self.osuconfig.user(ctx.author).userid()
             if not userid:
-                await profilelinking(ctx)
-                return None
+                return await profilelinking(ctx)
+            elif withleaderboard:
+                return userid, True
         else:
             if isinstance(user, discord.Member):
                 userid = await self.osuconfig.user(user).userid()
 
             if not userid:
-                if not str(user).isnumeric():
-                    data = await self.fetch_api(f"users/{user}/osu", ctx)
-                    await asyncio.sleep(0.5)
-                    if data:
-                        userid = data["id"]
-                elif (
-                    user.startswith("https://osu.ppy.sh/users")
-                    or user.startswith("http://osu.ppy.sh/users")
+                tempuser = user
+                if (
+                    user.startswith("https://osu.ppy.sh/users/")
+                    or user.startswith("http://osu.ppy.sh/users/")
                     or user.startswith("https://osu.ppy.sh/u/")
                     or user.startswith("http://osu.ppy.sh/u/")
                 ):
-                    data = await self.fetch_api(
-                        f'users/{re.sub("[^0-9]", "", user.rsplit("/", 1)[-1])}/osu', ctx
+                    cleanuser = (
+                        user.replace("/osu", "")
+                        .replace("/taiko", "")
+                        .replace("/fruits", "")
+                        .replace("/mania", "")
                     )
+                    tempuser = cleanuser.rsplit("/", 1)[-1]
+
+                if not str(tempuser).isnumeric():
+                    data = await self.fetch_api(f"users/{tempuser}/osu", ctx)
                     if data:
-                        userid = data["id"]
+                        return data["id"]
                 else:
-                    userid = user
+                    userid = tempuser
 
             if not userid:
                 try:
@@ -397,7 +445,7 @@ class Helper:
                         if len(ch) < 1:
                             us.pop(id)
                             try:
-                                os.remove(f"{bundled_data_path(self)}/{id}{m}.json")
+                                os.remove(f"{cog_data_path(self)}/tracking/{id}_{m}.json")
                             except:
                                 pass
                         if done == True:
@@ -420,7 +468,7 @@ class Helper:
                     if mode == m:
                         try:
                             us.pop(user)
-                            os.remove(f"{bundled_data_path(self)}/{user}{m}.json")
+                            os.remove(f"{cog_data_path(self)}/tracking/{user}{m}.json")
                         except KeyError:
                             pass
 
