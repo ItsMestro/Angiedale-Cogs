@@ -103,7 +103,7 @@ class API:
                                 "API is either slow or unavaliable atm. I will keep trying to process your command."
                             )
                         await asyncio.sleep(10)
-                    else:
+                    elif r.status == 200:
                         try:
                             await message.delete()
                         except:
@@ -113,6 +113,9 @@ class API:
                             return data
                         except:
                             return
+                    else:
+                        log.error(r.status)
+                        return
 
 
 class Helper:
@@ -420,6 +423,8 @@ class Helper:
 
     async def removetracking(self, user=None, channel=None, mode=None, dev=False):
         """Finds unnecessary tracking entries"""
+
+        log.error(f"Removing {user} from tracking. mode: {mode}, channel: {channel}")
 
         if dev == True:
             async with self.osuconfig.tracking() as modes:

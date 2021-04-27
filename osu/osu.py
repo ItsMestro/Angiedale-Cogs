@@ -481,7 +481,7 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
         else:
             await del_message(ctx, "Can't find any plays on that map by you.")
 
-    @commands.command(aliases=["osl"], usage="[beatmap] [args]")
+    @commands.command(aliases=["osl", "osul"], usage="[beatmap] [args]")
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def osuleaderboard(self, ctx: commands.Context, *beatmap_or_args):
         """Unranked leaderboards.
@@ -495,6 +495,9 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
         `-me` Starts the embed at the page your score is if your account is linked.
         `-g` Show only scores by users in this guild that have linked accounts.
         """
+
+        if not beatmap_or_args:
+            return await ctx.send_help()
 
         beatmap, guildonly, findself, mode = await self.leaderboard(ctx, beatmap_or_args)
 
@@ -641,11 +644,10 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
         if not userid:
             return
 
-        if len(userid) > 1:
+        useleaderboard = False
+        if isinstance(userid, tuple):
             useleaderboard = True
             userid = userid[0]
-        else:
-            useleaderboard = False
 
         params = {"include_fails": "1", "mode": "osu", "limit": "10"}
 
@@ -684,11 +686,10 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
         if not userid:
             return
 
-        if len(userid) > 1:
+        useleaderboard = False
+        if isinstance(userid, tuple):
             useleaderboard = True
             userid = userid[0]
-        else:
-            useleaderboard = False
 
         params = {"include_fails": "1", "mode": "taiko", "limit": "10"}
 
@@ -730,11 +731,10 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
         if not userid:
             return
 
-        if len(userid) > 1:
+        useleaderboard = False
+        if isinstance(userid, tuple):
             useleaderboard = True
             userid = userid[0]
-        else:
-            useleaderboard = False
 
         params = {"include_fails": "1", "mode": "fruits", "limit": "10"}
 
@@ -773,11 +773,10 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
         if not userid:
             return
 
-        if len(userid) > 1:
+        useleaderboard = False
+        if isinstance(userid, tuple):
             useleaderboard = True
             userid = userid[0]
-        else:
-            useleaderboard = False
 
         params = {"include_fails": "1", "mode": "mania", "limit": "10"}
 

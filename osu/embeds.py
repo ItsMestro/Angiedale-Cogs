@@ -136,7 +136,7 @@ class Data:
         return data
 
     @staticmethod
-    def mapdata(self, d):
+    def mapdata(d):
         """/beatmaps/{map}"""
 
         data = {}
