@@ -13,6 +13,11 @@ from redbot.core.utils.menus import DEFAULT_CONTROLS, close_menu, next_page
 
 log = logging.getLogger("red.angiedale.osu")
 
+MODE_STANDARD = ["standard", "std", "osu", "o", "s", "0"]
+MODE_TAIKO = ["taiko", "t", "1"]
+MODE_CATCH = ["catch", "fruits", "ctb", "c", "f", "2"]
+MODE_MANIA = ["mania", "m", "3"]
+
 
 class API:
     """Class for handling OAuth."""
@@ -505,6 +510,42 @@ class Helper:
                             if guild == i.guild.id:
                                 count.append({"id": u, "channel": i, "mode": m})
         return count
+
+    @staticmethod
+    def mode_prettify(mode):
+        """Turns any known mode identifier into a user friendly version for that mode."""
+
+        mode = str(mode.lower())
+        clean_mode = None
+
+        if mode in MODE_STANDARD:
+            clean_mode = "standard"
+        elif mode in MODE_TAIKO:
+            clean_mode = "taiko"
+        elif mode in MODE_CATCH:
+            clean_mode = "catch"
+        elif mode in MODE_MANIA:
+            clean_mode = "mania"
+
+        return clean_mode
+
+    @staticmethod
+    def mode_api(mode):
+        """Turns any known mode identifier into the api version for that mode."""
+
+        mode = str(mode.lower())
+        clean_mode = None
+
+        if mode in MODE_STANDARD:
+            clean_mode = "osu"
+        elif mode in MODE_TAIKO:
+            clean_mode = "taiko"
+        elif mode in MODE_CATCH:
+            clean_mode = "fruits"
+        elif mode in MODE_MANIA:
+            clean_mode = "mania"
+
+        return clean_mode
 
 
 async def profilelinking(ctx: commands.Context):
