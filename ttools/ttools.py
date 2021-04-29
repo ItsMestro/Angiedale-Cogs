@@ -388,7 +388,7 @@ class TTools(commands.Cog):
             return await embedmsg.edit(content="Cancelling registration.", embed=None, delete_after=10)
 
         existingteams = sh.worksheet("Signups").get("A2:A")
-        rank4k = None
+        rank4k = 0
         try:
             rank4k = data["statistics"]["variants"][0]["global_rank"]
         except:
