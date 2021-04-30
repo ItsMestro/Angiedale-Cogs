@@ -1479,7 +1479,7 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
         if rank:
             params = {"cursor[page]": ceil(rank / 50)}
 
-            data = await self.fetch_api(f"rankings/osu/performance", params=params)
+            data = await self.fetch_api(f"rankings/taiko/performance", params=params)
             userid = data["ranking"][(rank % 50) - 1]["user"]["id"]
 
         if not userid:
@@ -1554,7 +1554,7 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
         if rank:
             params = {"cursor[page]": ceil(rank / 50)}
 
-            data = await self.fetch_api(f"rankings/osu/performance", params=params)
+            data = await self.fetch_api(f"rankings/fruits/performance", params=params)
             userid = data["ranking"][(rank % 50) - 1]["user"]["id"]
 
         if not userid:
@@ -1619,7 +1619,7 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
         if rank:
             params = {"cursor[page]": ceil(rank / 50)}
 
-            data = await self.fetch_api(f"rankings/osu/performance", params=params)
+            data = await self.fetch_api(f"rankings/mania/performance", params=params)
             userid = data["ranking"][(rank % 50) - 1]["user"]["id"]
 
         if not userid:
