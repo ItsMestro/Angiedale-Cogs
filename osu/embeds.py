@@ -1668,6 +1668,7 @@ class Embed(Data):
                     f"{hits} ◈ "
                     f'{EMOJI[score["scorerank"]]}{mods}'
                 ),
+                inline=False,
             )
 
         embed.set_footer(
