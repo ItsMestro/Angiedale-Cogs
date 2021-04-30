@@ -830,7 +830,7 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
 
         await del_message(ctx, f"I can't seem to find {user}'s profile.")
 
-    @osubeat.command(name="standings", aliases=["leaderboard"])
+    @osubeat.command(name="standings", aliases=["leaderboard", "results"])
     async def _standings_beat(self, ctx: commands.Context):
         """Check the current standings in the beat competition."""
 
@@ -1819,7 +1819,7 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
 
         del beat_current["channel"]
         beat_current["ends"] = (
-            datetime.now(timezone.utc).replace(second=0).strftime("%a %d %b %Y %H:%M:%S")
+            datetime.now(timezone.utc).replace(second=0).strftime("%Y-%m-%dT%H:%M:%S%z")
         )
         await self.osuconfig.guild(guild).beat_current.clear()
         await self.osuconfig.guild(guild).beat_last.set(beat_current)
