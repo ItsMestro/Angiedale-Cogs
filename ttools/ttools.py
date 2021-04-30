@@ -175,11 +175,12 @@ class TTools(commands.Cog):
     async def playerrole(self, ctx: commands.Context, role: Optional[discord.Role]):
         """"""
         if role:
-            await self.config.guild(ctx.guild).playerrole.set(role)
+            await self.config.guild(ctx.guild).playerrole.set(role.id)
             await ctx.send(
                 (f"Players will now be given the {role} role when registering.")
             )
         else:
+            await self.config.guild(ctx.guild).playerrole.set(None)
             await ctx.send(("Cleared the player role in this server."))
 
     @commands.group(hidden=True, aliases=["ref"])
@@ -320,7 +321,7 @@ class TTools(commands.Cog):
 
     @commands.max_concurrency(1, per=commands.BucketType.user)
     @commands.command(hidden=True)
-    async def register(self, ctx: commands.Context, username):
+    async def register(self, ctx: commands.Context, username: str):
         """"""
         if not await self.isenabled(ctx):
             return
@@ -422,20 +423,20 @@ class TTools(commands.Cog):
             f'{ctx.author.mention} is now registered to the tournament as `{data["username"]}`'
         )
 
-    async def useosufetch(self, api):
+    async def useosufetch(self, api: str):
         osucog = self.bot.get_cog("Osu")
         if osucog:
             return await osucog.fetch_api(api)
         else:
             log.error("Osu cog not loaded")
 
-    async def serverkey(self, ctx):
+    async def serverkey(self, ctx: commands.Context):
         return await self.config.guild(ctx.guild).sheet()
 
-    async def isenabled(self, ctx):
+    async def isenabled(self, ctx: commands.Context):
         return await self.config.guild(ctx.guild).enabled()
 
-    async def isref(self, ctx):
+    async def isref(self, ctx: commands.Context):
         referees = await self.config.guild(ctx.guild).referee()
         refrole = ctx.guild.get_role(referees)
         if refrole in ctx.author.roles:
@@ -443,5 +444,5 @@ class TTools(commands.Cog):
         else:
             return False
 
-    async def pingimage(self, ctx):
+    async def pingimage(self, ctx: commands.Context):
         return await self.config.guild(ctx.guild).useimg()
