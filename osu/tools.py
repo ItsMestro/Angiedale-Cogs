@@ -435,18 +435,18 @@ class Helper:
         if "-p" in args:
             if len(args) > 2:
                 await del_message(ctx, "Please use only one of the available arguments.")
-                return
+                return None, None
             elif len(args) < 2:
                 await del_message(ctx, "Please provide a rank for `-p`")
-                return
+                return None, None
             else:
                 l = args.index("-p")
                 if not args[l + 1].isdigit():
                     await del_message(ctx, "Please user a number for `-p`")
-                    return
+                    return None, None
                 elif int(args[l + 1]) > 10000 or int(args[l + 1]) < 1:
                     await del_message(ctx, "Please provide a rank between 1-10000 for `-p`")
-                    return
+                    return None, None
                 else:
                     rank = int(args[l + 1])
                     return userid, rank
