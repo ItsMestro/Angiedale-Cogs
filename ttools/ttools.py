@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+from osu.tools import del_message
 import re
 from datetime import datetime, timezone
 from random import choice
@@ -319,9 +320,9 @@ class TTools(commands.Cog):
         else:
             await ctx.send(content=msg)
 
-    @commands.max_concurrency(1, per=commands.BucketType.user)
+    @commands.max_concurrency(1, per=commands.BucketType.member)
     @commands.command(hidden=True)
-    async def register(self, ctx: commands.Context, username: str):
+    async def register(self, ctx: commands.Context, username: str = None):
         """"""
         if not await self.isenabled(ctx):
             return
@@ -330,6 +331,10 @@ class TTools(commands.Cog):
         serverkey = await self.serverkey(ctx)
         if not serverkey:
             return
+
+        if not username:
+            await ctx.message.delete()
+            return await del_message(ctx, f"Provide a username or link with the command like: `{ctx.clean_prefix}register <username>`")
 
         sh = self.gs.open_by_key(serverkey)
 
