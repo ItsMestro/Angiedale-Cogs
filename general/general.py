@@ -1752,7 +1752,7 @@ class General(Reports, commands.Cog):
             try:
                 await ctx.bot.wait_for(event, check=pred, timeout=30)
             except asyncio.TimeoutError:
-                msg.delete()
+                await msg.delete()
             if pred.result:
                 await self._do_reminder_delete(users_reminders)
                 await ctx.send("All of your reminders have been removed.")
