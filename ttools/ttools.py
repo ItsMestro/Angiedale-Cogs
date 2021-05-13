@@ -321,6 +321,7 @@ class TTools(commands.Cog):
             await ctx.send(content=msg)
 
     @commands.max_concurrency(1, per=commands.BucketType.member)
+    @commands.guild_only()
     @commands.command(hidden=True)
     async def register(self, ctx: commands.Context, username: str = None):
         """"""
@@ -417,9 +418,10 @@ class TTools(commands.Cog):
         await embedmsg.delete()
         player_role = await self.config.guild(ctx.guild).playerrole()
         if player_role:
+            prole = ctx.guild.get_role(player_role)
             try:
-                ctx.author.add_roles(
-                    player_role,
+                await ctx.author.add_roles(
+                    prole,
                     reason=f'Registered to the tournament as {data["username"]}.',
                 )
             except:
