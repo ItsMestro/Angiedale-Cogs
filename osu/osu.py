@@ -198,7 +198,7 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
         await self.osuconfig.user(ctx.author).userid.set(userid)
         await ctx.send(f"{username} is successfully linked to your account!")
 
-    @checks.admin()
+    @checks.admin_or_permissions(administrator=True)
     @commands.guild_only()
     @commands.group()
     async def osutrack(self, ctx: commands.Context):
@@ -599,7 +599,7 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
     async def osubeat(self, ctx: commands.Context):
         """osu! competitions run per server."""
 
-    @checks.admin()
+    @checks.admin_or_permissions(administrator=True)
     @osubeat.command(name="settime")
     async def _set_beat_time(self, ctx: commands.Context, *, time: TimeConverter = None):
         """Set the time that all future beats last.
@@ -611,12 +611,12 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
 
         if time:
             await self.osuconfig.guild(ctx.guild).default_beat_time.set(time.total_seconds())
-            return await ctx.send(f"Beats will now last for {humanize_timedelta(time)}.")
+            return await ctx.send(f"Beats will now last for {humanize_timedelta(timedelta=time)}.")
 
         await self.osuconfig.guild(ctx.guild).default_beat_time.clear()
         await ctx.send("Default time for beats reset to 1 day.")
 
-    @checks.admin()
+    @checks.admin_or_permissions(administrator=True)
     @osubeat.command(name="new")
     async def _new_beat(
         self, ctx: commands.Context, channel: discord.TextChannel, beatmap, mode, *mods
@@ -750,7 +750,7 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
         out = f"```apache\n{out}```"
         await ctx.send(out)
 
-    @checks.admin()
+    @checks.admin_or_permissions(administrator=True)
     @osubeat.command(name="end")
     async def _end_beat(self, ctx: commands.Context):
         """Manually end a beat early."""
@@ -762,7 +762,7 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
         mapid = await self.osuconfig.guild(ctx.guild).beat_current()
         await self.endosubeat(ctx.guild.id, mapid["beatmap"]["mapid"])
 
-    @checks.admin()
+    @checks.admin_or_permissions(administrator=True)
     @osubeat.command(name="cancel")
     async def _cancel_beat(self, ctx: commands.Context):
         """Cancel a running beat without selecting winners."""
