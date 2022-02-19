@@ -7,6 +7,7 @@ import discord
 from redbot.core import Config, checks, commands, modlog
 from redbot.core.bot import Red
 from redbot.core.utils import AsyncIter
+from redbot.core.utils.predicates import MessagePredicate
 
 from .converters import SelfRole
 from .modlog import ModLog
@@ -16,6 +17,49 @@ from .warnings import Warnings
 
 log = logging.getLogger("red.angiedale.admin")
 
+
+GENERIC_FORBIDDEN = (
+    "I attempted to do something that Discord denied me permissions for."
+    " Your command failed to successfully complete."
+)
+
+HIERARCHY_ISSUE_ADD = (
+    "I can not give {role.name} to {member.display_name}"
+    " because that role is higher than or equal to my highest role"
+    " in the Discord hierarchy."
+)
+
+HIERARCHY_ISSUE_REMOVE = (
+    "I can not remove {role.name} from {member.display_name}"
+    " because that role is higher than or equal to my highest role"
+    " in the Discord hierarchy."
+)
+
+ROLE_HIERARCHY_ISSUE = (
+    "I can not edit {role.name}"
+    " because that role is higher than my or equal to highest role"
+    " in the Discord hierarchy."
+)
+
+USER_HIERARCHY_ISSUE_ADD = (
+    "I can not let you give {role.name} to {member.display_name}"
+    " because that role is higher than or equal to your highest role"
+    " in the Discord hierarchy."
+)
+
+USER_HIERARCHY_ISSUE_REMOVE = (
+    "I can not let you remove {role.name} from {member.display_name}"
+    " because that role is higher than or equal to your highest role"
+    " in the Discord hierarchy."
+)
+
+ROLE_USER_HIERARCHY_ISSUE = (
+    "I can not let you edit {role.name}"
+    " because that role is higher than or equal to your highest role"
+    " in the Discord hierarchy."
+)
+
+NEED_MANAGE_ROLES = ('I need the "Manage Roles" permission to do that.')
 
 def is_support_guild():
     async def pred(ctx: commands.Context):
@@ -314,33 +358,22 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
 
         if not self.pass_user_hierarchy_check(ctx, role):
             await ctx.send(
-                (
-                    "I can not let you edit {role.name}"
-                    " because that role is higher than or equal to your highest role"
-                    " in the Discord hierarchy."
-                ).format(role=role)
+                (ROLE_USER_HIERARCHY_ISSUE).format(role=role)
             )
             return
         if not self.pass_hierarchy_check(ctx, role):
             await ctx.send(
-                (
-                    "I can not edit {role.name}"
-                    " because that role is higher than my or equal to highest role"
-                    " in the Discord hierarchy."
-                ).format(role=role)
+                (ROLE_HIERARCHY_ISSUE).format(role=role)
             )
             return
         if not ctx.guild.me.guild_permissions.manage_roles:
-            await ctx.send(("I need manage roles permission to do that."))
+            await ctx.send((NEED_MANAGE_ROLES))
             return
         try:
             await role.edit(reason=reason, color=value)
         except discord.Forbidden:
             await ctx.send(
-                (
-                    "I attempted to do something that Discord denied me permissions for."
-                    " Your command failed to successfully complete."
-                )
+                (GENERIC_FORBIDDEN)
             )
         else:
             log.info(reason)
@@ -364,33 +397,22 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
 
         if not self.pass_user_hierarchy_check(ctx, role):
             await ctx.send(
-                (
-                    "I can not let you edit {role.name}"
-                    " because that role is higher than or equal to your highest role"
-                    " in the Discord hierarchy."
-                ).format(role=role)
+                (ROLE_USER_HIERARCHY_ISSUE).format(role=role)
             )
             return
         if not self.pass_hierarchy_check(ctx, role):
             await ctx.send(
-                (
-                    "I can not edit {role.name}"
-                    " because that role is higher than my or equal to highest role"
-                    " in the Discord hierarchy."
-                ).format(role=role)
+                (ROLE_HIERARCHY_ISSUE).format(role=role)
             )
             return
         if not ctx.guild.me.guild_permissions.manage_roles:
-            await ctx.send(("I need manage roles permission to do that."))
+            await ctx.send((NEED_MANAGE_ROLES))
             return
         try:
             await role.edit(reason=reason, name=name)
         except discord.Forbidden:
             await ctx.send(
-                (
-                    "I attempted to do something that Discord denied me permissions for."
-                    " Your command failed to successfully complete."
-                )
+                (GENERIC_FORBIDDEN)
             )
         else:
             log.info(reason)
@@ -408,33 +430,22 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
             return
         if check_user and not self.pass_user_hierarchy_check(ctx, role):
             await ctx.send(
-                (
-                    "I can not let you give {role.name} to {member.display_name}"
-                    " because that role is higher than or equal to your highest role"
-                    " in the Discord hierarchy."
-                ).format(role=role, member=member)
+                (USER_HIERARCHY_ISSUE_ADD).format(role=role, member=member)
             )
             return
         if not self.pass_hierarchy_check(ctx, role):
             await ctx.send(
-                (
-                    "I can not give {role.name} to {member.display_name}"
-                    " because that role is higher than or equal to my highest role"
-                    " in the Discord hierarchy."
-                ).format(role=role, member=member)
+                (HIERARCHY_ISSUE_ADD).format(role=role, member=member)
             )
             return
         if not ctx.guild.me.guild_permissions.manage_roles:
-            await ctx.send(("I need manage roles permission to do that."))
+            await ctx.send((NEED_MANAGE_ROLES))
             return
         try:
             await member.add_roles(role)
         except discord.Forbidden:
             await ctx.send(
-                (
-                    "I attempted to do something that Discord denied me permissions for."
-                    " Your command failed to successfully complete."
-                )
+                (GENERIC_FORBIDDEN)
             )
         else:
             await ctx.send(
@@ -455,33 +466,22 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
             return
         if check_user and not self.pass_user_hierarchy_check(ctx, role):
             await ctx.send(
-                (
-                    "I can not let you remove {role.name} from {member.display_name}"
-                    " because that role is higher than or equal to your highest role"
-                    " in the Discord hierarchy."
-                ).format(role=role, member=member)
+                (USER_HIERARCHY_ISSUE_REMOVE).format(role=role, member=member)
             )
             return
         if not self.pass_hierarchy_check(ctx, role):
             await ctx.send(
-                (
-                    "I can not remove {role.name} from {member.display_name}"
-                    " because that role is higher than or equal to my highest role"
-                    " in the Discord hierarchy."
-                ).format(role=role, member=member)
+                (HIERARCHY_ISSUE_REMOVE).format(role=role, member=member)
             )
             return
         if not ctx.guild.me.guild_permissions.manage_roles:
-            await ctx.send(("I need manage roles permission to do that."))
+            await ctx.send((NEED_MANAGE_ROLES))
             return
         try:
             await member.remove_roles(role)
         except discord.Forbidden:
             await ctx.send(
-                (
-                    "I attempted to do something that Discord denied me permissions for."
-                    " Your command failed to successfully complete."
-                )
+                (GENERIC_FORBIDDEN)
             )
         else:
             await ctx.send(
