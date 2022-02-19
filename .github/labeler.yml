@@ -1,0 +1,24 @@
+"Cog: Admin":
+  - admin/*
+"Cog: Adventure":
+  - adventure/*
+"Cog: API":
+  - api/*
+"Cog: Economy":
+  - economy/*
+"Cog: Games":
+  - games/*
+"Cog: General":
+  - general/*
+"Cog: Interactions":
+  - interactions/*
+"Cog: Mod":
+  - mod/*
+"Cog: Osu":
+  - osu/*
+"Cog: Owner":
+  - owner/*
+"Cog: TTools":
+  - ttools/*
+"Cog: Utility":
+  - utility/*

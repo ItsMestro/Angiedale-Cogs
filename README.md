@@ -38,5 +38,7 @@
 ![gspread](https://img.shields.io/pypi/v/gspread?label=gspread)
 ![requests](https://img.shields.io/pypi/v/requests?label=requests)
 ![pillow](https://img.shields.io/pypi/v/pillow?label=pillow)
+![PyPI](https://img.shields.io/pypi/v/motor?label=motor)
+![PyPI](https://img.shields.io/pypi/v/pymongo?label=pymongo)
 
-`[p]pipinstall beautifultable tabulate beautifulsoup4 gspread requests pillow`
+`[p]pipinstall beautifultable tabulate beautifulsoup4 gspread requests pillow motor pymongo`
