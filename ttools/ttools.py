@@ -1,8 +1,11 @@
+import asyncio
+import functools
 import logging
 import os
 import re
 from datetime import datetime
 from random import choice
+from typing import List, Optional, Union
 
 import discord
 import gspread
@@ -11,7 +14,8 @@ from redbot.core import Config, checks, commands
 from redbot.core.bot import Red
 from redbot.core.data_manager import bundled_data_path, cog_data_path
 from redbot.core.utils.chat_formatting import humanize_number, humanize_timedelta
-from redbot.core.utils.menus import menu
+from redbot.core.utils.menus import start_adding_reactions
+from redbot.core.utils.predicates import ReactionPredicate
 
 log = logging.getLogger("red.angiedale.ttools")
 
@@ -50,10 +54,13 @@ class TTools(commands.Cog):
             "referee": None,
             "useimg": False,
             "customimg": False,
+            "playerrole": None,
         }
         self.config.register_guild(**guild_defaults)
 
-        self.gs = gspread.service_account(filename=f"{bundled_data_path(self)}/key.json")
+        self.gs = gspread.service_account(
+            filename=f"{bundled_data_path(self)}/key.json"
+        )
 
     async def red_delete_data_for_user(self, **kwargs):
         """ Nothing to delete """
@@ -62,13 +69,13 @@ class TTools(commands.Cog):
     @commands.group(hidden=True)
     @commands.guild_only()
     @checks.guildowner()
-    async def ttools(self, ctx):
+    async def ttools(self, ctx: commands.Context):
         """"""
         pass
 
     @ttools.command()
     @checks.is_owner()
-    async def toggleserver(self, ctx):
+    async def toggleserver(self, ctx: commands.Context):
         """"""
         enabled = await self.config.guild(ctx.guild).enabled()
         enabled = not enabled
@@ -80,7 +87,7 @@ class TTools(commands.Cog):
 
     @ttools.command()
     @checks.is_owner()
-    async def sheet(self, ctx, key: str = None):
+    async def sheet(self, ctx: commands.Context, key: str = None):
         """"""
         await ctx.message.delete()
         if key:
@@ -92,18 +99,20 @@ class TTools(commands.Cog):
 
     @ttools.command()
     @checks.is_owner()
-    async def mode(self, ctx, mode: str):
+    async def mode(self, ctx: commands.Context, mode: str):
         """"""
         mode = mode.lower()
         if mode == "osu" or mode == "taiko" or mode == "fruits" or mode == "mania":
             await self.config.guild(ctx.guild).mode.set(mode)
             await ctx.send(f"Mode for this tournament now set to `{mode}`")
         else:
-            await ctx.send("Invalid mode. Please use one of: `osu, taiko, fruits, mania`")
+            await ctx.send(
+                "Invalid mode. Please use one of: `osu, taiko, fruits, mania`"
+            )
 
     @ttools.command(name="referee")
     @checks.is_owner()
-    async def set_referee_role(self, ctx, role: discord.Role):
+    async def set_referee_role(self, ctx: commands.Context, role: discord.Role):
         """"""
         if role:
             await self.config.guild(ctx.guild).referee.set(role.id)
@@ -114,7 +123,7 @@ class TTools(commands.Cog):
 
     @ttools.command()
     @checks.is_owner()
-    async def useimage(self, ctx):
+    async def useimage(self, ctx: commands.Context):
         """"""
         useimg = await self.config.guild(ctx.guild).useimg()
         useimg = not useimg
@@ -126,7 +135,7 @@ class TTools(commands.Cog):
 
     @ttools.command()
     @checks.is_owner()
-    async def setimage(self, ctx):
+    async def setimage(self, ctx: commands.Context):
         """"""
         if len(ctx.message.attachments) == 1:
             img = ctx.message.attachments[0]
@@ -138,7 +147,9 @@ class TTools(commands.Cog):
                 return await ctx.send("Please provide a `.png` or `.jpg` image.")
             if not img.width == 1600 and not img.height == 400:
                 return await ctx.send("Please use an image that is `1600x400` in size.")
-            with open(f"{cog_data_path(raw_name='TTools')}/{ctx.guild.id}.png", "wb") as f:
+            with open(
+                f"{cog_data_path(raw_name='TTools')}/{ctx.guild.id}.png", "wb"
+            ) as f:
                 await img.save(f)
             await ctx.send("Will now use the provided image for ref pings.")
             await self.config.guild(ctx.guild).customimg.set(True)
@@ -151,7 +162,7 @@ class TTools(commands.Cog):
                 pass
 
     @ttools.command(aliases=["toggleregistration"])
-    async def toggleregs(self, ctx):
+    async def toggleregs(self, ctx: commands.Context):
         """"""
         regsopen = await self.config.guild(ctx.guild).regsopen()
         regsopen = not regsopen
@@ -161,13 +172,24 @@ class TTools(commands.Cog):
         else:
             await ctx.send(("Registrations closed."))
 
+    @ttools.command()
+    async def playerrole(self, ctx: commands.Context, role: Optional[discord.Role]):
+        """"""
+        if role:
+            await self.config.guild(ctx.guild).playerrole.set(role)
+            await ctx.send(
+                (f"Players will now be given the {role} role when registering.")
+            )
+        else:
+            await ctx.send(("Cleared the player role in this server."))
+
     @commands.group(hidden=True, aliases=["ref"])
     @commands.guild_only()
-    async def referee(self, ctx):
+    async def referee(self, ctx: commands.Context):
         """"""
 
     @referee.command()
-    async def ping(self, ctx, matchid):
+    async def ping(self, ctx: commands.Context, matchid):
         """"""
         if not await self.isenabled(ctx):
             return
@@ -189,7 +211,9 @@ class TTools(commands.Cog):
                 matchtime = m[1].split(":")
                 matchdate = datetime.strptime(m[0].split(", ")[1], "%d %b")
                 matchdatetime = matchdate.replace(
-                    year=datetime.utcnow().year, hour=int(matchtime[0]), minute=int(matchtime[1])
+                    year=datetime.utcnow().year,
+                    hour=int(matchtime[0]),
+                    minute=int(matchtime[1]),
                 )
                 matchexists = True
                 break
@@ -252,7 +276,9 @@ class TTools(commands.Cog):
             drawimage = ImageDraw.Draw(img)
 
             font = ImageFont.truetype(f"{bundled_data_path(self)}/Exo2.0-Bold.otf", 52)
-            timefont = ImageFont.truetype(f"{bundled_data_path(self)}/Exo2.0-Bold.otf", 32)
+            timefont = ImageFont.truetype(
+                f"{bundled_data_path(self)}/Exo2.0-Bold.otf", 32
+            )
 
             redwidth, redheight = drawimage.textsize(redteam, font)
             rx = (width / 2) / 2 - (redwidth / 2)
@@ -265,7 +291,9 @@ class TTools(commands.Cog):
 
             drawimage.text((rx, 220), redteam, font=font, fill=(255, 255, 255))
             drawimage.text((bx, 220), blueteam, font=font, fill=(255, 255, 255))
-            drawimage.text((tx, 320), matchtimetext, font=timefont, fill=(160, 160, 160))
+            drawimage.text(
+                (tx, 320), matchtimetext, font=timefont, fill=(160, 160, 160)
+            )
 
             img.paste(imgred, (int(rfx), 100), imgred)
             img.paste(imgblue, (int(bfx), 100), imgblue)
@@ -275,8 +303,12 @@ class TTools(commands.Cog):
 
             img.save(f"{cog_data_path(raw_name='TTools')}/ping/{matchid}.png")
 
-            with open(f"{cog_data_path(raw_name='TTools')}/ping/{matchid}.png", "rb") as image:
-                await ctx.send(content=msg, file=discord.File(image, filename=f"{matchid}.png"))
+            with open(
+                f"{cog_data_path(raw_name='TTools')}/ping/{matchid}.png", "rb"
+            ) as image:
+                await ctx.send(
+                    content=msg, file=discord.File(image, filename=f"{matchid}.png")
+                )
 
             os.remove(f"{cog_data_path(raw_name='TTools')}/ping/{matchid}.png")
         else:
@@ -284,7 +316,7 @@ class TTools(commands.Cog):
 
     @commands.max_concurrency(1, per=commands.BucketType.user)
     @commands.command(hidden=True)
-    async def register(self, ctx, username):
+    async def register(self, ctx: commands.Context, username):
         """"""
         if not await self.isenabled(ctx):
             return
@@ -339,18 +371,14 @@ class TTools(commands.Cog):
         embed.url = titleurl
         embeds.append(embed)
 
-        done = False
-
-        async def failedregistration(ctx, _, __, message, *args):
-            nonlocal done
-            done = True
+        async def failedregistration(ctx: commands.Context, _, __, message, *args):
 
             await message.clear_reactions()
-            await message.edit(content="Registration Cancelled.", embed=None, delete_after=10)
+            await message.edit(
+                content="Registration Cancelled.", embed=None, delete_after=10
+            )
 
-        async def processregistration(ctx, _, __, message, *args):
-            nonlocal done
-            done = True
+        async def processregistration(ctx: commands.Context, _, __, message, *args):
 
             existingteams = sh.worksheet("Signups").get("A2:A")
             rank4k = None
@@ -375,11 +403,20 @@ class TTools(commands.Cog):
             )
 
             await message.delete()
+            player_role = await self.config.guild(ctx.guild).playerrole()
+            if player_role:
+                try:
+                    ctx.author.add_roles(
+                        player_role,
+                        reason=f'Registered to the tournament as {data["username"]}.',
+                    )
+                except:
+                    pass
             await ctx.send(
                 f'{ctx.author.mention} is now registered to the tournament as `{data["username"]}`'
             )
 
-        await menu(
+        await custom_menu(
             ctx,
             embeds,
             {
@@ -387,15 +424,6 @@ class TTools(commands.Cog):
                 "\N{CROSS MARK}": failedregistration,
             },
         )
-
-        if not done:
-            async for m in ctx.channel.history(limit=20):
-                if m.author.id == self.bot.user.id:
-                    try:
-                        if m.embeds[0].url == titleurl:
-                            await m.delete()
-                    except:
-                        pass
 
     async def useosufetch(self, api):
         osucog = self.bot.get_cog("Osu")
@@ -420,3 +448,74 @@ class TTools(commands.Cog):
 
     async def pingimage(self, ctx):
         return await self.config.guild(ctx.guild).useimg()
+
+
+async def custom_menu(
+    ctx: commands.Context,
+    pages: Union[List[str], List[discord.Embed]],
+    controls: dict,
+    message: discord.Message = None,
+    page: int = 0,
+    timeout: float = 30.0,
+):
+    if not isinstance(pages[0], (discord.Embed, str)):
+        raise RuntimeError("Pages must be of type discord.Embed or str")
+    if not all(isinstance(x, discord.Embed) for x in pages) and not all(
+        isinstance(x, str) for x in pages
+    ):
+        raise RuntimeError("All pages must be of the same type")
+    for key, value in controls.items():
+        maybe_coro = value
+        if isinstance(value, functools.partial):
+            maybe_coro = value.func
+        if not asyncio.iscoroutinefunction(maybe_coro):
+            raise RuntimeError("Function must be a coroutine")
+    current_page = pages[page]
+
+    if not message:
+        if isinstance(current_page, discord.Embed):
+            message = await ctx.send(embed=current_page)
+        else:
+            message = await ctx.send(current_page)
+        # Don't wait for reactions to be added (GH-1797)
+        # noinspection PyAsyncCall
+        start_adding_reactions(message, controls.keys())
+    else:
+        try:
+            if isinstance(current_page, discord.Embed):
+                await message.edit(embed=current_page)
+            else:
+                await message.edit(content=current_page)
+        except discord.NotFound:
+            return
+
+    try:
+        react, user = await ctx.bot.wait_for(
+            "reaction_add",
+            check=ReactionPredicate.with_emojis(
+                tuple(controls.keys()), message, ctx.author
+            ),
+            timeout=timeout,
+        )
+    except asyncio.TimeoutError:
+        if not ctx.me:
+            return
+        try:
+            if message.channel.permissions_for(ctx.me).manage_messages:
+                await message.delete()
+            else:
+                raise RuntimeError
+        except (discord.Forbidden, RuntimeError):  # cannot remove all reactions
+            for key in controls.keys():
+                try:
+                    await message.remove_reaction(key, ctx.bot.user)
+                except discord.Forbidden:
+                    return
+                except discord.HTTPException:
+                    pass
+        except discord.NotFound:
+            return
+    else:
+        return await controls[react.emoji](
+            ctx, pages, controls, message, page, timeout, react.emoji
+        )
