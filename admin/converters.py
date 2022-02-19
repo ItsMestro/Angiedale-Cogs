@@ -37,7 +37,9 @@ class SelfRole(commands.Converter):
         selfroles = await admin.adminconfig.guild(ctx.guild).selfroles()
 
         if role.id not in selfroles:
-            raise commands.BadArgument(('The role "{role_name}" is not a valid selfrole.').format(role_name=role.name))
+            raise commands.BadArgument(
+                ('The role "{role_name}" is not a valid selfrole.').format(role_name=role.name)
+            )
         return role
 
 

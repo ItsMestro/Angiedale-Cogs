@@ -59,7 +59,8 @@ ROLE_USER_HIERARCHY_ISSUE = (
     " in the Discord hierarchy."
 )
 
-NEED_MANAGE_ROLES = ('I need the "Manage Roles" permission to do that.')
+NEED_MANAGE_ROLES = 'I need the "Manage Roles" permission to do that.'
+
 
 def is_support_guild():
     async def pred(ctx: commands.Context):
@@ -357,14 +358,10 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
         reason = "{}({}) changed the colour of role '{}'".format(author.name, author.id, role.name)
 
         if not self.pass_user_hierarchy_check(ctx, role):
-            await ctx.send(
-                (ROLE_USER_HIERARCHY_ISSUE).format(role=role)
-            )
+            await ctx.send((ROLE_USER_HIERARCHY_ISSUE).format(role=role))
             return
         if not self.pass_hierarchy_check(ctx, role):
-            await ctx.send(
-                (ROLE_HIERARCHY_ISSUE).format(role=role)
-            )
+            await ctx.send((ROLE_HIERARCHY_ISSUE).format(role=role))
             return
         if not ctx.guild.me.guild_permissions.manage_roles:
             await ctx.send((NEED_MANAGE_ROLES))
@@ -372,9 +369,7 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
         try:
             await role.edit(reason=reason, color=value)
         except discord.Forbidden:
-            await ctx.send(
-                (GENERIC_FORBIDDEN)
-            )
+            await ctx.send((GENERIC_FORBIDDEN))
         else:
             log.info(reason)
             await ctx.send(("Done."))
@@ -396,14 +391,10 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
         )
 
         if not self.pass_user_hierarchy_check(ctx, role):
-            await ctx.send(
-                (ROLE_USER_HIERARCHY_ISSUE).format(role=role)
-            )
+            await ctx.send((ROLE_USER_HIERARCHY_ISSUE).format(role=role))
             return
         if not self.pass_hierarchy_check(ctx, role):
-            await ctx.send(
-                (ROLE_HIERARCHY_ISSUE).format(role=role)
-            )
+            await ctx.send((ROLE_HIERARCHY_ISSUE).format(role=role))
             return
         if not ctx.guild.me.guild_permissions.manage_roles:
             await ctx.send((NEED_MANAGE_ROLES))
@@ -411,9 +402,7 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
         try:
             await role.edit(reason=reason, name=name)
         except discord.Forbidden:
-            await ctx.send(
-                (GENERIC_FORBIDDEN)
-            )
+            await ctx.send((GENERIC_FORBIDDEN))
         else:
             log.info(reason)
             await ctx.send(("Done."))
@@ -429,14 +418,10 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
             )
             return
         if check_user and not self.pass_user_hierarchy_check(ctx, role):
-            await ctx.send(
-                (USER_HIERARCHY_ISSUE_ADD).format(role=role, member=member)
-            )
+            await ctx.send((USER_HIERARCHY_ISSUE_ADD).format(role=role, member=member))
             return
         if not self.pass_hierarchy_check(ctx, role):
-            await ctx.send(
-                (HIERARCHY_ISSUE_ADD).format(role=role, member=member)
-            )
+            await ctx.send((HIERARCHY_ISSUE_ADD).format(role=role, member=member))
             return
         if not ctx.guild.me.guild_permissions.manage_roles:
             await ctx.send((NEED_MANAGE_ROLES))
@@ -444,9 +429,7 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
         try:
             await member.add_roles(role)
         except discord.Forbidden:
-            await ctx.send(
-                (GENERIC_FORBIDDEN)
-            )
+            await ctx.send((GENERIC_FORBIDDEN))
         else:
             await ctx.send(
                 ("I successfully added {role.name} to {member.display_name}").format(
@@ -465,14 +448,10 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
             )
             return
         if check_user and not self.pass_user_hierarchy_check(ctx, role):
-            await ctx.send(
-                (USER_HIERARCHY_ISSUE_REMOVE).format(role=role, member=member)
-            )
+            await ctx.send((USER_HIERARCHY_ISSUE_REMOVE).format(role=role, member=member))
             return
         if not self.pass_hierarchy_check(ctx, role):
-            await ctx.send(
-                (HIERARCHY_ISSUE_REMOVE).format(role=role, member=member)
-            )
+            await ctx.send((HIERARCHY_ISSUE_REMOVE).format(role=role, member=member))
             return
         if not ctx.guild.me.guild_permissions.manage_roles:
             await ctx.send((NEED_MANAGE_ROLES))
@@ -480,9 +459,7 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
         try:
             await member.remove_roles(role)
         except discord.Forbidden:
-            await ctx.send(
-                (GENERIC_FORBIDDEN)
-            )
+            await ctx.send((GENERIC_FORBIDDEN))
         else:
             await ctx.send(
                 ("I successfully removed {role.name} from {member.display_name}").format(
@@ -543,16 +520,14 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
             if role.id not in current_selfroles:
                 current_selfroles.append(role.id)
             else:
-                await ctx.send(
-                    ('The role "{role.name}" is already a selfrole.').format(role=role)
-                )
+                await ctx.send(('The role "{role.name}" is already a selfrole.').format(role=role))
                 return
 
         await self.config.guild(ctx.guild).selfroles.set(current_selfroles)
         if (count := len(roles)) > 1:
             message = ("Added {count} selfroles.").format(count=count)
         else:
-            message = ("Added 1 selfrole.")
+            message = "Added 1 selfrole."
 
         await ctx.send(message)
 
@@ -579,7 +554,7 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
         if (count := len(roles)) > 1:
             message = ("Removed {count} selfroles.").format(count=count)
         else:
-            message = ("Removed 1 selfrole.")
+            message = "Removed 1 selfrole."
 
         await ctx.send(message)
 
