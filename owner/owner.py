@@ -29,6 +29,13 @@ from redbot.core.utils.tunnel import Tunnel
 log = logging.getLogger("red.angiedale.owner")
 
 
+RUNNING_ANNOUNCEMENT = (
+    "I am already announcing something. If you would like to make a"
+    " different announcement please use `{prefix}announce cancel`"
+    " first."
+)
+
+
 def is_owner_if_bank_global():
     """
     Command decorator. If the bank is global, it checks if the author is
@@ -86,7 +93,7 @@ class Owner(commands.Cog):
         await self._ready.wait()
 
     async def red_delete_data_for_user(self, **kwargs):
-        """ Nothing to delete """
+        """Nothing to delete"""
         return
 
     async def initialize(self):
@@ -256,13 +263,7 @@ class Owner(commands.Cog):
             await ctx.send(("The announcement has begun."))
         else:
             prefix = ctx.clean_prefix
-            await ctx.send(
-                (
-                    "I am already announcing something. If you would like to make a"
-                    " different announcement please use `{prefix}announce cancel`"
-                    " first."
-                ).format(prefix=prefix)
-            )
+            await ctx.send((RUNNING_ANNOUNCEMENT).format(prefix=prefix))
 
     @announce.command(name="cancel")
     async def announce_cancel(self, ctx):
@@ -488,6 +489,13 @@ class Owner(commands.Cog):
     @commands.Cog.listener()
     async def on_guild_join(self, guild: discord.Guild):
         if await self.adminconfig.serverlocked():
+            if len(self.bot.guilds) == 1:  # will be 0 once left
+                log.warning(
+                    f"Leaving guild '{guild.name}' ({guild.id}) due to serverlock. You can "
+                    "temporarily disable serverlock by starting up the bot with the --no-cogs flag."
+                )
+            else:
+                log.info(f"Leaving guild '{guild.name}' ({guild.id}) due to serverlock.")
             await guild.leave()
 
     async def maybe_update_presence(self):
@@ -749,12 +757,12 @@ class Owner(commands.Cog):
 
     @commands.command(name="forcerolemutes")
     @commands.is_owner()
-    async def force_role_mutes(self, ctx: commands.Context, force_role_mutes: bool):
+    async def force_role_mutes(self, ctx: commands.Context, true_or_false: bool):
         """
         Whether or not to force role only mutes on the bot
         """
-        await self.mutesconfig.force_role_mutes.set(force_role_mutes)
-        if force_role_mutes:
+        await self.config.force_role_mutes.set(true_or_false)
+        if true_or_false:
             await ctx.send(("Okay I will enforce role mutes before muting users."))
         else:
             await ctx.send(("Okay I will allow channel overwrites for muting users."))
