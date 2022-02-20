@@ -4,8 +4,8 @@ import logging
 import random
 import time
 import urllib.parse
+from contextvars import Context
 from typing import Final, Optional, Tuple, Union
-from redbot.core.utils.predicates import MessagePredicate, ReactionPredicate
 
 import discord
 from dateutil.relativedelta import relativedelta
@@ -27,13 +27,14 @@ from redbot.core.utils.common_filters import (
     filter_mass_mentions,
 )
 from redbot.core.utils.menus import close_menu, menu, start_adding_reactions
+from redbot.core.utils.predicates import MessagePredicate, ReactionPredicate
 
 from .converters import ReminderTime, SelfRole
 from .reports import Reports
 
 log = logging.getLogger("red.angiedale.general")
 
-MAX_ROLL: Final[int] = 2 ** 64 - 1
+MAX_ROLL: Final[int] = 2**64 - 1
 
 KAOMOJI_JOY = [
     " (\\* ^ ω ^)",
@@ -274,7 +275,6 @@ class General(Reports, commands.Cog):
                     except ValueError:
                         pass
 
-
     @commands.command(aliases=["sw"])
     async def stopwatch(self, ctx):
         """Start or stop the stopwatch."""
@@ -307,10 +307,8 @@ class General(Reports, commands.Cog):
         Default to False.
         """
         guild = ctx.guild
-        passed = (ctx.message.created_at - guild.created_at).days
-        created_at = ("Created on {date}. That's over {num} days ago!").format(
-            date=guild.created_at.strftime("%d %b %Y %H:%M"),
-            num=humanize_number(passed),
+        created_at = ("Created on <t:{0}>. That's <t:{0}:R>!").format(
+            int(guild.created_at.replace(tzinfo=datetime.timezone.utc).timestamp()),
         )
         online = humanize_number(
             len([m.status for m in guild.members if m.status != discord.Status.offline])
@@ -320,7 +318,6 @@ class General(Reports, commands.Cog):
         voice_channels = humanize_number(len(guild.voice_channels))
         if not details:
             data = discord.Embed(description=created_at, colour=await ctx.embed_colour())
-            data.add_field(name=("Region"), value=str(guild.region))
             data.add_field(name=("Users online"), value=f"{online}/{total_users}")
             data.add_field(name=("Text Channels"), value=text_channels)
             data.add_field(name=("Voice Channels"), value=voice_channels)
@@ -393,31 +390,6 @@ class General(Reports, commands.Cog):
                     )
                 count += 1
 
-            vc_regions = {
-                "vip-us-east": ("__VIP__ US East ") + "\U0001F1FA\U0001F1F8",
-                "vip-us-west": ("__VIP__ US West ") + "\U0001F1FA\U0001F1F8",
-                "vip-amsterdam": ("__VIP__ Amsterdam ") + "\U0001F1F3\U0001F1F1",
-                "eu-west": ("EU West ") + "\U0001F1EA\U0001F1FA",
-                "eu-central": ("EU Central ") + "\U0001F1EA\U0001F1FA",
-                "europe": ("Europe ") + "\U0001F1EA\U0001F1FA",
-                "london": ("London ") + "\U0001F1EC\U0001F1E7",
-                "frankfurt": ("Frankfurt ") + "\U0001F1E9\U0001F1EA",
-                "amsterdam": ("Amsterdam ") + "\U0001F1F3\U0001F1F1",
-                "us-west": ("US West ") + "\U0001F1FA\U0001F1F8",
-                "us-east": ("US East ") + "\U0001F1FA\U0001F1F8",
-                "us-south": ("US South ") + "\U0001F1FA\U0001F1F8",
-                "us-central": ("US Central ") + "\U0001F1FA\U0001F1F8",
-                "singapore": ("Singapore ") + "\U0001F1F8\U0001F1EC",
-                "sydney": ("Sydney ") + "\U0001F1E6\U0001F1FA",
-                "brazil": ("Brazil ") + "\U0001F1E7\U0001F1F7",
-                "hongkong": ("Hong Kong ") + "\U0001F1ED\U0001F1F0",
-                "russia": ("Russia ") + "\U0001F1F7\U0001F1FA",
-                "japan": ("Japan ") + "\U0001F1EF\U0001F1F5",
-                "southafrica": ("South Africa ") + "\U0001F1FF\U0001F1E6",
-                "india": ("India ") + "\U0001F1EE\U0001F1F3",
-                "dubai": ("Dubai ") + "\U0001F1E6\U0001F1EA",
-                "south-korea": ("South Korea ") + "\U0001f1f0\U0001f1f7",
-            }
             verif = {
                 "none": ("0 - None"),
                 "low": ("1 - Low"),
@@ -485,10 +457,9 @@ class General(Reports, commands.Cog):
             data.add_field(
                 name=("Utility:"),
                 value=(
-                    "Owner: {owner}\nVoice region: {region}\nVerif. level: {verif}\nServer ID: {id}{shard_info}"
+                    "Owner: {owner}\nVerif. level: {verif}\nServer ID: {id}{shard_info}"
                 ).format(
                     owner=bold(str(guild.owner)),
-                    region=f"**{vc_regions.get(str(guild.region)) or str(guild.region)}**",
                     verif=bold(verif[str(guild.verification_level)]),
                     id=bold(str(guild.id)),
                     shard_info=shard_info,
@@ -614,9 +585,7 @@ class General(Reports, commands.Cog):
         if not text:
             if hasattr(ctx.message, "reference") and ctx.message.reference:
                 try:
-                    text = (
-                        await ctx.fetch_message(ctx.message.reference.message_id)
-                    ).content
+                    text = (await ctx.fetch_message(ctx.message.reference.message_id)).content
                 except (discord.Forbidden, discord.NotFound, discord.HTTPException):
                     pass
             if not text:
@@ -830,7 +799,8 @@ class General(Reports, commands.Cog):
                 .replace("no", "nyo")
                 .replace("nu", "nyu")
                 .replace("ove", "uv")
-            + protected)
+                + protected
+            )
 
         # Full words
         uwu = uwu.replace("you're", "ur")
@@ -950,62 +920,61 @@ class General(Reports, commands.Cog):
     @commands.command(aliases=["uinfo"])
     @commands.guild_only()
     @commands.bot_has_permissions(embed_links=True)
-    async def userinfo(self, ctx, *, user: discord.Member = None):
-        """Show information about a user.
+    async def userinfo(self, ctx, *, member: discord.Member = None):
+        """Show information about a member.
 
         This includes fields for status, discord join date, server
         join date, voice state and previous names/nicknames.
 
-        If the user has no roles, previous names or previous nicknames,
+        If the member has no roles, previous names or previous nicknames,
         these fields will be omitted.
         """
         author = ctx.author
         guild = ctx.guild
 
-        if not user:
-            user = author
+        if not member:
+            member = author
 
-        roles = user.roles[-1:0:-1]
-        names = await self.modconfig.user(user).past_names()
-        nicks = await self.modconfig.member(user).past_nicks()
+        roles = member.roles[-1:0:-1]
+        names = await self.modconfig.user(member).past_names()
+        nicks = await self.modconfig.member(member).past_nicks()
         if names:
             names = [escape_spoilers_and_mass_mentions(name) for name in names if name]
         if nicks:
             nicks = [escape_spoilers_and_mass_mentions(nick) for nick in nicks if nick]
 
-        joined_at = user.joined_at
-        since_created = (ctx.message.created_at - user.created_at).days
-        if joined_at is not None:
-            since_joined = (ctx.message.created_at - joined_at).days
-            user_joined = joined_at.strftime("%d %b %Y %H:%M")
-        else:
-            since_joined = "?"
-            user_joined = "Unknown"
-        user_created = user.created_at.strftime("%d %b %Y %H:%M")
-        voice_state = user.voice
+        if joined_at := member.joined_at:
+            joined_at = joined_at.replace(tzinfo=datetime.timezone.utc)
+        user_created = int(member.created_at.replace(tzinfo=datetime.timezone.utc).timestamp())
+        voice_state = member.voice
         member_number = (
-            sorted(guild.members, key=lambda m: m.joined_at or ctx.message.created_at).index(user)
+            sorted(guild.members, key=lambda m: m.joined_at or ctx.message.created_at).index(
+                member
+            )
             + 1
         )
 
-        created_on = ("{}\n({} days ago)").format(user_created, since_created)
-        joined_on = ("{}\n({} days ago)").format(user_joined, since_joined)
+        created_on = "<t:{0}>\n(<t:{0}:R>)".format(user_created)
+        if joined_at is not None:
+            joined_on = "<t:{0}>\n(<t:{0}:R>)".format(int(joined_at.timestamp()))
+        else:
+            joined_on = "Unknown"
 
-        if any(a.type is discord.ActivityType.streaming for a in user.activities):
+        if any(a.type is discord.ActivityType.streaming for a in member.activities):
             statusemoji = "\N{LARGE PURPLE CIRCLE}"
-        elif user.status.name == "online":
+        elif member.status.name == "online":
             statusemoji = "\N{LARGE GREEN CIRCLE}"
-        elif user.status.name == "offline":
+        elif member.status.name == "offline":
             statusemoji = "\N{MEDIUM WHITE CIRCLE}\N{VARIATION SELECTOR-16}"
-        elif user.status.name == "dnd":
+        elif member.status.name == "dnd":
             statusemoji = "\N{LARGE RED CIRCLE}"
-        elif user.status.name == "idle":
+        elif member.status.name == "idle":
             statusemoji = "\N{LARGE ORANGE CIRCLE}"
-        activity = ("User is currently {}").format(user.status)
-        status_string = self.get_status_string(user)
-        if user.id == ctx.guild.owner.id:
+        activity = ("User is currently {}").format(member.status)
+        status_string = self.get_status_string(member)
+        if member.id == ctx.guild.owner.id:
             status_string += "\n\nIs the owner of this server"
-        if user.id == 128853022200561665:
+        if member.id == 128853022200561665:
             status_string += "\nCreated me!  - Angiedale OwO"
 
         if roles:
@@ -1044,7 +1013,7 @@ class General(Reports, commands.Cog):
         else:
             role_str = None
 
-        data = discord.Embed(description=status_string or activity, colour=user.colour)
+        data = discord.Embed(description=status_string or activity, colour=member.colour)
 
         data.add_field(name=("Joined Discord on"), value=created_on)
         data.add_field(name=("Joined this server on"), value=joined_on)
@@ -1074,13 +1043,13 @@ class General(Reports, commands.Cog):
                 value="{0.mention} ID: {0.id}".format(voice_state.channel),
                 inline=False,
             )
-        data.set_footer(text=("Member #{} | User ID: {}").format(member_number, user.id))
+        data.set_footer(text=("Member #{} | User ID: {}").format(member_number, member.id))
 
-        name = str(user)
-        name = " ◈ ".join((name, user.nick)) if user.nick else name
+        name = str(member)
+        name = " ◈ ".join((name, member.nick)) if member.nick else name
         name = filter_invites(name)
 
-        avatar = user.avatar_url_as(static_format="png")
+        avatar = member.avatar_url_as(static_format="png")
         data.set_author(name=f"{statusemoji} {name}", url=avatar)
         data.set_thumbnail(url=avatar)
 
@@ -1636,9 +1605,7 @@ class General(Reports, commands.Cog):
             delta = reminder["FUTURE"] - current_time_seconds
             reminder_title = "ID# {} — {}".format(
                 reminder["USER_REMINDER_ID"],
-                "In {}".format(humanize_timedelta(seconds=delta))
-                if delta > 0
-                else "Now!",
+                "In {}".format(humanize_timedelta(seconds=delta)) if delta > 0 else "Now!",
             )
             reminder_text = reminder["REMINDER"]
             if len(reminder_text) > 500:
@@ -1670,9 +1637,7 @@ class General(Reports, commands.Cog):
         await self._delete_reminder(ctx, index)
 
     @commands.command(aliases=["reminder"], usage="<time> [reminder_text]")
-    async def remindme(
-        self, ctx: commands.Context, *, time_and_optional_text: ReminderTime = {}
-    ):
+    async def remindme(self, ctx: commands.Context, *, time_and_optional_text: ReminderTime = {}):
         """Create a reminder with optional reminder text.
 
         `<time>` is a string of time that you want to be reminded in. Time is
@@ -1687,16 +1652,13 @@ class General(Reports, commands.Cog):
         """
         await self._create_reminder(ctx, time_and_optional_text)
 
-    async def _create_reminder(
-        self, ctx: commands.Context, time_and_optional_text
-    ):
+    async def _create_reminder(self, ctx: commands.Context, time_and_optional_text):
         """Reminder creation function."""
         author = ctx.message.author
         users_reminders = await self.get_user_reminders(author.id)
         if len(users_reminders) >= 10:
             await ctx.send(
-                "You have too many reminders! "
-                "You can have a maximum of 10 reminders at a time."
+                "You have too many reminders! " "You can have a maximum of 10 reminders at a time."
             )
             return
 
@@ -1723,7 +1685,9 @@ class General(Reports, commands.Cog):
         }
         async with self.config.reminders() as current_reminders:
             current_reminders.append(reminder)
-        await ctx.send(f"I will remind you of {'that' if reminder_text else 'this'} in {future_text}.")
+        await ctx.send(
+            f"I will remind you of {'that' if reminder_text else 'this'} in {future_text}."
+        )
 
     async def _delete_reminder(self, ctx: commands.Context, index: str):
         """Logic to delete reminders."""
@@ -1752,7 +1716,7 @@ class General(Reports, commands.Cog):
             try:
                 await ctx.bot.wait_for(event, check=pred, timeout=30)
             except asyncio.TimeoutError:
-                msg.delete()
+                await msg.delete()
             if pred.result:
                 await self._do_reminder_delete(users_reminders)
                 await ctx.send("All of your reminders have been removed.")
@@ -1782,8 +1746,10 @@ class General(Reports, commands.Cog):
             await self._do_reminder_delete(reminder_to_delete)
             await ctx.send(f"Reminder with ID# **{int_index}** has been removed.")
         else:
-            await ctx.send(f"Reminder with ID# **{int_index}** does not exist! "
-            "Check the reminder list and verify you typed the correct ID#.")
+            await ctx.send(
+                f"Reminder with ID# **{int_index}** does not exist! "
+                "Check the reminder list and verify you typed the correct ID#."
+            )
 
     async def get_user_reminders(self, user_id: int):
         """Return all of a users reminders."""
