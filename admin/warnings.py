@@ -97,7 +97,6 @@ class Warnings:
         Actions are essentially command macros. Any command can be run
         when the action is initially triggered, and/or when the action
         is lifted.
-
         Actions must be given a name and a points threshold. When a
         user is warned enough so that their points go over this
         threshold, the action will be executed.
