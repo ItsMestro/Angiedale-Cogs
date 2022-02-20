@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import re
 from datetime import timezone
@@ -6,6 +7,7 @@ from typing import Set, Union
 import discord
 from redbot.core import checks, commands, modlog
 from redbot.core.utils.chat_formatting import humanize_list, pagify
+from redbot.core.utils.predicates import MessagePredicate
 
 from .abc import MixinMeta
 
@@ -49,6 +51,28 @@ class Filter(MixinMeta):
         """
         pass
 
+    @_filter.command(name="clear")
+    async def _filter_clear(self, ctx: commands.Context):
+        """Clears this server's filter list."""
+        guild = ctx.guild
+        author = ctx.author
+        filter_list = await self.filterconfig.guild(guild).filter()
+        if not filter_list:
+            return await ctx.send(("The filter list for this server is empty."))
+        await ctx.send(("Are you sure you want to clear this server's filter list?") + " (yes/no)")
+        try:
+            pred = MessagePredicate.yes_or_no(ctx, user=author)
+            await ctx.bot.wait_for("message", check=pred, timeout=60)
+        except asyncio.TimeoutError:
+            await ctx.send(("You took too long to respond."))
+            return
+        if pred.result:
+            await self.filterconfig.guild(guild).filter.clear()
+            self.invalidate_cache(guild)
+            await ctx.send(("Server filter cleared."))
+        else:
+            await ctx.send(("No changes have been made."))
+
     @_filter.command(name="list")
     async def _global_list(self, ctx: commands.Context):
         """Send a list of this server's filtered words."""
@@ -56,7 +80,7 @@ class Filter(MixinMeta):
         author = ctx.author
         word_list = await self.filterconfig.guild(server).filter()
         if not word_list:
-            await ctx.send(("There is no current words setup to be filtered in this server."))
+            await ctx.send(("There are no current words setup to be filtered in this server."))
             return
         words = humanize_list(word_list)
         words = ("Filtered in this server:") + "\n\n" + words
@@ -74,6 +98,30 @@ class Filter(MixinMeta):
         """
         pass
 
+    @_filter_channel.command(name="clear")
+    async def _channel_clear(self, ctx: commands.Context):
+        """Clears this channel's filter list."""
+        channel = ctx.channel
+        author = ctx.author
+        filter_list = await self.filterconfig.channel(channel).filter()
+        if not filter_list:
+            return await ctx.send(("The filter list for this channel is empty."))
+        await ctx.send(
+            ("Are you sure you want to clear this channel's filter list?") + " (yes/no)"
+        )
+        try:
+            pred = MessagePredicate.yes_or_no(ctx, user=author)
+            await ctx.bot.wait_for("message", check=pred, timeout=60)
+        except asyncio.TimeoutError:
+            await ctx.send(("You took too long to respond."))
+            return
+        if pred.result:
+            await self.filterconfig.channel(channel).filter.clear()
+            self.invalidate_cache(ctx.guild, channel)
+            await ctx.send(("Channel filter cleared."))
+        else:
+            await ctx.send(("No changes have been made."))
+
     @_filter_channel.command(name="list")
     async def _channel_list(self, ctx: commands.Context):
         """Send a list of the channel's filtered words."""
@@ -81,7 +129,7 @@ class Filter(MixinMeta):
         author = ctx.author
         word_list = await self.filterconfig.channel(channel).filter()
         if not word_list:
-            await ctx.send(("There is no current words setup to be filtered in this channel."))
+            await ctx.send(("There are no current words setup to be filtered in this channel."))
             return
         words = humanize_list(word_list)
         words = ("Filtered in this channel:") + "\n\n" + words
@@ -196,7 +244,7 @@ class Filter(MixinMeta):
             await ctx.send(("Names and nicknames will now be filtered."))
 
     def invalidate_cache(self, guild: discord.Guild, channel: discord.TextChannel = None):
-        """ Invalidate a cached pattern"""
+        """Invalidate a cached pattern"""
         self.pattern_cache.pop((guild, channel), None)
         if channel is None:
             for keyset in list(self.pattern_cache.keys()):  # cast needed, no remove
@@ -341,7 +389,7 @@ class Filter(MixinMeta):
 
     @commands.Cog.listener("on_message")
     async def filter_on_message(self, message: discord.Message):
-        if isinstance(message.channel, discord.abc.PrivateChannel):
+        if message.guild is None:
             return
 
         if await self.bot.cog_disabled_in_guild(self, message.guild):
