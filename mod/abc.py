@@ -17,6 +17,7 @@ class MixinMeta(ABC):
     def __init__(self, *_args):
         self.config: Config
         self.filterconfig: Config
+        self.cleanupconfig: Config
         self.bot: Red
         self.cache: dict
         self._mutes_cache: Dict[int, Dict[int, Optional[datetime]]]

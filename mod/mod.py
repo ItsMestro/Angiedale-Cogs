@@ -25,6 +25,7 @@ from .info import Info
 from .kickban import KickBanMixin
 from .mutes import Mutes
 from .slowmode import Slowmode
+from .utils import is_allowed_by_hierarchy
 from .voicemutes import VoiceMutes
 
 log = logging.getLogger("red.angiedale.mod")
@@ -92,6 +93,10 @@ class Mod(
 
         self.filterconfig = Config.get_conf(
             self, identifier=1387000, force_registration=True, cog_name="Filter"
+        )
+
+        self.cleanupconfig = Config.get_conf(
+            self, identifier=1387000, force_registration=True, cog_name="Cleanup"
         )
 
         self.warnconfig = Config.get_conf(
@@ -371,8 +376,8 @@ class Mod(
     @commands.guild_only()
     @commands.bot_has_permissions(manage_nicknames=True)
     @checks.mod_or_permissions(manage_nicknames=True)
-    async def rename(self, ctx: commands.Context, user: discord.Member, *, nickname: str = ""):
-        """Change a user's nickname.
+    async def rename(self, ctx: commands.Context, member: discord.Member, *, nickname: str = ""):
+        """Change a member's nickname.
 
         Leaving the nickname empty will remove it.
         """
@@ -385,8 +390,8 @@ class Mod(
             return
         if not (
             (me.guild_permissions.manage_nicknames or me.guild_permissions.administrator)
-            and me.top_role > user.top_role
-            and user != ctx.guild.owner
+            and me.top_role > member.top_role
+            and member != ctx.guild.owner
         ):
             await ctx.send(
                 (
@@ -394,9 +399,19 @@ class Mod(
                     "equal to me in the role hierarchy."
                 )
             )
+        elif ctx.author != member and not await is_allowed_by_hierarchy(
+            self.bot, self.config, ctx.guild, ctx.author, member
+        ):
+            await ctx.send(
+                (
+                    "I cannot let you do that. You are "
+                    "not higher than the user in the role "
+                    "hierarchy."
+                )
+            )
         else:
             try:
-                await user.edit(reason=get_audit_reason(ctx.author, None), nick=nickname)
+                await member.edit(reason=get_audit_reason(ctx.author, None), nick=nickname)
             except discord.Forbidden:
                 # Just in case we missed something in the permissions check above
                 await ctx.send(("I do not have permission to rename that member."))
@@ -483,7 +498,7 @@ class Mod(
     async def warn(
         self,
         ctx: commands.Context,
-        user: discord.Member,
+        member: discord.Member,
         points: UserInputOptional[int] = 1,
         *,
         reason: str,
@@ -492,17 +507,17 @@ class Mod(
 
         `<points>` number of points the warning should be for. If no number is supplied
         1 point will be given. Pre-set warnings disregard this.
-        `<reason>` can be a registered reason if it exists or a custom one
-        is created by default.
+        `<reason>` is reason for the warning. This can be a registered reason,
+        or a custom reason if ``[p]warningset allowcustomreasons`` is set.
         """
         guild = ctx.guild
-        if user == ctx.author:
+        if member == ctx.author:
             return await ctx.send(("You cannot warn yourself."))
-        if user.bot:
+        if member.bot:
             return await ctx.send(("You cannot warn other bots."))
-        if user == ctx.guild.owner:
+        if member == ctx.guild.owner:
             return await ctx.send(("You cannot warn the server owner."))
-        if user.top_role >= ctx.author.top_role and ctx.author != ctx.guild.owner:
+        if member.top_role >= ctx.author.top_role and ctx.author != ctx.guild.owner:
             return await ctx.send(
                 (
                     "The person you're trying to warn is equal or higher than you in the discord hierarchy, you cannot warn them."
@@ -516,6 +531,8 @@ class Mod(
             if (reason_type := registered_reasons.get(reason.lower())) is None:
                 msg = "That is not a registered reason!"
                 if custom_allowed:
+                    if points < 0:
+                        return await ctx.send(("You cannot apply negative points."))
                     reason_type = {"description": reason, "points": points}
                 else:
                     # logic taken from `[p]permissions canrun`
@@ -540,7 +557,7 @@ class Mod(
                     return await ctx.send(msg)
         if reason_type is None:
             return
-        member_settings = self.warnconfig.member(user)
+        member_settings = self.warnconfig.member(member)
         current_point_count = await member_settings.total_points()
         warning_to_add = {
             str(ctx.message.id): {
@@ -549,12 +566,6 @@ class Mod(
                 "mod": ctx.author.id,
             }
         }
-        async with member_settings.warnings() as user_warnings:
-            user_warnings.update(warning_to_add)
-        current_point_count += reason_type["points"]
-        await member_settings.total_points.set(current_point_count)
-
-        await warning_points_add_check(self.warnconfig, ctx, user, current_point_count)
         dm = guild_settings["toggle_dm"]
         showmod = guild_settings["show_mod"]
         dm_failed = False
@@ -568,7 +579,7 @@ class Mod(
             )
             em.add_field(name=("Points"), value=str(reason_type["points"]))
             try:
-                await user.send(
+                await member.send(
                     ("You have received a warning in {guild_name}.").format(
                         guild_name=ctx.guild.name
                     ),
@@ -582,8 +593,13 @@ class Mod(
                 (
                     "A warning for {user} has been issued,"
                     " but I wasn't able to send them a warn message."
-                ).format(user=user.mention)
+                ).format(user=member.mention)
             )
+        async with member_settings.warnings() as user_warnings:
+            user_warnings.update(warning_to_add)
+        current_point_count += reason_type["points"]
+        await member_settings.total_points.set(current_point_count)
+        await warning_points_add_check(self.config, ctx, member, current_point_count)
 
         toggle_channel = guild_settings["toggle_channel"]
         if toggle_channel:
@@ -600,7 +616,7 @@ class Mod(
                 if warn_channel.permissions_for(guild.me).send_messages:
                     with contextlib.suppress(discord.HTTPException):
                         await warn_channel.send(
-                            ("{user} has been warned.").format(user=user.mention),
+                            ("{user} has been warned.").format(user=member.mention),
                             embed=em,
                         )
 
@@ -608,7 +624,9 @@ class Mod(
                 if warn_channel:
                     await ctx.tick()
                 else:
-                    await ctx.send(("{user} has been warned.").format(user=user.mention), embed=em)
+                    await ctx.send(
+                        ("{user} has been warned.").format(user=member.mention), embed=em
+                    )
         else:
             if not dm_failed:
                 await ctx.tick()
@@ -619,7 +637,7 @@ class Mod(
                 description=reason_type["description"], points=reason_type["points"]
             ),
             prefix=ctx.clean_prefix,
-            user=user.id,
+            user=member.id,
             message=ctx.message.id,
         )
         await modlog.create_case(
@@ -627,7 +645,7 @@ class Mod(
             ctx.guild,
             ctx.message.created_at.replace(tzinfo=timezone.utc),
             "warning",
-            user,
+            member,
             ctx.message.author,
             reason_msg,
             until=None,
@@ -637,18 +655,18 @@ class Mod(
     @commands.command()
     @commands.guild_only()
     @checks.mod()
-    async def warnings(self, ctx: commands.Context, user: Union[discord.Member, int]):
+    async def warnings(self, ctx: commands.Context, member: Union[discord.Member, int]):
         """List the warnings for the specified user."""
 
         try:
-            userid: int = user.id
+            userid: int = member.id
         except AttributeError:
-            userid: int = user
-            user = ctx.guild.get_member(userid)
-            user = user or namedtuple("Member", "id guild")(userid, ctx.guild)
+            userid: int = member
+            member = ctx.guild.get_member(userid)
+            member = member or namedtuple("Member", "id guild")(userid, ctx.guild)
 
         msg = ""
-        member_settings = self.warnconfig.member(user)
+        member_settings = self.warnconfig.member(member)
         async with member_settings.warnings() as user_warnings:
             if not user_warnings.keys():  # no warnings for the user
                 await ctx.send(("That user has no warnings!"))
@@ -672,7 +690,7 @@ class Mod(
                 await ctx.send_interactive(
                     pagify(msg, shorten_by=58),
                     box_lang=("Warnings for {user}").format(
-                        user=user if isinstance(user, discord.Member) else user.id
+                        user=member if isinstance(member, discord.Member) else member.id
                     ),
                 )
 
@@ -682,7 +700,7 @@ class Mod(
     async def unwarn(
         self,
         ctx: commands.Context,
-        user: Union[discord.Member, int],
+        member: Union[discord.Member, int],
         warn_id: str,
         *,
         reason: str = None,
@@ -692,10 +710,10 @@ class Mod(
         guild = ctx.guild
 
         try:
-            user_id = user.id
-            member = user
+            user_id = member.id
+            member = member
         except AttributeError:
-            user_id = user
+            user_id = member
             member = guild.get_member(user_id)
             member = member or namedtuple("Member", "guild id")(guild, user_id)
 

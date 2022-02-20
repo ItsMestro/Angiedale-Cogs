@@ -50,5 +50,6 @@ async def create_and_invoke_context(
         await realctx.bot.invoke(fctx)
     except (commands.CheckFailure, commands.CommandOnCooldown):
         # reinvoke bypasses checks and we don't want to run bot owner only commands here
-        if fctx.command.requires.privilege_level < PrivilegeLevel.BOT_OWNER:
+        privilege_level = fctx.command.requires.privilege_level
+        if privilege_level is None or privilege_level < PrivilegeLevel.BOT_OWNER:
             await fctx.reinvoke()

@@ -9,7 +9,7 @@ from redbot.core.utils.chat_formatting import inline
 
 log = logging.getLogger("red.angiedale.mod.converter")
 
-SNOWFLAKE_THRESHOLD = 2 ** 63
+SNOWFLAKE_THRESHOLD = 2**63
 
 
 _id_regex = re.compile(r"([0-9]{15,20})$")
@@ -23,6 +23,8 @@ _mention_regex = re.compile(r"<@!?([0-9]{15,20})>$")
 # https://github.com/Cog-Creators/Red-DiscordBot/blob/V3/develop/redbot/core/commands/converter.py#L55
 TIME_RE_STRING = r"|".join(
     [
+        r"((?P<years>\d+?)\s?(years?|y))?",
+        r"((?P<months>\d+?)\s?(months?|mo))?",
         r"((?P<weeks>\d+?)\s?(weeks?|w))",
         r"((?P<days>\d+?)\s?(days?|d))",
         r"((?P<hours>\d+?)\s?(hours?|hrs|hr?))",
