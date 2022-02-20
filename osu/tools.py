@@ -2,8 +2,8 @@ import asyncio
 import logging
 import os
 import re
-from datetime import datetime
-from typing import Dict, Optional
+from datetime import datetime, timedelta
+from typing import Dict, Optional, Union
 
 import aiohttp
 import discord
@@ -12,6 +12,39 @@ from redbot.core.data_manager import cog_data_path
 from redbot.core.utils.menus import DEFAULT_CONTROLS, close_menu, next_page
 
 log = logging.getLogger("red.angiedale.osu")
+
+MODE_STANDARD = ["standard", "std", "osu", "o", "s", "0"]
+MODE_TAIKO = ["taiko", "t", "1"]
+MODE_CATCH = ["catch", "fruits", "ctb", "c", "f", "2"]
+MODE_MANIA = ["mania", "m", "3"]
+
+MODS = ["FM", "NM", "NF", "EZ", "HD", "HR", "DT", "HT", "NC", "FL", "SO", "FI", "MR"]
+MODS_PRETTY = {
+    "FM": "Free Mod",
+    "NM": "No Mod",
+    "NF": "No Fail",
+    "EZ": "Easy",
+    "HD": "Hidden",
+    "HR": "Hard Rock",
+    "DT": "Double Time",
+    "HT": "Half Time",
+    "NC": "Nightcore",
+    "FL": "Flashlight",
+    "SO": "Spun Out",
+    "FI": "Fade In",
+    "MR": "Mirror",
+}
+
+TIME_RE_STRING = r"|".join(
+    [
+        r"((?P<weeks>\d+?)\s?(weeks?|w))",
+        r"((?P<days>\d+?)\s?(days?|d))",
+        r"((?P<hours>\d+?)\s?(hours?|hrs|hr?))",
+        r"((?P<minutes>\d+?)\s?(minutes?|mins?|m(?!o)))",  # prevent matching "months"
+    ]
+)
+TIME_RE = re.compile(TIME_RE_STRING, re.I)
+TIME_SPLIT = re.compile(r"t(?:ime)?=")
 
 
 class API:
@@ -114,7 +147,7 @@ class API:
                         except:
                             return
                     else:
-                        log.error(r.status)
+                        log.error(f"API fetch error: {r.status}")
                         return
 
 
@@ -402,18 +435,18 @@ class Helper:
         if "-p" in args:
             if len(args) > 2:
                 await del_message(ctx, "Please use only one of the available arguments.")
-                return
+                return None, None
             elif len(args) < 2:
                 await del_message(ctx, "Please provide a rank for `-p`")
-                return
+                return None, None
             else:
                 l = args.index("-p")
                 if not args[l + 1].isdigit():
                     await del_message(ctx, "Please user a number for `-p`")
-                    return
+                    return None, None
                 elif int(args[l + 1]) > 10000 or int(args[l + 1]) < 1:
                     await del_message(ctx, "Please provide a rank between 1-10000 for `-p`")
-                    return
+                    return None, None
                 else:
                     rank = int(args[l + 1])
                     return userid, rank
@@ -506,6 +539,93 @@ class Helper:
                                 count.append({"id": u, "channel": i, "mode": m})
         return count
 
+    @staticmethod
+    def mode_prettify(mode):
+        """Turns any known mode identifier into a user friendly version for that mode."""
+
+        mode = str(mode.lower())
+        clean_mode = None
+
+        if mode in MODE_STANDARD:
+            clean_mode = "standard"
+        elif mode in MODE_TAIKO:
+            clean_mode = "taiko"
+        elif mode in MODE_CATCH:
+            clean_mode = "catch"
+        elif mode in MODE_MANIA:
+            clean_mode = "mania"
+
+        return clean_mode
+
+    @staticmethod
+    def mode_api(mode):
+        """Turns any known mode identifier into the api version for that mode."""
+
+        mode = str(mode.lower())
+        clean_mode = None
+
+        if mode in MODE_STANDARD:
+            clean_mode = "osu"
+        elif mode in MODE_TAIKO:
+            clean_mode = "taiko"
+        elif mode in MODE_CATCH:
+            clean_mode = "fruits"
+        elif mode in MODE_MANIA:
+            clean_mode = "mania"
+
+        return clean_mode
+
+    @staticmethod
+    async def mod_parser(ctx: commands.Context, mods: tuple):
+        """Return list of mods from mod tuple."""
+
+        return_list = []
+        freemod = False
+        for entry in mods:
+            entrylist = [entry[i : i + 2].upper() for i in range(0, len(entry), 2)]
+            modlist = []
+            for mod in entrylist:
+                if mod in MODS:
+                    modlist.append(mod)
+                if mod == "FM":
+                    freemod = True
+            if not modlist == entrylist or len(modlist) == 0:
+                return await del_message(
+                    ctx,
+                    f"The specified mod(s) are incorrect. Check valid mods with `{ctx.clean_prefix}osuweekly mods`.",
+                )
+            return_list.append(modlist)
+
+        if freemod and len(return_list) > 1 or freemod and len(return_list[0]) > 1:
+            return await del_message(ctx, "Nice try but freemod can only be used by iteself.")
+
+        return return_list
+
+
+class TimeConverter(commands.Converter):
+    """
+    This will parse my defined multi response pattern and provide usable formats
+    to be used in multiple reponses
+    """
+
+    async def convert(self, ctx: commands.Context, argument: str) -> Union[timedelta, None]:
+        time_split = TIME_SPLIT.split(argument)
+        result: Union[timedelta, None] = None
+        if time_split:
+            maybe_time = time_split[-1]
+        else:
+            maybe_time = argument
+
+        time_data = {}
+        for time in TIME_RE.finditer(maybe_time):
+            argument = argument.replace(time[0], "")
+            for k, v in time.groupdict().items():
+                if v:
+                    time_data[k] = int(v)
+        if time_data:
+            result = timedelta(**time_data)
+        return result
+
 
 async def profilelinking(ctx: commands.Context):
     await ctx.maybe_send_embed(
@@ -514,11 +634,11 @@ async def profilelinking(ctx: commands.Context):
     )
 
 
-async def del_message(ctx, message_text: str):
+async def del_message(ctx, message_text: str, timeout: int = 10):
     """Simple function to sends a small embed that auto-deletes."""
 
     message = await ctx.maybe_send_embed(message_text)
-    await asyncio.sleep(10)
+    await asyncio.sleep(timeout)
     try:
         await message.delete()
     except (discord.errors.NotFound, discord.errors.Forbidden):

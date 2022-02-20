@@ -2,12 +2,14 @@ import asyncio
 import logging
 import re
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from math import ceil
 
 import discord
 from redbot.core import commands
 from redbot.core.utils.chat_formatting import humanize_number, humanize_timedelta, inline
+
+from .tools import MODS_PRETTY
 
 log = logging.getLogger("red.angiedale.osu.embeds")
 
@@ -135,6 +137,42 @@ class Data:
 
         return data
 
+    def osubeatscoredata(self, s, osubeat):
+        """/users/{user}/scores"""
+
+        testmods = s["mods"]
+        if testmods == []:
+            testmods = ["NM"]
+        matches_mod = False
+        if osubeat[0][0] == "FM":
+            matches_mod = True
+        else:
+            for modcombo in osubeat:
+                if sorted(modcombo) == sorted(testmods):
+                    matches_mod = True
+                    break
+
+        if s["rank"] == "F" or not matches_mod:
+            return
+        score = {}
+
+        score["mods"] = s["mods"]
+        score["accuracy"] = s["accuracy"]
+        score["score"] = s["score"]
+        score["combo"] = s["max_combo"]
+        score["scorerank"] = s["rank"]
+        score["played"] = s["created_at"]
+        score["scoregeki"] = s["statistics"]["count_geki"]
+        score["score300"] = s["statistics"]["count_300"]
+        score["scorekatu"] = s["statistics"]["count_katu"]
+        score["score100"] = s["statistics"]["count_100"]
+        score["score50"] = s["statistics"]["count_50"]
+        score["scoremiss"] = s["statistics"]["count_miss"]
+
+        score = {**score, **self.userbasicdata(s["user"])}
+
+        return score
+
     @staticmethod
     def mapdata(d):
         """/beatmaps/{map}"""
@@ -172,6 +210,23 @@ class Data:
         data["updated"] = d["beatmapset"]["last_updated"]
         data["playcount"] = d["beatmapset"]["play_count"]
         data["hasvideo"] = d["beatmapset"]["video"]
+
+        return data
+
+    @staticmethod
+    def osubeatdata(d):
+        """/beatmaps/{map}"""
+
+        data = {}
+
+        data["version"] = d["version"]
+        data["mode"] = d["mode"]
+        data["mapurl"] = d["url"]
+        data["mapid"] = d["id"]
+
+        data["artist"] = d["beatmapset"]["artist"]
+        data["title"] = d["beatmapset"]["title"]
+        data["setid"] = d["beatmapset"]["id"]
 
         return data
 
@@ -396,9 +451,9 @@ class Embed(Data):
             if map["mods"]:
                 mods = f' +{mods.join(map["mods"])}'
 
-            date = datetime.now() - datetime.strptime(
+            date = datetime.now(timezone.utc) - datetime.strptime(
                 map["played"], "%Y-%m-%dT%H:%M:%S%z"
-            ).replace(tzinfo=None)
+            )
             time = re.split(r",\s", humanize_timedelta(timedelta=date))
             try:
                 time = f"{time[0]} {time[1]}"
@@ -438,9 +493,9 @@ class Embed(Data):
                     if map["mods"]:
                         mods = f' +{mods.join(map["mods"])}'
 
-                    date = datetime.now() - datetime.strptime(
+                    date = datetime.now(timezone.utc) - datetime.strptime(
                         map["played"], "%Y-%m-%dT%H:%M:%S%z"
-                    ).replace(tzinfo=None)
+                    )
                     time = re.split(r",\s", humanize_timedelta(timedelta=date))
                     try:
                         time = f"{time[0]} {time[1]}"
@@ -506,9 +561,9 @@ class Embed(Data):
                     if map["mods"]:
                         mods = f' +{mods.join(map["mods"])}'
 
-                    date = datetime.now() - datetime.strptime(
+                    date = datetime.now(timezone.utc) - datetime.strptime(
                         map["played"], "%Y-%m-%dT%H:%M:%S%z"
-                    ).replace(tzinfo=None)
+                    )
                     time = re.split(r",\s", humanize_timedelta(timedelta=date))
                     try:
                         time = f"{time[0]} {time[1]}"
@@ -1069,13 +1124,16 @@ class Embed(Data):
                     - 1
                 )
             elif embeddata["mode"] == "fruits":
+                fruitshitobjects = embeddata["extra_data"]["Hitobjects"]
+                for object, item in enumerate(embeddata["extra_data"]["Hitobjects"]):
+                    if item["type"] == "12":
+                        fruitshitobjects.pop(object)
+                embeddata["extra_data"]["Hitobjects"] = fruitshitobjects
                 failpoint = (
-                    embeddata["scoregeki"]
-                    + embeddata["score300"]
+                    embeddata["score300"]
+                    - embeddata["sliders"]
+                    + embeddata["circles"]
                     + embeddata["scorekatu"]
-                    + embeddata["score100"]
-                    + embeddata["score50"]
-                    + embeddata["scoremiss"]
                     - 1
                 )
             elif embeddata["mode"] == "taiko":
@@ -1088,7 +1146,7 @@ class Embed(Data):
                         or item["type"] == "6"
                     ):
                         taikohitobjects.pop(object)
-                    embeddata["extra_data"]["Hitobjects"] = taikohitobjects
+                embeddata["extra_data"]["Hitobjects"] = taikohitobjects
                 failpoint = (
                     embeddata["scoregeki"]
                     + embeddata["score300"]
@@ -1342,9 +1400,9 @@ class Embed(Data):
             else:
                 hits = f'{humanize_number(score["score300"])}/{humanize_number(score["score100"])}/{humanize_number(score["score50"])}/{humanize_number(score["scoremiss"])}'
 
-            date = datetime.now() - datetime.strptime(
+            date = datetime.now(timezone.utc) - datetime.strptime(
                 score["played"], "%Y-%m-%dT%H:%M:%S%z"
-            ).replace(tzinfo=None)
+            )
             time = re.split(r",\s", humanize_timedelta(timedelta=date))
             try:
                 time = f"{time[0]} {time[1]}"
@@ -1355,7 +1413,7 @@ class Embed(Data):
 
             scorestrings.append(
                 (
-                    f'**{index}.** {extra}{humanize_number(score["score"])}{extra} ◈ {extra}{score["username"]}{extra} ◈ :flag_{score["userflag"].lower()}: ◈ {time}\n'
+                    f'**{index}.** {extra}{humanize_number(score["score"])}{extra} ◈ {extra}{score["username"]}{extra} ◈ :flag_{score["userflag"].lower()}: ◈ {time} ago\n'
                     f'{"{:.2%}".format(score["accuracy"])} ◈ {humanize_number(score["combo"])}x ◈ {hits} ◈ {EMOJI[score["scorerank"]]}{mods}'
                 )
             )
@@ -1384,3 +1442,250 @@ class Embed(Data):
             page_num += 1
 
         return embed_list, page_start
+
+    async def osubeatstandingsembed(self, ctx: commands.Context, data, members=None, last=False):
+        mapdata = data["beatmap"]
+        leaderboard = members
+
+        embed_list = []
+        base_embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
+
+        beatstring = "Current beat standings"
+        noplayerstring = f"Nobody has set any scores on this beats map. Be the first one! Submit scores by using `{ctx.clean_prefix}recent<mode>`."
+        if last:
+            beatstring = "Last beats results"
+            noplayerstring = "Nobody set any scores last beat. Maybe next time."
+
+        base_embed.set_author(
+            name=f'{beatstring} ◈ {mapdata["artist"]} - {mapdata["title"]} [{mapdata["version"]}]',
+            url=f'https://osu.ppy.sh/beatmaps/{mapdata["mapid"]}',
+            icon_url=ctx.guild.icon_url,
+        )
+
+        leaderboard = dict(
+            sorted(
+                leaderboard.items(), key=lambda item: item[1]["beat_score"]["score"], reverse=True
+            )
+        )
+
+        scorestrings = []
+        index = 1
+        for id, beat_score in leaderboard.items():
+
+            score = beat_score["beat_score"]
+
+            if score["score"] == 0:
+                break
+
+            extra = ""
+            if int(id) == ctx.author.id:
+                extra = "**"
+
+            mods = ""
+            if score["mods"]:
+                mods = f'+{mods.join(score["mods"])}'
+
+            if data["mode"] == "mania":
+                hits = f'{humanize_number(score["scoregeki"])}/{humanize_number(score["score300"])}/{humanize_number(score["scorekatu"])}/{humanize_number(score["score100"])}/{humanize_number(score["score50"])}/{humanize_number(score["scoremiss"])}'
+            else:
+                hits = f'{humanize_number(score["score300"])}/{humanize_number(score["score100"])}/{humanize_number(score["score50"])}/{humanize_number(score["scoremiss"])}'
+
+            date = datetime.now(timezone.utc) - datetime.strptime(
+                score["played"], "%Y-%m-%dT%H:%M:%S%z"
+            )
+            time = re.split(r",\s", humanize_timedelta(timedelta=date))
+            try:
+                time = f"{time[0]} {time[1]}"
+            except ValueError:
+                pass
+            except IndexError:
+                time = time[0]
+
+            scorestrings.append(
+                (
+                    f'**{index}.** {extra}{humanize_number(score["score"])}{extra} ◈ {extra}{score["username"]}{extra} ◈ :flag_{score["userflag"].lower()}: ◈ {time} ago\n'
+                    f'{"{:.2%}".format(score["accuracy"])} ◈ {humanize_number(score["combo"])}x ◈ {hits} ◈ {EMOJI[score["scorerank"]]}{mods}'
+                )
+            )
+            index += 1
+
+        if (index - 1) == 0:
+            embed = base_embed.copy()
+            embed.description = noplayerstring
+            embed.set_footer(
+                text=f'Ended on {datetime.strptime(data["ends"], "%Y-%m-%dT%H:%M:%S%z").strftime("%a %d %b %Y %H:%M:%S")} UTC'
+            )
+            embed_list.append(embed)
+            return embed_list
+
+        page_num = 1
+        while page_num <= ceil(len(scorestrings) / 5):
+            scores = ""
+            start_index = (page_num - 1) * 5
+            end_index = (page_num - 1) * 5 + 5
+            for s in scorestrings[start_index:end_index]:
+                scores += f"{s}\n\n"
+
+            embed = base_embed.copy()
+
+            embed.description = scores
+
+            embed.set_footer(
+                text=f'Page {page_num}/{ceil(len(scorestrings) / 5)} ◈ {index - 1} submitted scores ◈ Ends on {datetime.strptime(data["ends"], "%Y-%m-%dT%H:%M:%S%z").strftime("%a %d %b %Y %H:%M:%S")} UTC'
+            )
+
+            embed_list.append(embed)
+            page_num += 1
+
+        return embed_list
+
+    async def osubeatannounceembed(
+        self, ctx: commands.Context, mapdata, mode: str, mods: list, time: datetime
+    ):
+
+        embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
+
+        embed.set_author(
+            name=f"osu!{mode.capitalize()} Beat Competition!", icon_url=ctx.guild.icon_url
+        )
+
+        embed.title = f'{mapdata["artist"]} - {mapdata["title"]} [{mapdata["version"]}]'
+        embed.url = mapdata["mapurl"]
+        embed.set_image(url=f'https://assets.ppy.sh/beatmaps/{mapdata["setid"]}/covers/cover.jpg')
+
+        embed.description = (
+            "**New beat competition!**\n"
+            "Test your skill against other players in this server by playing the map linked above."
+        )
+        modstring = ""
+        if not mods[0][0] == "FM":
+            for entry in mods:
+                tempmods = []
+                for m in entry:
+                    tempmods.append(MODS_PRETTY[m])
+                modstring += f'{" + ".join(tempmods)}\n'
+
+            embed.add_field(
+                name="Allowed Mods",
+                value=modstring,
+                inline=False,
+            )
+
+        embed.add_field(
+            name="How to participate",
+            value=(
+                f"◈ Sign up to this beat with `{ctx.clean_prefix}osubeat join`.\n"
+                f"◈ Set scores on the map linked above.\n"
+                f"◈ Use `{ctx.clean_prefix}recent<mode>` to submit your score.\n"
+                f"◈ Have the best score out of everyone in this server by the end of the competition.\n\n"
+                f"You can check the current standings with `{ctx.clean_prefix}osubeat standings`"
+            ),
+            inline=False,
+        )
+
+        embed.set_footer(text=f'Competition ends at {time.strftime("%a %d %b %Y %H:%M:%S")} UTC')
+
+        return embed
+
+    async def osubeatwinnerembed(self, channel: discord.TextChannel, osubeat, participants=None):
+
+        embed = discord.Embed(color=await self.bot.get_embed_color(channel))
+
+        embed.set_author(
+            name=f'osu!{self.mode_prettify(osubeat["mode"]).capitalize()} Beat Competition has finished! Here\'s the results!',
+            icon_url=channel.guild.icon_url,
+        )
+
+        embed.title = f'{osubeat["beatmap"]["artist"]} - {osubeat["beatmap"]["title"]} [{osubeat["beatmap"]["version"]}]'
+        embed.url = osubeat["beatmap"]["mapurl"]
+        embed.set_image(
+            url=f'https://assets.ppy.sh/beatmaps/{osubeat["beatmap"]["setid"]}/covers/cover.jpg'
+        )
+
+        leaderboard = dict(
+            sorted(
+                participants.items(), key=lambda item: item[1]["beat_score"]["score"], reverse=True
+            )
+        )
+
+        index = 0
+        top3 = []
+        top3d = []
+        for d_id, data in leaderboard.items():
+            if index >= 3:
+                if data["beat_score"]["score"] == 0:
+                    break
+                index += 1
+                continue
+            top3.append(data["beat_score"])
+            top3d.append(d_id)
+            index += 1
+
+        if len(top3) == 0 or top3[0]["score"] == 0:
+            embed.description = "Nobody competed during this beat and therefor no winner could be decided. Maybe next time."
+            return embed
+
+        emote = [":first_place:", ":second_place:", ":third_place:"]
+
+        for i, score in enumerate(top3):
+            if score["score"] == 0:
+                index = i + 1
+                break
+            usermention = ""
+            user = channel.guild.get_member(top3d[i])
+            if user:
+                usermention = f"{user.mention} ◈ "
+
+            date = datetime.now(timezone.utc) - datetime.strptime(
+                score["played"], "%Y-%m-%dT%H:%M:%S%z"
+            )
+            time = re.split(r",\s", humanize_timedelta(timedelta=date))
+            try:
+                time = f"{time[0]} {time[1]}"
+            except ValueError:
+                pass
+            except IndexError:
+                time = time[0]
+
+            if osubeat["mode"] == "mania":
+                hits = f'{humanize_number(score["scoregeki"])}/{humanize_number(score["score300"])}/{humanize_number(score["scorekatu"])}/{humanize_number(score["score100"])}/{humanize_number(score["score50"])}/{humanize_number(score["scoremiss"])}'
+            else:
+                hits = f'{humanize_number(score["score300"])}/{humanize_number(score["score100"])}/{humanize_number(score["score50"])}/{humanize_number(score["scoremiss"])}'
+
+            mods = ""
+            if score["mods"]:
+                mods = f'+{mods.join(score["mods"])}'
+
+            embed.add_field(
+                name=f'{emote[i]} {humanize_number(score["score"])}',
+                value=(
+                    f"{usermention}"
+                    f'[{score["username"]}](https://osu.ppy.sh/users/{score["userid"]}) ◈ '
+                    f':flag_{score["userflag"].lower()}: ◈ '
+                    f"{time} ago\n"
+                    f'{"{:.2%}".format(score["accuracy"])} ◈ '
+                    f'{humanize_number(score["combo"])}x ◈ '
+                    f"{hits} ◈ "
+                    f'{EMOJI[score["scorerank"]]}{mods}'
+                ),
+                inline=False,
+            )
+
+        embed.set_footer(
+            text=f'Competitors: {index} ◈ Ended on: {datetime.now(timezone.utc).replace(second=0).strftime("%a %d %b %Y %H:%M:%S")} UTC'
+        )
+
+        return embed
+
+    async def osubeatsignup(self, ctx: commands.Context, data):
+
+        embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
+        embed.set_author(
+            name=f"You'll be signing up as this user. Are you sure?",
+            icon_url=f'https://osu.ppy.sh/images/flags/{data["country_code"]}.png',
+        )
+        embed.set_thumbnail(url=f'https://a.ppy.sh/{data["id"]}')
+        embed.title = data["username"]
+        embed.url = f'https://osu.ppy.sh/u/{data["id"]}'
+
+        return embed
