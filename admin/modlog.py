@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timezone
 from typing import Optional, Union
 
@@ -5,6 +6,7 @@ import discord
 from redbot.core import checks, commands, modlog
 from redbot.core.utils.chat_formatting import box, pagify
 from redbot.core.utils.menus import DEFAULT_CONTROLS, menu
+from redbot.core.utils.predicates import MessagePredicate
 
 
 class ModLog:
@@ -28,7 +30,7 @@ class ModLog:
     async def logchannel(self, ctx: commands.Context, channel: discord.TextChannel = None):
         """Set a channel as the modlog.
 
-        Omit `<channel>` to disable the modlog.
+        Omit `[channel]` to disable the modlog.
         """
         guild = ctx.guild
         if channel:
@@ -84,8 +86,20 @@ class ModLog:
     async def resetcases(self, ctx: commands.Context):
         """Reset all modlog cases in this server."""
         guild = ctx.guild
-        await modlog.reset_cases(guild)
-        await ctx.send(("Cases have been reset."))
+        await ctx.send(
+            ("Are you sure you would like to reset all modlog cases in this server?") + " (yes/no)"
+        )
+        try:
+            pred = MessagePredicate.yes_or_no(ctx, user=ctx.author)
+            msg = await ctx.bot.wait_for("message", check=pred, timeout=30)
+        except asyncio.TimeoutError:
+            await ctx.send(("You took too long to respond."))
+            return
+        if pred.result:
+            await modlog.reset_cases(guild)
+            await ctx.send(("Cases have been reset."))
+        else:
+            await ctx.send(("No changes have been made."))
 
     @modlog.command()
     async def case(self, ctx: commands.Context, number: int):
@@ -101,9 +115,7 @@ class ModLog:
             else:
                 message = ("{case}\n**Timestamp:** {timestamp}").format(
                     case=await case.message_content(embed=False),
-                    timestamp=datetime.utcfromtimestamp(case.created_at).strftime(
-                        "%Y-%m-%d %H:%M:%S UTC"
-                    ),
+                    timestamp=f"<t:{int(case.created_at)}>",
                 )
                 await ctx.send(message)
 
@@ -133,14 +145,12 @@ class ModLog:
             embed_requested = await ctx.embed_requested()
             if embed_requested:
                 rendered_cases = [await case.message_content(embed=True) for case in cases]
-            elif not embed_requested:
+            else:
                 rendered_cases = []
                 for case in cases:
                     message = ("{case}\n**Timestamp:** {timestamp}").format(
                         case=await case.message_content(embed=False),
-                        timestamp=datetime.utcfromtimestamp(case.created_at).strftime(
-                            "%Y-%m-%d %H:%M:%S UTC"
-                        ),
+                        timestamp=f"<t:{int(case.created_at)}>",
                     )
                     rendered_cases.append(message)
 
@@ -173,9 +183,7 @@ class ModLog:
             for case in cases:
                 message += ("{case}\n**Timestamp:** {timestamp}\n\n").format(
                     case=await case.message_content(embed=False),
-                    timestamp=datetime.utcfromtimestamp(case.created_at).strftime(
-                        "%Y-%m-%d %H:%M:%S UTC"
-                    ),
+                    timestamp=f"<t:{int(case.created_at)}>",
                 )
             for page in pagify(message, ["\n\n", "\n"], priority=True):
                 rendered_cases.append(page)

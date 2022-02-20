@@ -17,7 +17,8 @@ def get_command_from_input(bot, userinput: str):
     if com is None:
         return None, ("I could not find a command from that input!")
 
-    if com.requires.privilege_level >= PrivilegeLevel.BOT_OWNER:
+    privilege_level = com.requires.privilege_level
+    if privilege_level is not None and privilege_level >= PrivilegeLevel.BOT_OWNER:
         return (
             None,
             ("That command requires bot owner. I can't allow you to use that for an action"),
