@@ -9,7 +9,7 @@ from collections import Counter, deque
 from enum import Enum
 from operator import itemgetter
 from random import choice
-from typing import Final, Iterable, List, Literal, Union, cast
+from typing import Any, Dict, Final, Iterable, List, Literal, Union, cast
 
 import discord
 import yaml
@@ -21,6 +21,7 @@ from redbot.core.utils import AsyncIter
 from redbot.core.utils.chat_formatting import bold, box, humanize_number, pagify
 from redbot.core.utils.menus import start_adding_reactions
 from redbot.core.utils.predicates import MessagePredicate, ReactionPredicate
+from schema import Optional, Or, Schema, SchemaError
 from tabulate import tabulate
 
 from . import utils
@@ -34,6 +35,21 @@ from .utils import is_input_unsupported
 __all__ = ["get_core_lists"]
 
 log = logging.getLogger("red.angiedale.games")
+
+TRIVIA_LIST_SCHEMA = Schema(
+    {
+        Optional("AUTHOR"): str,
+        Optional("CONFIG"): {
+            Optional("max_score"): int,
+            Optional("timeout"): Or(int, float),
+            Optional("delay"): Or(int, float),
+            Optional("bot_plays"): bool,
+            Optional("reveal_answer"): bool,
+            Optional("payout_multiplier"): Or(int, float),
+        },
+        str: [str, int, bool, float],
+    }
+)
 
 _SCHEMA_VERSION: Final[int] = 2
 
@@ -508,6 +524,13 @@ class Games(Database, commands.Cog):
         except yaml.error.YAMLError:
             await ctx.send(("There was an error parsing the trivia list. See logs for more info."))
             log.exception("Custom Trivia file %s failed to upload", parsedfile.filename)
+        except SchemaError as e:
+            await ctx.send(
+                (
+                    "The custom trivia list was not saved."
+                    " The file does not follow the proper data format.\n{schema_error}"
+                ).format(schema_error=box(e))
+            )
 
     @commands.is_owner()
     @triviaset_custom.command(name="delete", aliases=["remove"])
@@ -841,13 +864,7 @@ class Games(Database, commands.Cog):
         except StopIteration:
             raise FileNotFoundError("Could not find the `{}` category.".format(category))
 
-        with path.open(encoding="utf-8") as file:
-            try:
-                dict_ = yaml.safe_load(file)
-            except yaml.error.YAMLError as exc:
-                raise InvalidListError("YAML parsing failed.") from exc
-            else:
-                return dict_
+        return get_list(path)
 
     async def _save_trivia_list(
         self, ctx: commands.Context, attachment: discord.Attachment
@@ -885,7 +902,7 @@ class Games(Database, commands.Cog):
 
             can_react = ctx.channel.permissions_for(ctx.me).add_reactions
             if not can_react:
-                overwrite_message += " (y/n)"
+                overwrite_message += " (yes/no)"
 
             overwrite_message_object: discord.Message = await ctx.send(overwrite_message)
             if can_react:
@@ -909,9 +926,10 @@ class Games(Database, commands.Cog):
                 return
 
         buffer = io.BytesIO(await attachment.read())
-        yaml.safe_load(buffer)
-        buffer.seek(0)
+        trivia_dict = yaml.safe_load(buffer)
+        TRIVIA_LIST_SCHEMA.validate(trivia_dict)
 
+        buffer.seek(0)
         with file.open("wb") as fp:
             fp.write(buffer.read())
         await ctx.send(("Saved Trivia list as {filename}.").format(filename=filename))
@@ -2401,6 +2419,30 @@ def get_core_lists() -> List[pathlib.Path]:
     """Return a list of paths for all trivia lists packaged with the bot."""
     core_lists_path = pathlib.Path(__file__).parent.resolve() / "data/lists"
     return list(core_lists_path.glob("*.yaml"))
+
+
+def get_list(path: pathlib.Path) -> Dict[str, Any]:
+    """
+    Returns a trivia list dictionary from the given path.
+
+    Raises
+    ------
+    InvalidListError
+        Parsing of list's YAML file failed.
+    SchemaError
+        The list does not adhere to the schema.
+    """
+    with path.open(encoding="utf-8") as file:
+        try:
+            trivia_dict = yaml.safe_load(file)
+        except yaml.error.YAMLError as exc:
+            raise InvalidListError("YAML parsing failed.") from exc
+
+    try:
+        TRIVIA_LIST_SCHEMA.validate(trivia_dict)
+    except SchemaError as exc:
+        raise InvalidListError("The list does not adhere to the schema.") from exc
+    return trivia_dict
 
 
 class ExitProcess(Exception):
