@@ -488,7 +488,7 @@ class API(commands.Cog):
                 # a list of embeds
                 embeds = []
                 for ud in data["list"]:
-                    embed = discord.Embed()
+                    embed = discord.Embed(color=await ctx.embed_color())
                     title = ("{word} by {author}").format(
                         word=ud["word"].capitalize(), author=ud["author"]
                     )
