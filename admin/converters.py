@@ -14,6 +14,8 @@ from redbot.core import commands
 # https://github.com/Cog-Creators/Red-DiscordBot/blob/V3/develop/redbot/core/commands/converter.py#L55
 TIME_RE_STRING = r"|".join(
     [
+        r"((?P<years>\d+?)\s?(years?|y))?",
+        r"((?P<months>\d+?)\s?(months?|mo))?",
         r"((?P<weeks>\d+?)\s?(weeks?|w))",
         r"((?P<days>\d+?)\s?(days?|d))",
         r"((?P<hours>\d+?)\s?(hours?|hrs|hr?))",

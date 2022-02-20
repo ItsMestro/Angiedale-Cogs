@@ -120,6 +120,10 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
         self.warnconfig = Config.get_conf(
             self, identifier=1387000, force_registration=True, cog_name="Warnings"
         )
+        self.cleanupconfig = Config.get_conf(
+            self, identifier=1387000, force_registration=True, cog_name="Cleanup"
+        )
+        self.cleanupconfig.register_guild(notify=True)
         self.warnconfig.register_guild(**self.default_guild_warnings)
         self.warnconfig.register_member(**self.default_member_warnings)
         self.registration_task = self.bot.loop.create_task(self.register_warningtype())
@@ -607,7 +611,7 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
 
     @reportset.command(name="toggle", aliases=["toggleactive"])
     async def reportset_toggle(self, ctx: commands.Context):
-        """Enable or Disable reporting for this server."""
+        """Enable or disable reporting for this server."""
         active = await self.reportsconfig.guild(ctx.guild).active()
         active = not active
         await self.reportsconfig.guild(ctx.guild).active.set(active)
@@ -678,3 +682,25 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
                 await channel.send(embed=embed)
             else:
                 await channel.send(f"{out} left the server.")
+
+    @commands.group()
+    @commands.admin_or_permissions(administrator=True)
+    async def cleanupset(self, ctx: commands.Context):
+        """Manage the settings for the cleanup command."""
+        pass
+
+    @commands.guild_only()
+    @cleanupset.command(name="notify")
+    async def cleanupset_notify(self, ctx: commands.Context):
+        """Toggle clean up notification settings.
+
+        When enabled, a message will be sent per cleanup, showing how many messages were deleted.
+        This message will be deleted after 5 seconds.
+        """
+        toggle = await self.cleanupconfig.guild(ctx.guild).notify()
+        if toggle:
+            await self.cleanupconfig.guild(ctx.guild).notify.set(False)
+            await ctx.send(("I will no longer notify of message deletions."))
+        else:
+            await self.cleanupconfig.guild(ctx.guild).notify.set(True)
+            await ctx.send(("I will now notify of message deletions."))
