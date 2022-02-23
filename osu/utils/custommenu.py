@@ -178,4 +178,4 @@ def custompage(bot, embeds):
             bot.get_emoji(755808379170979971): custom_next_page,
         }
     else:
-        return {"\N{CROSS MARK}": close_menu}
+        return {"\N{CROSS MARK}": custom_close_menu}
