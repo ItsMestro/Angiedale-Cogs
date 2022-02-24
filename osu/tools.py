@@ -136,6 +136,13 @@ class API:
                                 "API is either slow or unavaliable atm. I will keep trying to process your command."
                             )
                         await asyncio.sleep(10)
+                    elif r.status == 520:
+                        log.error("osu! api fetch 520 Error")
+                        if ctx and not message:
+                            message = await ctx.send(
+                                "API is either slow or unavaliable atm. I will keep trying to process your command."
+                            )
+                        await asyncio.sleep(10)
                     elif r.status == 200:
                         try:
                             await message.delete()
@@ -148,6 +155,10 @@ class API:
                             return
                     else:
                         log.error(f"API fetch error: {r.status}")
+                        try:
+                            await message.delete()
+                        except:
+                            pass
                         return
 
 
