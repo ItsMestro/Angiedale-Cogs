@@ -506,7 +506,7 @@ class Helper:
                     if mode == m:
                         try:
                             us.pop(user)
-                            os.remove(f"{cog_data_path(self)}/tracking/{user}{m}.json")
+                            os.remove(f"{cog_data_path(self)}/tracking/{user}_{m}.json")
                         except KeyError:
                             pass
 
