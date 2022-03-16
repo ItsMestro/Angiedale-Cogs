@@ -50,7 +50,13 @@ class Data:
         """/users/{user}/scores"""
 
         data = self.scoredata(d)
-        data["extra_data"] = await self.extra_beatmap_info(data)
+        for s in range(3):
+            data["extra_data"] = await self.extra_beatmap_info(data)
+            try:
+                data["extra_data"]["Hitobjects"]
+                return data
+            except KeyError:
+                pass
         return data
 
     def scoredata(self, s):
@@ -1167,10 +1173,13 @@ class Embed(Data):
                     - 1
                 )
 
-            mapstart = int(embeddata["extra_data"]["Hitobjects"][0]["time"])
-            mapend = int(embeddata["extra_data"]["Hitobjects"][-1]["time"])
-            mapfail = int(embeddata["extra_data"]["Hitobjects"][failpoint]["time"])
-            failedat = "{:.2%}".format((mapfail - mapstart) / (mapend - mapstart))
+            try:
+                mapstart = int(embeddata["extra_data"]["Hitobjects"][0]["time"])
+                mapend = int(embeddata["extra_data"]["Hitobjects"][-1]["time"])
+                mapfail = int(embeddata["extra_data"]["Hitobjects"][failpoint]["time"])
+                failedat = "{:.2%}".format((mapfail - mapstart) / (mapend - mapstart))
+            except KeyError:
+                failedat = ""
 
         mods = ""
         if embeddata["mods"]:
@@ -1193,7 +1202,10 @@ class Embed(Data):
         )
 
         if embeddata["scorerank"] == "F":
-            embed.title = f"Failed at {failedat}"
+            if failedat:
+                embed.title = f"Failed at {failedat}"
+            else:
+                embed.title = f"Failed"
         else:
             embed.title = "Passed"
 
