@@ -578,7 +578,8 @@ class Owner(commands.Cog):
                 "in the bot channel",
                 "with my owner",
                 "Merry Christmas",
-                "Happy Holidays" "Merry Squidmas",
+                "Happy Holidays",
+                "Merry Squidmas",
                 "the christmas tree",
                 "with santa",
                 "with gifts",
@@ -644,19 +645,19 @@ class Owner(commands.Cog):
                 usersstatus,
                 serversstatus,
             ]
-        new_status = self.random_status(guild, statuses)
+        new_status = self.random_status(guild, statuses, helpaddon)
+        new_status = " | ".join((new_status, helpaddon))
         if (current_game != new_status) or (current_game is None):
-            new_status = " | ".join((new_status, helpaddon))
             await self.bot.change_presence(
                 activity=discord.Activity(name=new_status, type=_type), status=status
             )
 
-    def random_status(self, guild, statuses):
+    def random_status(self, guild, statuses, helpaddon):
         try:
             current = str(guild.me.activity.name)
         except AttributeError:
             current = None
-        new_statuses = [s for s in statuses if s != current]
+        new_statuses = [s for s in statuses if " | ".join((s, helpaddon)) != current]
         if len(new_statuses) > 1:
             return choice(new_statuses)
         elif len(new_statuses) == 1:
