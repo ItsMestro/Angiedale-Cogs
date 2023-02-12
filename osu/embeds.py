@@ -1548,7 +1548,7 @@ class Embed(Data):
             embed.description = scores
 
             embed.set_footer(
-                text=f'Page {page_num}/{ceil(len(scorestrings) / 5)} ◈ {index - 1} submitted scores ◈ Ends on {datetime.strptime(data["ends"], "%Y-%m-%dT%H:%M:%S%z").strftime("%a %d %b %Y %H:%M:%S")} UTC'
+                text=f'Page {page_num}/{ceil(len(scorestrings) / 5)} ◈ {index - 1} submitted score{"s" if len(scorestrings) > 1 else ""} ◈ Ends on {datetime.strptime(data["ends"], "%Y-%m-%dT%H:%M:%S%z").strftime("%a %d %b %Y %H:%M:%S")} UTC'
             )
 
             embed_list.append(embed)
