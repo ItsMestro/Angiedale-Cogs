@@ -47,7 +47,7 @@ def guild_only_check():
     async def pred(ctx: commands.Context):
         if await bank.is_global():
             return True
-        elif not await bank.is_global() and ctx.guild is not None:
+        elif ctx.guild is not None and not await bank.is_global():
             return True
         else:
             return False
@@ -374,8 +374,7 @@ class Economy(commands.Cog):
         - `<user>` The user to delete the bank of. Takes mentions, names, and user ids.
         - `<confirmation>` This will default to false unless specified.
         """
-        global_bank = await bank.is_global()
-        if global_bank is False and ctx.guild is None:
+        if ctx.guild is None and not await bank.is_global():
             return await ctx.send(("This command cannot be used in DMs with a local bank."))
         try:
             name = member_or_id.display_name
@@ -547,7 +546,7 @@ class Economy(commands.Cog):
             top = 10
 
         base_embed = discord.Embed(title=("Economy Leaderboard"))
-        if await bank.is_global() and show_global:
+        if show_global and await bank.is_global():
             # show_global is only applicable if bank is global
             bank_sorted = await bank.get_leaderboard(positions=top, guild=None)
             if guild:
@@ -653,15 +652,20 @@ class Economy(commands.Cog):
         """
         Shows the current economy settings
         """
+        role_paydays = []
         guild = ctx.guild
         if await bank.is_global():
             conf = self.config
         else:
             conf = self.config.guild(guild)
+            for role in guild.roles:
+                rolepayday = await self.config.role(role).PAYDAY_CREDITS()
+                if rolepayday:
+                    role_paydays.append(f"{role}: {rolepayday}")
         await ctx.send(
             box(
                 (
-                    "----Economy Settings---\n"
+                    "---Economy Settings---\n"
                     "Minimum slot bid: {slot_min}\n"
                     "Maximum slot bid: {slot_max}\n"
                     "Slot cooldown: {slot_time}\n"
@@ -680,6 +684,8 @@ class Economy(commands.Cog):
                 )
             )
         )
+        if role_paydays:
+            await ctx.send(box(("---Role Payday Amounts---\n") + "\n".join(role_paydays)))
 
     @economyset.command()
     async def slotmin(self, ctx: commands.Context, bid: positive_int):
@@ -834,6 +840,7 @@ class Economy(commands.Cog):
     @economyset.command()
     async def rolepaydayamount(self, ctx: commands.Context, role: discord.Role, creds: int):
         """Set the amount earned each payday for a role.
+
         Set to `0` to remove the payday amount you set for that role.
 
         Only available when not using a global bank.

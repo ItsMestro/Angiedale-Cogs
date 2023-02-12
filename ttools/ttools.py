@@ -1,11 +1,11 @@
 import asyncio
-import functools
 import logging
 import os
+from osu.tools import del_message
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from random import choice
-from typing import List, Optional, Union
+from typing import Optional
 
 import discord
 import gspread
@@ -176,11 +176,12 @@ class TTools(commands.Cog):
     async def playerrole(self, ctx: commands.Context, role: Optional[discord.Role]):
         """"""
         if role:
-            await self.config.guild(ctx.guild).playerrole.set(role)
+            await self.config.guild(ctx.guild).playerrole.set(role.id)
             await ctx.send(
                 (f"Players will now be given the {role} role when registering.")
             )
         else:
+            await self.config.guild(ctx.guild).playerrole.set(None)
             await ctx.send(("Cleared the player role in this server."))
 
     @commands.group(hidden=True, aliases=["ref"])
@@ -189,7 +190,7 @@ class TTools(commands.Cog):
         """"""
 
     @referee.command()
-    async def ping(self, ctx: commands.Context, matchid):
+    async def ping(self, ctx: commands.Context, matchid: str):
         """"""
         if not await self.isenabled(ctx):
             return
@@ -205,7 +206,7 @@ class TTools(commands.Cog):
 
         matchexists = False
         for m in matches:
-            if m[3] == matchid:
+            if str(m[3]).lower() == matchid.lower():
                 redteam = m[5]
                 blueteam = m[6]
                 matchtime = m[1].split(":")
@@ -214,6 +215,7 @@ class TTools(commands.Cog):
                     year=datetime.utcnow().year,
                     hour=int(matchtime[0]),
                     minute=int(matchtime[1]),
+                    tzinfo=timezone.utc,
                 )
                 matchexists = True
                 break
@@ -247,12 +249,16 @@ class TTools(commands.Cog):
         else:
             blueping = f"{bluereserve} "
 
-        timenow = datetime.now().replace(second=59)
+        time = matchdatetime - datetime.now(timezone.utc).replace(second=59)
+        timestring = humanize_timedelta(timedelta=time)
 
         phrase1 = choice(pingphrase1)
         phrase2 = choice(pingphrase2)
 
-        msg = f"{redping}{blueping}{phrase1}\n{phrase2}: **{humanize_timedelta(timedelta=(matchdatetime - timenow))}**"
+        if timestring:
+            msg = f"{redping}{blueping}{phrase1}\n{phrase2}: **{timestring}**"
+        else:
+            msg = f"{redping}{blueping}{phrase1}\nIt's time for you to face each other in match."
 
         if await self.pingimage(ctx):
             if await self.config.guild(ctx.guild).customimg():
@@ -314,9 +320,10 @@ class TTools(commands.Cog):
         else:
             await ctx.send(content=msg)
 
-    @commands.max_concurrency(1, per=commands.BucketType.user)
+    @commands.max_concurrency(1, per=commands.BucketType.member)
+    @commands.guild_only()
     @commands.command(hidden=True)
-    async def register(self, ctx: commands.Context, username):
+    async def register(self, ctx: commands.Context, username: str = None):
         """"""
         if not await self.isenabled(ctx):
             return
@@ -326,17 +333,21 @@ class TTools(commands.Cog):
         if not serverkey:
             return
 
+        if not username:
+            await ctx.message.delete()
+            return await del_message(ctx, f"Provide a username or link with the command like: `{ctx.clean_prefix}register <username>`")
+
         sh = self.gs.open_by_key(serverkey)
 
         listofregs = sh.worksheet("Signups").get("C2:C")
         for team in listofregs:
             for r in team:
                 if ctx.author.id == int(r):
-                    await ctx.message.delete()
-                    return await ctx.send(
+                    await ctx.send(
                         "You are already registered. If you need to edit your registration, contact an organizer.",
                         delete_after=10,
                     )
+                    return await ctx.message.delete()
 
         if "osu.ppy.sh" in username:
             username = re.sub("[^0-9]", "", username.rsplit("/", 1)[-1])
@@ -352,7 +363,7 @@ class TTools(commands.Cog):
         embeds = []
         embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
         embed.set_author(
-            name=f"Is this you?",
+            name=f"You'll be signing up as this user. Are you sure?",
             icon_url=f'https://osu.ppy.sh/images/flags/{data["country_code"]}.png',
         )
         embed.set_thumbnail(url=f'https://a.ppy.sh/{data["id"]}')
@@ -371,74 +382,68 @@ class TTools(commands.Cog):
         embed.url = titleurl
         embeds.append(embed)
 
-        async def failedregistration(ctx: commands.Context, _, __, message, *args):
+        embedmsg: discord.Message = await ctx.send(embed=embed)
+        start_adding_reactions(embedmsg, ReactionPredicate.YES_OR_NO_EMOJIS)
+        pred = ReactionPredicate.yes_or_no(embedmsg, ctx.author)
+        try:
+            await ctx.bot.wait_for("reaction_add", check=pred, timeout=20)
+        except asyncio.TimeoutError:
+            await embedmsg.clear_reactions()
+            return await embedmsg.edit(content="Took too long to respond. Cancelling registration.", embed=None, delete_after=10)
+        if not pred.result:
+            await embedmsg.clear_reactions()
+            return await embedmsg.edit(content="Cancelling registration.", embed=None, delete_after=10)
 
-            await message.clear_reactions()
-            await message.edit(
-                content="Registration Cancelled.", embed=None, delete_after=10
-            )
-
-        async def processregistration(ctx: commands.Context, _, __, message, *args):
-
-            existingteams = sh.worksheet("Signups").get("A2:A")
-            rank4k = None
-            try:
-                rank4k = data["statistics"]["variants"][0]["global_rank"]
-                sh.worksheet("Data").update(f"BD{len(existingteams)+2}", rank4k)
-            except:
-                pass
-            sh.worksheet("Signups").update(
-                f"A{len(existingteams)+2}:G{len(existingteams)+2}",
+        existingteams = sh.worksheet("Signups").get("A2:A")
+        rank4k = 0
+        try:
+            rank4k = data["statistics"]["variants"][0]["global_rank"]
+        except:
+            pass
+        sh.worksheet("Signups").update(
+            f"A{len(existingteams)+2}:G{len(existingteams)+2}",
+            [
                 [
-                    [
-                        data["id"],
-                        f"{ctx.author.name}#{ctx.author.discriminator}",
-                        str(ctx.author.id),
-                        data["username"],
-                        data["statistics"]["global_rank"],
-                        data["country_code"],
-                        rank4k,
-                    ]
-                ],
-            )
-
-            await message.delete()
-            player_role = await self.config.guild(ctx.guild).playerrole()
-            if player_role:
-                try:
-                    ctx.author.add_roles(
-                        player_role,
-                        reason=f'Registered to the tournament as {data["username"]}.',
-                    )
-                except:
-                    pass
-            await ctx.send(
-                f'{ctx.author.mention} is now registered to the tournament as `{data["username"]}`'
-            )
-
-        await custom_menu(
-            ctx,
-            embeds,
-            {
-                "\N{WHITE HEAVY CHECK MARK}": processregistration,
-                "\N{CROSS MARK}": failedregistration,
-            },
+                    data["id"],
+                    f"{ctx.author.name}#{ctx.author.discriminator}",
+                    str(ctx.author.id),
+                    data["username"],
+                    data["statistics"]["global_rank"],
+                    data["country_code"],
+                    rank4k,
+                ]
+            ],
         )
 
-    async def useosufetch(self, api):
+        await embedmsg.delete()
+        player_role = await self.config.guild(ctx.guild).playerrole()
+        if player_role:
+            prole = ctx.guild.get_role(player_role)
+            try:
+                await ctx.author.add_roles(
+                    prole,
+                    reason=f'Registered to the tournament as {data["username"]}.',
+                )
+            except:
+                pass
+        await ctx.send(
+            f'{ctx.author.mention} is now registered to the tournament as `{data["username"]}`'
+        )
+
+    async def useosufetch(self, api: str):
         osucog = self.bot.get_cog("Osu")
         if osucog:
             return await osucog.fetch_api(api)
         else:
             log.error("Osu cog not loaded")
 
-    async def serverkey(self, ctx):
+    async def serverkey(self, ctx: commands.Context):
         return await self.config.guild(ctx.guild).sheet()
 
-    async def isenabled(self, ctx):
+    async def isenabled(self, ctx: commands.Context):
         return await self.config.guild(ctx.guild).enabled()
 
-    async def isref(self, ctx):
+    async def isref(self, ctx: commands.Context):
         referees = await self.config.guild(ctx.guild).referee()
         refrole = ctx.guild.get_role(referees)
         if refrole in ctx.author.roles:
@@ -446,76 +451,5 @@ class TTools(commands.Cog):
         else:
             return False
 
-    async def pingimage(self, ctx):
+    async def pingimage(self, ctx: commands.Context):
         return await self.config.guild(ctx.guild).useimg()
-
-
-async def custom_menu(
-    ctx: commands.Context,
-    pages: Union[List[str], List[discord.Embed]],
-    controls: dict,
-    message: discord.Message = None,
-    page: int = 0,
-    timeout: float = 30.0,
-):
-    if not isinstance(pages[0], (discord.Embed, str)):
-        raise RuntimeError("Pages must be of type discord.Embed or str")
-    if not all(isinstance(x, discord.Embed) for x in pages) and not all(
-        isinstance(x, str) for x in pages
-    ):
-        raise RuntimeError("All pages must be of the same type")
-    for key, value in controls.items():
-        maybe_coro = value
-        if isinstance(value, functools.partial):
-            maybe_coro = value.func
-        if not asyncio.iscoroutinefunction(maybe_coro):
-            raise RuntimeError("Function must be a coroutine")
-    current_page = pages[page]
-
-    if not message:
-        if isinstance(current_page, discord.Embed):
-            message = await ctx.send(embed=current_page)
-        else:
-            message = await ctx.send(current_page)
-        # Don't wait for reactions to be added (GH-1797)
-        # noinspection PyAsyncCall
-        start_adding_reactions(message, controls.keys())
-    else:
-        try:
-            if isinstance(current_page, discord.Embed):
-                await message.edit(embed=current_page)
-            else:
-                await message.edit(content=current_page)
-        except discord.NotFound:
-            return
-
-    try:
-        react, user = await ctx.bot.wait_for(
-            "reaction_add",
-            check=ReactionPredicate.with_emojis(
-                tuple(controls.keys()), message, ctx.author
-            ),
-            timeout=timeout,
-        )
-    except asyncio.TimeoutError:
-        if not ctx.me:
-            return
-        try:
-            if message.channel.permissions_for(ctx.me).manage_messages:
-                await message.delete()
-            else:
-                raise RuntimeError
-        except (discord.Forbidden, RuntimeError):  # cannot remove all reactions
-            for key in controls.keys():
-                try:
-                    await message.remove_reaction(key, ctx.bot.user)
-                except discord.Forbidden:
-                    return
-                except discord.HTTPException:
-                    pass
-        except discord.NotFound:
-            return
-    else:
-        return await controls[react.emoji](
-            ctx, pages, controls, message, page, timeout, react.emoji
-        )

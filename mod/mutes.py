@@ -11,6 +11,7 @@ from redbot.core.utils.chat_formatting import (
     bold,
     humanize_list,
     humanize_timedelta,
+    inline,
     pagify,
 )
 from redbot.core.utils.menus import start_adding_reactions
@@ -382,6 +383,9 @@ class Mutes(MixinMeta):
         reason: Optional[str],
         duration=None,
     ):
+        if user.bot:
+            return
+
         if not await self.mutesconfig.guild(guild).dm():
             return
 
@@ -390,7 +394,7 @@ class Mutes(MixinMeta):
         if duration:
             duration_str = humanize_timedelta(timedelta=duration)
             until = datetime.now(timezone.utc) + duration
-            until_str = until.strftime("%Y-%m-%d %H:%M:%S UTC")
+            until_str = f"<t:{int(until.timestamp())}>"
 
         if moderator is None:
             moderator_str = "Unknown"
@@ -616,9 +620,12 @@ class Mutes(MixinMeta):
         command_2 = f"{ctx.clean_prefix}muteset makerole"
         msg = (
             "This server does not have a mute role setup. "
-            " You can setup a mute role with `{command_1}` or"
-            "`{command_2}` if you just want a basic role created setup.\n\n"
-        ).format(command_1=command_1, command_2=command_2)
+            " You can setup a mute role with {command_1} or"
+            " {command_2} if you just want a basic role created setup.\n\n"
+        ).format(
+            command_1=inline(command_1),
+            command_2=inline(command_2),
+        )
         mute_role_id = await self.mutesconfig.guild(ctx.guild).mute_role()
         mute_role = ctx.guild.get_role(mute_role_id)
         sent_instructions = await self.mutesconfig.guild(ctx.guild).sent_instructions()
@@ -647,9 +654,12 @@ class Mutes(MixinMeta):
                 )
             else:
                 msg += (
-                    "Saying `yes` will continue "
+                    "Saying {response_1} will continue "
                     "the mute with overwrites and stop this message from appearing again, "
-                    "saying `no` will end the mute attempt."
+                    "saying {response_2} will end the mute attempt."
+                ).format(
+                    response_1=inline("yes"),
+                    response_2=inline("no"),
                 )
             query: discord.Message = await ctx.send(msg)
             if can_react:
@@ -663,12 +673,14 @@ class Mutes(MixinMeta):
             try:
                 await ctx.bot.wait_for(event, check=pred, timeout=30)
             except asyncio.TimeoutError:
-                await query.delete()
+                with contextlib.suppress(discord.NotFound):
+                    await query.delete()
                 return False
 
             if not pred.result:
                 if can_react:
-                    await query.delete()
+                    with contextlib.suppress(discord.NotFound):
+                        await query.delete()
                 else:
                     await ctx.send(("OK then."))
 
@@ -875,12 +887,14 @@ class Mutes(MixinMeta):
         try:
             await ctx.bot.wait_for(event, check=pred, timeout=30)
         except asyncio.TimeoutError:
-            await query.delete()
+            with contextlib.suppress(discord.NotFound):
+                await query.delete()
             return
 
         if not pred.result:
             if can_react:
-                await query.delete()
+                with contextlib.suppress(discord.NotFound):
+                    await query.delete()
             else:
                 await ctx.send(("OK then."))
             return
@@ -1347,6 +1361,12 @@ class Mutes(MixinMeta):
                     "channel": channel,
                     "reason": (MUTE_UNMUTE_ISSUES["left_guild"]),
                 }
+        except discord.Forbidden:
+            return {
+                "success": False,
+                "channel": channel,
+                "reason": (MUTE_UNMUTE_ISSUES["permissions_issue_channel"]),
+            }
         if move_channel:
             try:
                 await user.move_to(channel)

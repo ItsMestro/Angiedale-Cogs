@@ -39,7 +39,12 @@ class KickBanMixin(MixinMeta):
             if "VANITY_URL" in guild.features:
                 # guild has a vanity url so use it as the one to send
                 try:
-                    return await guild.vanity_invite()
+                    invite = await guild.vanity_invite()
+                    # `if` is needed to work around
+                    # https://github.com/Rapptz/discord.py/issues/7103
+                    # until we can use a version with the fix
+                    if invite.code is not None:
+                        return invite
                 except discord.NotFound:
                     # If a guild has the vanity url feature,
                     # but does not have it set up,
@@ -242,7 +247,7 @@ class KickBanMixin(MixinMeta):
         async for guild_id, guild_data in AsyncIter(guilds_data.items(), steps=100):
             if not (guild := self.bot.get_guild(guild_id)):
                 continue
-            if not guild.me.guild_permissions.ban_members:
+            if guild.unavailable or not guild.me.guild_permissions.ban_members:
                 continue
             if await self.bot.cog_disabled_in_guild(self, guild):
                 continue
@@ -289,13 +294,13 @@ class KickBanMixin(MixinMeta):
     @commands.guild_only()
     @commands.bot_has_permissions(kick_members=True)
     @checks.mod_or_permissions(kick_members=True)
-    async def kick(self, ctx: commands.Context, user: discord.Member, *, reason: str = None):
+    async def kick(self, ctx: commands.Context, member: discord.Member, *, reason: str = None):
         """
         Kick a user.
 
         Examples:
            - `[p]kick 428675506947227648 wanted to be kicked.`
-            This will kick Twentysix from the server.
+            This will kick the user with ID 428675506947227648 from the server.
            - `[p]kick @Twentysix wanted to be kicked.`
             This will kick Twentysix from the server.
 
@@ -305,14 +310,14 @@ class KickBanMixin(MixinMeta):
         author = ctx.author
         guild = ctx.guild
 
-        if author == user:
+        if author == member:
             await ctx.send(
                 ("I cannot let you do that. Self-harm is bad {emoji}").format(
                     emoji="\N{PENSIVE FACE}"
                 )
             )
             return
-        elif not await is_allowed_by_hierarchy(self.bot, self.config, guild, author, user):
+        elif not await is_allowed_by_hierarchy(self.bot, self.config, guild, author, member):
             await ctx.send(
                 (
                     "I cannot let you do that. You are "
@@ -321,7 +326,7 @@ class KickBanMixin(MixinMeta):
                 )
             )
             return
-        elif ctx.guild.me.top_role <= user.top_role or user == ctx.guild.owner:
+        elif ctx.guild.me.top_role <= member.top_role or member == ctx.guild.owner:
             await ctx.send(("I cannot do that due to Discord hierarchy rules."))
             return
         audit_reason = get_audit_reason(author, reason, shorten=True)
@@ -330,23 +335,23 @@ class KickBanMixin(MixinMeta):
             with contextlib.suppress(discord.HTTPException):
                 em = discord.Embed(
                     title=bold(("You have been kicked from {guild}.").format(guild=guild)),
-                    color=await self.bot.get_embed_color(user),
+                    color=await self.bot.get_embed_color(member),
                 )
                 em.add_field(
                     name=("**Reason**"),
                     value=reason if reason is not None else ("No reason was given."),
                     inline=False,
                 )
-                await user.send(embed=em)
+                await member.send(embed=em)
         try:
-            await guild.kick(user, reason=audit_reason)
-            log.info("{}({}) kicked {}({})".format(author.name, author.id, user.name, user.id))
+            await guild.kick(member, reason=audit_reason)
+            log.info("{}({}) kicked {}({})".format(author.name, author.id, member.name, member.id))
         except discord.errors.Forbidden:
             await ctx.send(("I'm not allowed to do that."))
         except Exception:
             log.exception(
                 "{}({}) attempted to kick {}({}), but an error occurred.".format(
-                    author.name, author.id, user.name, user.id
+                    author.name, author.id, member.name, member.id
                 )
             )
         else:
@@ -355,7 +360,7 @@ class KickBanMixin(MixinMeta):
                 guild,
                 ctx.message.created_at.replace(tzinfo=timezone.utc),
                 "kick",
-                user,
+                member,
                 author,
                 reason,
                 until=None,
@@ -381,7 +386,7 @@ class KickBanMixin(MixinMeta):
 
         Examples:
            - `[p]ban 428675506947227648 7 Continued to spam after told to stop.`
-            This will ban Twentysix and it will delete 7 days worth of messages.
+            This will ban the user with ID 428675506947227648 and it will delete 7 days worth of messages.
            - `[p]ban @Twentysix 7 Continued to spam after told to stop.`
             This will ban Twentysix and it will delete 7 days worth of messages.
 
@@ -419,7 +424,7 @@ class KickBanMixin(MixinMeta):
 
         Example:
            - `[p]massban 345628097929936898 57287406247743488 7 they broke all rules.`
-            This will ban all the added userids and delete 7 days of worth messages.
+            This will ban all the added userids and delete 7 days worth of their messages.
 
         User IDs need to be provided in order to ban
         using this command.
@@ -575,7 +580,7 @@ class KickBanMixin(MixinMeta):
     async def tempban(
         self,
         ctx: commands.Context,
-        user: discord.Member,
+        member: discord.Member,
         duration: Optional[commands.TimedeltaConverter] = None,
         days: Optional[int] = None,
         *,
@@ -592,17 +597,17 @@ class KickBanMixin(MixinMeta):
            - `[p]tempban @Twentysix 15m You need a timeout`
             This will ban Twentysix for 15 minutes.
            - `[p]tempban 428675506947227648 1d2h15m 5 Evil person`
-            This will ban the user for 1 day 2 hours 15 minutes and will delete the last 5 days of their messages.
+            This will ban the user with ID 428675506947227648 for 1 day 2 hours 15 minutes and will delete the last 5 days of their messages.
         """
         guild = ctx.guild
         author = ctx.author
 
-        if author == user:
+        if author == member:
             await ctx.send(
                 ("I cannot let you do that. Self-harm is bad {}").format("\N{PENSIVE FACE}")
             )
             return
-        elif not await is_allowed_by_hierarchy(self.bot, self.config, guild, author, user):
+        elif not await is_allowed_by_hierarchy(self.bot, self.config, guild, author, member):
             await ctx.send(
                 (
                     "I cannot let you do that. You are "
@@ -611,16 +616,18 @@ class KickBanMixin(MixinMeta):
                 )
             )
             return
-        elif guild.me.top_role <= user.top_role or user == guild.owner:
+        elif guild.me.top_role <= member.top_role or member == guild.owner:
             await ctx.send(("I cannot do that due to Discord hierarchy rules."))
             return
 
+        guild_data = await self.config.guild(guild).all()
+
         if duration is None:
-            duration = timedelta(seconds=await self.config.guild(guild).default_tempban_duration())
+            duration = timedelta(seconds=guild_data["default_tempban_duration"])
         unban_time = datetime.now(timezone.utc) + duration
 
         if days is None:
-            days = await self.config.guild(guild).default_days()
+            days = guild_data["default_days"]
 
         if not (0 <= days <= 7):
             await ctx.send(("Invalid days. Must be between 0 and 7."))
@@ -629,25 +636,27 @@ class KickBanMixin(MixinMeta):
         if invite is None:
             invite = ""
 
-        await self.config.member(user).banned_until.set(unban_time.timestamp())
+        await self.config.member(member).banned_until.set(unban_time.timestamp())
         async with self.config.guild(guild).current_tempbans() as current_tempbans:
-            current_tempbans.append(user.id)
+            current_tempbans.append(member.id)
 
         with contextlib.suppress(discord.HTTPException):
             # We don't want blocked DMs preventing us from banning
             msg = ("You have been temporarily banned from {server_name} until {date}.").format(
-                server_name=guild.name, date=unban_time.strftime("%m-%d-%Y %H:%M:%S")
+                server_name=guild.name, date=f"<t:{int(unban_time.timestamp())}>"
             )
+            if guild_data["dm_on_kickban"] and reason:
+                msg += ("\n\n**Reason:** {reason}").format(reason=reason)
             if invite:
-                msg += (" Here is an invite for when your ban expires: {invite_link}").format(
+                msg += ("\n\nHere is an invite for when your ban expires: {invite_link}").format(
                     invite_link=invite
                 )
-            await user.send(msg)
+            await member.send(msg)
 
         audit_reason = get_audit_reason(author, reason, shorten=True)
 
         try:
-            await guild.ban(user, reason=audit_reason, delete_message_days=days)
+            await guild.ban(member, reason=audit_reason, delete_message_days=days)
         except discord.Forbidden:
             await ctx.send(("I can't do that for some reason."))
         except discord.HTTPException:
@@ -658,7 +667,7 @@ class KickBanMixin(MixinMeta):
                 guild,
                 ctx.message.created_at.replace(tzinfo=timezone.utc),
                 "tempban",
-                user,
+                member,
                 author,
                 reason,
                 unban_time,
@@ -669,19 +678,19 @@ class KickBanMixin(MixinMeta):
     @commands.guild_only()
     @commands.bot_has_permissions(ban_members=True)
     @checks.mod_or_permissions(ban_members=True)
-    async def softban(self, ctx: commands.Context, user: discord.Member, *, reason: str = None):
+    async def softban(self, ctx: commands.Context, member: discord.Member, *, reason: str = None):
         """Kick a user and delete 1 day's worth of their messages."""
         guild = ctx.guild
         author = ctx.author
 
-        if author == user:
+        if author == member:
             await ctx.send(
                 ("I cannot let you do that. Self-harm is bad {emoji}").format(
                     emoji="\N{PENSIVE FACE}"
                 )
             )
             return
-        elif not await is_allowed_by_hierarchy(self.bot, self.config, guild, author, user):
+        elif not await is_allowed_by_hierarchy(self.bot, self.config, guild, author, member):
             await ctx.send(
                 (
                     "I cannot let you do that. You are "
@@ -698,7 +707,7 @@ class KickBanMixin(MixinMeta):
             invite = ""
 
         try:  # We don't want blocked DMs preventing us from banning
-            msg = await user.send(
+            msg = await member.send(
                 (
                     "You have been banned and "
                     "then unbanned as a quick way to delete your messages.\n"
@@ -708,7 +717,7 @@ class KickBanMixin(MixinMeta):
         except discord.HTTPException:
             msg = None
         try:
-            await guild.ban(user, reason=audit_reason, delete_message_days=1)
+            await guild.ban(member, reason=audit_reason, delete_message_days=1)
         except discord.errors.Forbidden:
             await ctx.send(("My role is not high enough to softban that user."))
             if msg is not None:
@@ -717,30 +726,30 @@ class KickBanMixin(MixinMeta):
         except discord.HTTPException:
             log.exception(
                 "{}({}) attempted to softban {}({}), but an error occurred trying to ban them.".format(
-                    author.name, author.id, user.name, user.id
+                    author.name, author.id, member.name, member.id
                 )
             )
             return
         try:
-            await guild.unban(user)
+            await guild.unban(member)
         except discord.HTTPException:
             log.exception(
                 "{}({}) attempted to softban {}({}), but an error occurred trying to unban them.".format(
-                    author.name, author.id, user.name, user.id
+                    author.name, author.id, member.name, member.id
                 )
             )
             return
         else:
             log.info(
                 "{}({}) softbanned {}({}), deleting 1 day worth "
-                "of messages.".format(author.name, author.id, user.name, user.id)
+                "of messages.".format(author.name, author.id, member.name, member.id)
             )
             await modlog.create_case(
                 self.bot,
                 guild,
                 ctx.message.created_at.replace(tzinfo=timezone.utc),
                 "softban",
-                user,
+                member,
                 author,
                 reason,
                 until=None,
@@ -793,13 +802,16 @@ class KickBanMixin(MixinMeta):
                 until=None,
                 channel=case_channel,
             )
+            await ctx.send(("User has been kicked from the voice channel."))
 
     @commands.command()
     @commands.guild_only()
     @checks.admin_or_permissions(mute_members=True, deafen_members=True)
-    async def voiceunban(self, ctx: commands.Context, user: discord.Member, *, reason: str = None):
+    async def voiceunban(
+        self, ctx: commands.Context, member: discord.Member, *, reason: str = None
+    ):
         """Unban a user from speaking and listening in the server's voice channels."""
-        user_voice_state = user.voice
+        user_voice_state = member.voice
         if (
             await self._voice_perm_check(
                 ctx, user_voice_state, deafen_members=True, mute_members=True
@@ -811,11 +823,11 @@ class KickBanMixin(MixinMeta):
         needs_undeafen = True if user_voice_state.deaf else False
         audit_reason = get_audit_reason(ctx.author, reason, shorten=True)
         if needs_unmute and needs_undeafen:
-            await user.edit(mute=False, deafen=False, reason=audit_reason)
+            await member.edit(mute=False, deafen=False, reason=audit_reason)
         elif needs_unmute:
-            await user.edit(mute=False, reason=audit_reason)
+            await member.edit(mute=False, reason=audit_reason)
         elif needs_undeafen:
-            await user.edit(deafen=False, reason=audit_reason)
+            await member.edit(deafen=False, reason=audit_reason)
         else:
             await ctx.send(("That user isn't muted or deafened by the server."))
             return
@@ -827,7 +839,7 @@ class KickBanMixin(MixinMeta):
             guild,
             ctx.message.created_at.replace(tzinfo=timezone.utc),
             "voiceunban",
-            user,
+            member,
             author,
             reason,
             until=None,
@@ -838,9 +850,9 @@ class KickBanMixin(MixinMeta):
     @commands.command()
     @commands.guild_only()
     @checks.admin_or_permissions(mute_members=True, deafen_members=True)
-    async def voiceban(self, ctx: commands.Context, user: discord.Member, *, reason: str = None):
+    async def voiceban(self, ctx: commands.Context, member: discord.Member, *, reason: str = None):
         """Ban a user from speaking and listening in the server's voice channels."""
-        user_voice_state: discord.VoiceState = user.voice
+        user_voice_state: discord.VoiceState = member.voice
         if (
             await self._voice_perm_check(
                 ctx, user_voice_state, deafen_members=True, mute_members=True
@@ -854,11 +866,11 @@ class KickBanMixin(MixinMeta):
         author = ctx.author
         guild = ctx.guild
         if needs_mute and needs_deafen:
-            await user.edit(mute=True, deafen=True, reason=audit_reason)
+            await member.edit(mute=True, deafen=True, reason=audit_reason)
         elif needs_mute:
-            await user.edit(mute=True, reason=audit_reason)
+            await member.edit(mute=True, reason=audit_reason)
         elif needs_deafen:
-            await user.edit(deafen=True, reason=audit_reason)
+            await member.edit(deafen=True, reason=audit_reason)
         else:
             await ctx.send(("That user is already muted and deafened server-wide."))
             return
@@ -868,7 +880,7 @@ class KickBanMixin(MixinMeta):
             guild,
             ctx.message.created_at.replace(tzinfo=timezone.utc),
             "voiceban",
-            user,
+            member,
             author,
             reason,
             until=None,
@@ -943,7 +955,7 @@ class KickBanMixin(MixinMeta):
                 except discord.HTTPException:
                     await ctx.send(
                         (
-                            "Something went wrong when attempting to send that user"
+                            "Something went wrong when attempting to send that user "
                             "an invite. Here's the link so you can try: {invite_link}"
                         ).format(invite_link=invite.url)
                     )

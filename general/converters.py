@@ -1,12 +1,15 @@
-import discord
 import re
-from redbot.core import commands
-from typing import Dict, Union
 from datetime import timedelta
+from typing import Dict, Union
+
+import discord
+from redbot.core import commands
 from redbot.core.commands import Converter
 
 TIME_RE_STRING = r"|".join(
     [
+        r"((?P<years>\d+?)\s?(years?|y))?",
+        r"((?P<months>\d+?)\s?(months?|mo))?",
         r"((?P<weeks>\d+?)\s?(weeks?|w))",
         r"((?P<days>\d+?)\s?(days?|d))",
         r"((?P<hours>\d+?)\s?(hours?|hrs|hr?))",
