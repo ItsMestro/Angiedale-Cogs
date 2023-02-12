@@ -108,6 +108,7 @@ class Data:
             score["creatorid"] = s["beatmapset"]["user_id"]
             score["status"] = s["beatmapset"]["status"]
             score["setid"] = s["beatmapset"]["id"]
+            score["hasvideo"] = s["beatmapset"]["video"]
         except:
             pass
 
@@ -637,10 +638,9 @@ class Embed(Data):
         else:
             length = time.strftime("%-M:%S", length)
 
+        download = f'[Link](https://osu.ppy.sh/d/{d["setid"]})'
         if d["hasvideo"]:
-            download = f'[Link](https://osu.ppy.sh/d/{d["setid"]}) ([No Video](https://osu.ppy.sh/d/{d["setid"]}n))'
-        else:
-            download = f'[Link](https://osu.ppy.sh/d/{d["setid"]})'
+            download += f' ([No Video](https://osu.ppy.sh/d/{d["setid"]}n))'
 
         embed_list = []
         embed = discord.Embed(
@@ -1191,6 +1191,10 @@ class Embed(Data):
         except TypeError:
             performance = 0
 
+        download = f'[Link](https://osu.ppy.sh/d/{embeddata["setid"]})'
+        if embeddata["hasvideo"]:
+            download += f' ([No Video](https://osu.ppy.sh/d/{embeddata["setid"]}n))'
+
         embed_out = []
 
         embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
@@ -1222,7 +1226,8 @@ class Embed(Data):
         embed.add_field(
             name="Map Info",
             value=f'Mapper: [{embeddata["creator"]}](https://osu.ppy.sh/users/{embeddata["creatorid"]}) | {EMOJI["BPM"]} `{embeddata["bpm"]}` | Objects: `{humanize_number(embeddata["circles"] + embeddata["sliders"] + embeddata["spinners"])}` \n'
-            f'Status: {inline(embeddata["status"].capitalize())} | {stats}',
+            f'Status: {inline(embeddata["status"].capitalize())} | {stats}\n'
+            f'Download: {download}',
             inline=False,
         )
 
