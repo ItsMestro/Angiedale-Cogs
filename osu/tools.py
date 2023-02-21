@@ -603,7 +603,7 @@ class Helper:
             if not modlist == entrylist or len(modlist) == 0:
                 return await del_message(
                     ctx,
-                    f"The specified mod(s) are incorrect. Check valid mods with `{ctx.clean_prefix}osuweekly mods`.",
+                    f"The specified mod(s) are incorrect. Check valid mods with `{ctx.clean_prefix}osubeat mods`.",
                 )
             return_list.append(modlist)
 
