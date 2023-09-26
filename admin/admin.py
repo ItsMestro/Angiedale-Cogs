@@ -1,15 +1,24 @@
 import asyncio
 import logging
+import re
 from datetime import datetime
-from typing import Literal
+from typing import List, Literal, Union
 
 import discord
 from redbot.core import Config, checks, commands, modlog
 from redbot.core.bot import Red
 from redbot.core.utils import AsyncIter
-from redbot.core.utils.predicates import MessagePredicate
+from redbot.core.utils.chat_formatting import inline
+from redbot.core.utils.menus import start_adding_reactions
+from redbot.core.utils.predicates import MessagePredicate, ReactionPredicate
 
-from .converters import SelfRole
+from .converters import (
+    RRoleType,
+    RRoleTypeConverter,
+    SelfRole,
+    TrueEmojiConverter,
+    rroletype_solver,
+)
 from .modlog import ModLog
 from .modset import ModSettings
 from .mutes import Mutes
@@ -61,6 +70,28 @@ ROLE_USER_HIERARCHY_ISSUE = (
 
 NEED_MANAGE_ROLES = 'I need the "Manage Roles" permission to do that.'
 
+NEED_ADD_REACTIONS = (
+    'I need the "Add Reactions" permission in the channel for that message to do that.'
+)
+
+NEED_MANAGE_MESSAGES = (
+    'I need the "Manage Messages" permission in the channel for that message to do that.'
+)
+
+USER_HIERARCHY_ISSUE = (
+    "I can not let you give {role.name} to users"
+    " because that role is higher than or equal to your highest role"
+    " in the Discord hierarchy."
+)
+
+ROLE_HIERARCHY_ISSUE_ADD = (
+    "I can not give users {role.name}"
+    " because that role is higher than my or equal to highest role"
+    " in the Discord hierarchy."
+)
+
+EMOJI_RE = re.compile(r"<a?:[a-zA-Z0-9\_]+:([0-9]+)>")
+
 
 def is_support_guild():
     async def pred(ctx: commands.Context):
@@ -93,11 +124,12 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
     default_member_warnings = {
         "total_points": 0,
         "status": "",
-        "warnings": {},
+        "warnings": {}
     }
 
     def __init__(self, bot: Red):
         self.bot = bot
+        self.rrolecache = set()
 
         self.reportsconfig = Config.get_conf(
             self, identifier=1387000, force_registration=True, cog_name="Reports"
@@ -123,6 +155,9 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
         self.cleanupconfig = Config.get_conf(
             self, identifier=1387000, force_registration=True, cog_name="Cleanup"
         )
+        self.rroleconfig = Config.get_conf(
+            self, identifier=1387000, force_registration=True, cog_name="ReactionRoles"
+        )
         self.cleanupconfig.register_guild(notify=True)
         self.warnconfig.register_guild(**self.default_guild_warnings)
         self.warnconfig.register_member(**self.default_member_warnings)
@@ -146,16 +181,17 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
             "filter_names": False,
             "filter_default_name": "Florida Man",
         }
-        default_member_settings = {
-            "filter_count": 0,
-            "next_reset_time": 0,
-        }
-        default_channel_settings = {
-            "filter": [],
-        }
+        default_member_settings = {"filter_count": 0, "next_reset_time": 0}
+        default_channel_settings = {"filter": []}
         self.filterconfig.register_guild(**default_guild_settings)
         self.filterconfig.register_member(**default_member_settings)
         self.filterconfig.register_channel(**default_channel_settings)
+
+        default_rrole_settings = {"rroles": {}}
+        self.rroleconfig.init_custom("RRole", 2)
+        self.rroleconfig.register_custom("RRole", **default_rrole_settings)
+
+        self.initialize_task: asyncio.Task = self.bot.loop.create_task(self.initialize())
 
     async def red_delete_data_for_user(
         self,
@@ -197,6 +233,10 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
                     if warning.get("mod", 0) == user_id:
                         grp = self.warnconfig.member_from_ids(guild_id, remaining_user)
                         await grp.set_raw("warnings", warn_id, "mod", value=0xDE1)
+
+    async def initialize(self):
+        await self.bot.wait_until_ready()
+        await self._update_cache()
 
     # We're not utilising modlog yet - no need to register a casetype
     @staticmethod
@@ -704,3 +744,360 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
         else:
             await self.cleanupconfig.guild(ctx.guild).notify.set(True)
             await ctx.send(("I will now notify of message deletions."))
+
+    @commands.guild_only()
+    @commands.admin_or_permissions(administrator=True)
+    @commands.group()
+    async def rrole(self, ctx: commands.Context):
+        """Create or manage reaction roles."""
+
+    @rrole.command(aliases=["new", "create"], usage="<type> <role> <emoji> <message> [channel]")
+    async def make(
+        self,
+        ctx: commands.Context,
+        rrtype: RRoleTypeConverter,
+        role: discord.Role,
+        emoji: TrueEmojiConverter,
+        message: Union[discord.Message, int],
+        channel: discord.TextChannel = None,
+    ):
+        """Set up a new reaction role.
+
+        A channel is only required if the message is in another channel than where you're typing.
+
+        The type can be one of:
+        `Normal` - Gives role on react. Removes when reaction is removed.
+        `Once` - Adds a role when first reacted to but can't be removed.
+        `Remove` - Opposite to once by getting removed on first reaction and not granted again.
+        `Toggle` - Will remove any other toggle roles a user has from the same message and only grant the current one.
+        """
+
+        if type(message) is not discord.Message:
+            if not channel:
+                return await ctx.send(
+                    "You need to provide a channel if making reaction roles for messages outside of here."
+                )
+            message = await channel.fetch_message(message)
+            if not message:
+                return await ctx.send(
+                    "Could not find that channel or message. Are you sure you typed in the right ID or mention?"
+                )
+
+        if not ctx.guild.me.guild_permissions.manage_roles:
+            return await ctx.send((NEED_MANAGE_ROLES))
+
+        if not ctx.guild.me.permissions_in(message.channel).add_reactions:
+            return await ctx.send((NEED_ADD_REACTIONS))
+
+        if not ctx.guild.me.permissions_in(message.channel).manage_messages:
+            return await ctx.send((NEED_MANAGE_MESSAGES))
+
+        if not self.pass_user_hierarchy_check(ctx, role):
+            return await ctx.send(USER_HIERARCHY_ISSUE.format(role=role))
+
+        if not self.pass_hierarchy_check(ctx, role):
+            return await ctx.send(ROLE_HIERARCHY_ISSUE_ADD.format(role=role))
+
+        emoji_id = self.emoji_id(emoji)
+        async with self.rroleconfig.custom("RRole", ctx.guild.id, message.id).rroles() as r:
+            if len(r) >= 20:
+                return await ctx.send(
+                    f"There is already 20 reaction roles assigned to that message. Discord limits messages to 20 reactions each. To replace one, use {inline(f'{ctx.clean_prefix}rrole remove')}"
+                )
+            try:
+                old_rrole = r[emoji_id]
+            except KeyError:
+                old_rrole = None
+            if old_rrole:
+                old_role: discord.Role = ctx.guild.get_role(old_rrole["role_id"][0])
+                if not old_role:
+                    r.pop(emoji_id)
+                else:
+                    can_react = ctx.channel.permissions_for(ctx.me).add_reactions
+                    msg: discord.Message = await ctx.send(
+                        f"There is already a reaction role set up for {old_role}\nDo you want to override it?",
+                        allowed_mentions=discord.AllowedMentions(users=False),
+                    )
+
+                    if can_react:
+                        start_adding_reactions(msg, ReactionPredicate.YES_OR_NO_EMOJIS)
+                        pred = ReactionPredicate.yes_or_no(msg, ctx.author)
+                        event = "reaction_add"
+                    else:
+                        pred = MessagePredicate.yes_or_no(ctx)
+                        event = "message"
+                    try:
+                        await ctx.bot.wait_for(event, check=pred, timeout=30)
+                    except asyncio.TimeoutError:
+                        await msg.delete()
+                        return await ctx.send("Cancelling reaction role creation.")
+                    if pred.result:
+                        await msg.delete()
+                        r.pop(emoji_id)
+                        await ctx.send(
+                            f"Replacing the reaction role for {emoji} with {role} on <{message.jump_url}>.",
+                            allowed_mentions=discord.AllowedMentions(users=False),
+                        )
+                    else:
+                        await msg.delete()
+                        return await ctx.send("Cancelling reaction role creation.")
+            else:
+                await ctx.send(
+                    f"Adding reaction role for {emoji} with {role} on <{message.jump_url}>.",
+                    allowed_mentions=discord.AllowedMentions(users=False),
+                )
+
+            r[emoji_id] = {"role_id": [role.id], "channel_id": message.channel.id, "type": rrtype}
+
+        if str(emoji) in [str(emoji) for emoji in message.reactions]:
+            await message.clear_reaction(emoji)
+        await message.add_reaction(emoji)
+
+        self._edit_cache(message.id)
+
+    @rrole.command(aliases=["delete", "del"], usage="<message> [channel] [emoji]")
+    async def remove(
+        self,
+        ctx: commands.Context,
+        message: Union[discord.Message, int],
+        channel: discord.TextChannel = None,
+        emoji: TrueEmojiConverter = None,
+    ):
+        """Remove a reaction role.
+
+        A channel is only required if the message is in another channel than where you're typing.
+
+        If an emoji is provided only the specific emoji is removed.
+        """
+        if type(message) is not discord.Message:
+            if not channel:
+                return await ctx.send(
+                    "You need to provide a channel if removing reaction roles for messages outside of here."
+                )
+            message = await channel.fetch_message(message)
+            if not message:
+                return await ctx.send(
+                    "Could not find that channel or message. Are you sure you typed in the right ID or mention?"
+                )
+
+        if message.id not in self.rrolecache:
+            return await ctx.send("There is no reaction roles set up on the provided message.")
+
+        rroles = await self.rroleconfig.custom("RRole", ctx.guild.id, message.id).rroles.all()
+
+        if emoji:
+            emoji_id = self.emoji_id(emoji)
+            if emoji_id not in rroles:
+                return await ctx.send(
+                    "That emoji isn't set up for reaction roles on the provided message."
+                )
+
+        can_react = ctx.channel.permissions_for(ctx.me).add_reactions
+
+        if emoji:
+            msg: discord.Message = await ctx.send(
+                f"This will remove the reaction role with {emoji} from <{message.jump_url}>\nAre you sure?"
+            )
+        else:
+            msg: discord.Message = await ctx.send(
+                f"This will remove all reaction roles on <{message.jump_url}>\nAre you sure?"
+            )
+
+        if can_react:
+            start_adding_reactions(msg, ReactionPredicate.YES_OR_NO_EMOJIS)
+            pred = ReactionPredicate.yes_or_no(msg, ctx.author)
+            event = "reaction_add"
+        else:
+            pred = MessagePredicate.yes_or_no(ctx)
+            event = "message"
+        try:
+            await ctx.bot.wait_for(event, check=pred, timeout=30)
+        except asyncio.TimeoutError:
+            await msg.delete()
+            return await ctx.send("Cancelling reaction role removal.")
+        if pred.result:
+            await msg.delete()
+            if emoji:
+                if message.channel.permissions_for(ctx.me).manage_messages:
+                    try:
+                        await message.clear_reaction(emoji)
+                    except discord.HTTPException:
+                        pass
+                await self._remove_reaction_role(ctx.guild, message, [emoji_id])
+                await ctx.send(f"Removed the {emoji} reaction role from {message.jump_url}")
+            else:
+                if message.channel.permissions_for(ctx.me).manage_messages:
+                    try:
+                        await message.clear_reactions()
+                    except discord.HTTPException:
+                        pass
+                reactions = []
+                for data in rroles:
+                    reactions.append(data)
+                await self._remove_reaction_role(ctx.guild, message, reactions)
+                await ctx.send(f"Removed all reaction roles on {message.jump_url}")
+        else:
+            await msg.delete()
+            return await ctx.send("Cancelling reaction role removal.")
+
+    async def _update_cache(self):
+        all_messages: dict = await self.rroleconfig.custom("RRole").all()
+        self.rrolecache.update(
+            int(msg_id)
+            for data in all_messages.values()
+            for msg_id, msg_data in data.items()
+            if msg_data["rroles"]
+        )
+
+    def _edit_cache(self, message_id=None, remove=False):
+        if remove:
+            self.rrolecache.remove(message_id)
+        else:
+            self.rrolecache.add(message_id)
+
+    async def _remove_reaction_role(
+        self,
+        guild: discord.Guild,
+        message: Union[discord.Message, discord.Object],
+        emoji_ids: List[str],
+    ):
+        async with self.rroleconfig.custom("RRole", guild.id, message.id).rroles() as r:
+            for emoji_id in emoji_ids:
+                r.pop(emoji_id)
+            if not r:
+                self._edit_cache(message.id, True)
+
+    def emoji_id(self, emoji: Union[discord.Emoji, str]) -> str:
+        return emoji if isinstance(emoji, str) else str(emoji.id)
+
+    def _check_payload_to_cache(self, payload):
+        return payload.message_id in self.rrolecache
+
+    @commands.Cog.listener("on_raw_reaction_add")
+    @commands.Cog.listener("on_raw_reaction_remove")
+    async def on_raw_reaction_add_or_remove(self, payload: discord.RawReactionActionEvent):
+        if payload.guild_id is None:
+            return
+
+        if not self._check_payload_to_cache(payload):
+            return
+
+        if await self.bot.cog_disabled_in_guild_raw(self.qualified_name, payload.guild_id):
+            return
+
+        guild: discord.Guild = self.bot.get_guild(payload.guild_id)
+        if payload.event_type == "REACTION_ADD":
+            member: discord.Member = payload.member
+        else:
+            member: discord.Member = guild.get_member(payload.user_id)
+
+        if member is None or member.bot:
+            return
+        if not guild.me.guild_permissions.manage_roles:
+            return
+
+        reactions: dict = await self.rroleconfig.custom(
+            "RRole", guild.id, payload.message_id
+        ).rroles.all()
+        emoji_id = (
+            str(payload.emoji) if payload.emoji.is_unicode_emoji() else str(payload.emoji.id)
+        )
+        role_id = reactions[emoji_id]["role_id"][0]
+        if not role_id:
+            return
+        role: discord.Role = guild.get_role(role_id)
+        if not role:
+            return await self._remove_reaction_role(
+                guild, discord.Object(payload.message_id), [emoji_id]
+            )
+        if not guild.me.guild_permissions.manage_roles:
+            return
+        if not guild.me.top_role > role:
+            return
+
+        type = rroletype_solver(reactions[emoji_id]["type"])
+
+        if payload.event_type == "REACTION_ADD":
+            if type is RRoleType.NORMAL:
+                if role not in member.roles:
+                    await member.add_roles(role, reason="Reaction role")
+            elif type is RRoleType.ONCE or type is RRoleType.REMOVE:
+                try:
+                    chn: discord.abc.GuildChannel = guild.get_channel(payload.channel_id)
+                    msg: discord.Message = await chn.fetch_message(payload.message_id)
+                    await msg.remove_reaction(payload.emoji, payload.member)
+                except:
+                    pass
+                if type is RRoleType.ONCE:
+                    if role not in member.roles:
+                        await member.add_roles(role, reason="Reaction role")
+                if type is RRoleType.REMOVE:
+                    if role in member.roles:
+                        await member.remove_roles(role, reason="Reaction role")
+            elif type is RRoleType.TOGGLE:
+                role_list = []
+                chn = None
+                msg = None
+                try:
+                    chn: discord.abc.GuildChannel = guild.get_channel(payload.channel_id)
+                    msg: discord.Message = await chn.fetch_message(payload.message_id)
+                except:
+                    pass
+                for e, r in reactions.items():
+                    if rroletype_solver(r["type"]) is RRoleType.TOGGLE:
+                        temprole: discord.Role = guild.get_role(r["role_id"][0])
+                        if temprole and temprole is not role:
+                            role_list.append(temprole)
+                            if msg:
+                                try:
+                                    tempemoji: discord.Emoji = await guild.fetch_emoji(e)
+                                    try:
+                                        await msg.remove_reaction(tempemoji, payload.member)
+                                    except:
+                                        pass
+                                except:
+                                    try:
+                                        await msg.remove_reaction(e, payload.member)
+                                    except:
+                                        pass
+                for r in role_list:
+                    try:
+                        await member.remove_roles(r, reason="Reaction role")
+                    except:
+                        pass
+                if role not in member.roles:
+                    try:
+                        await member.add_roles(role, reason="Reaction role")
+                    except:
+                        pass
+        else:
+            if type is RRoleType.NORMAL or type is RRoleType.TOGGLE:
+                if role in member.roles:
+                    await member.remove_roles(role, reason="Reaction role")
+
+    @commands.Cog.listener()
+    async def on_raw_message_delete(self, payload: discord.RawMessageDeleteEvent):
+        if payload.guild_id is None:
+            return
+
+        if not self._check_payload_to_cache(payload):
+            return
+
+        if await self.bot.cog_disabled_in_guild_raw(self.qualified_name, payload.guild_id):
+            return
+
+        await self.config.custom("RRole", payload.guild_id, payload.message_id).clear()
+        self._edit_cache(payload.message_id, True)
+
+    @commands.Cog.listener()
+    async def on_raw_bulk_message_delete(self, payload: discord.RawBulkMessageDeleteEvent):
+        if payload.guild_id is None:
+            return
+
+        if await self.bot.cog_disabled_in_guild_raw(self.qualified_name, payload.guild_id):
+            return
+
+        for message_id in payload.message_ids:
+            if message_id in self.rrolecache:
+                await self.rroleconfig.custom("RRole", payload.guild_id, message_id).clear()
+                self._edit_cache(message_id, True)
