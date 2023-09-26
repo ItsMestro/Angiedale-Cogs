@@ -9,8 +9,8 @@ import functools
 from typing import Iterable, List, Union
 
 import discord
-from redbot.core.bot import Red
 from redbot.core import commands
+from redbot.core.bot import Red
 from redbot.core.utils.predicates import ReactionPredicate
 
 
@@ -255,16 +255,16 @@ def check_controls(bot: Red, embeds: Union[List[str], List[discord.Embed]], data
     """And here's another one just for good measure."""
     if len(embeds) > 1:
          output = {
-            bot.get_emoji(755808378432913558): custom_previous_page,
+            "\N{LEFTWARDS BLACK ARROW}\N{VARIATION SELECTOR-16}": custom_previous_page,
             "\N{CROSS MARK}": custom_close_menu,
-            bot.get_emoji(755808379170979971): custom_next_page,
+            "\N{BLACK RIGHTWARDS ARROW}\N{VARIATION SELECTOR-16}": custom_next_page,
         }
     else:
         output = {"\N{CROSS MARK}": custom_close_menu}
     
     if has_chapters:
         if len(data) > 1:
-            output["\N{UP ARROW}"] = custom_previous_chapter
-            output["\N{DOWN ARROW}"] = custom_next_chapter
+            output["\N{UPWARDS BLACK ARROW}\N{VARIATION SELECTOR-16}"] = custom_previous_chapter
+            output["\N{DOWNWARDS BLACK ARROW}\N{VARIATION SELECTOR-16}"] = custom_next_chapter
 
     return output
