@@ -35,7 +35,7 @@ class Reports:
         "report": {},
     }
 
-    # This can be made configureable later if it
+    # This can be made configurable later if it
     # becomes an issue.
     # Intervals should be a list of tuples in the form
     # (period: timedelta, max_frequency: int)

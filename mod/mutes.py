@@ -254,7 +254,7 @@ class Mutes(MixinMeta):
         for result in results:
             if not result:
                 continue
-            _mmeber, channel, reason = result
+            _member, channel, reason = result
             unmuted_channels.remove(channel)
         modlog_reason = "Automatic unmute"
 
@@ -1157,7 +1157,7 @@ class Mutes(MixinMeta):
             "user": user,
         }
         # TODO: This typing is ugly and should probably be an object on its own
-        # along with this entire method and some othe refactorization
+        # along with this entire method and some other refactorization
         # v1.0.0 is meant to look ugly right :')
         if permissions.administrator:
             ret["reason"] = MUTE_UNMUTE_ISSUES["is_admin"]
@@ -1298,7 +1298,7 @@ class Mutes(MixinMeta):
         move_channel = False
         new_overs.update(send_messages=False, add_reactions=False, speak=False)
         send_reason = None
-        if user.voice and user.voice.channel:
+        if user.voice and user.voice.channel == channel:
             if channel.permissions_for(guild.me).move_members:
                 move_channel = True
             else:
@@ -1399,7 +1399,7 @@ class Mutes(MixinMeta):
         else:
             old_values = {"send_messages": None, "add_reactions": None, "speak": None}
 
-        if user.voice and user.voice.channel:
+        if user.voice and user.voice.channel == channel:
             if channel.permissions_for(guild.me).move_members:
                 move_channel = True
 

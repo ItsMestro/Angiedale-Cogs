@@ -39,7 +39,7 @@ TIME_SPLIT = re.compile(r"t(?:ime)?=")
 class MuteTime(Converter):
     """
     This will parse my defined multi response pattern and provide usable formats
-    to be used in multiple reponses
+    to be used in multiple responses
     """
 
     async def convert(

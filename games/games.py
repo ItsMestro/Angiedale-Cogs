@@ -21,7 +21,7 @@ from redbot.core.utils import AsyncIter
 from redbot.core.utils.chat_formatting import bold, box, humanize_number, pagify
 from redbot.core.utils.menus import start_adding_reactions
 from redbot.core.utils.predicates import MessagePredicate, ReactionPredicate
-from schema import Optional, Or, Schema, SchemaError
+import schema
 from tabulate import tabulate
 
 from . import utils
@@ -31,25 +31,11 @@ from .converters import finite_float
 from .data import Database
 from .session import TriviaSession
 from .utils import is_input_unsupported
+from .triviaschema import TRIVIA_LIST_SCHEMA, format_schema_error
 
 __all__ = ["get_core_lists"]
 
 log = logging.getLogger("red.angiedale.games")
-
-TRIVIA_LIST_SCHEMA = Schema(
-    {
-        Optional("AUTHOR"): str,
-        Optional("CONFIG"): {
-            Optional("max_score"): int,
-            Optional("timeout"): Or(int, float),
-            Optional("delay"): Or(int, float),
-            Optional("bot_plays"): bool,
-            Optional("reveal_answer"): bool,
-            Optional("payout_multiplier"): Or(int, float),
-        },
-        str: [str, int, bool, float],
-    }
-)
 
 _SCHEMA_VERSION: Final[int] = 2
 
@@ -362,7 +348,7 @@ class Games(Database, commands.Cog):
     @triviaset.command(name="maxscore")
     async def triviaset_max_score(self, ctx: commands.Context, score: int):
         """Set the total points required to win."""
-        if score < 0:
+        if score <= 0:
             await ctx.send(("Score must be greater than 0."))
             return
         settings = self.triviaconfig.guild(ctx.guild)
@@ -410,8 +396,21 @@ class Games(Database, commands.Cog):
                 )
             )
 
+    @triviaset.command(name="usespoilers", usage="<true_or_false>")
+    async def triviaset_use_spoilers(self, ctx: commands.Context, enabled: bool):
+        """Set if bot will display the answers in spoilers.
+
+        If enabled, the bot will use spoilers to hide answers.
+        """
+        settings = self.config.guild(ctx.guild)
+        await settings.use_spoilers.set(enabled)
+        if enabled:
+            await ctx.send(("Done. I'll put the answers in spoilers next time."))
+        else:
+            await ctx.send(("Alright, I won't use spoilers to hide answers anymore."))
+
     @triviaset.command(name="botplays", usage="<true_or_false>")
-    async def trivaset_bot_plays(self, ctx: commands.Context, enabled: bool):
+    async def triviaset_bot_plays(self, ctx: commands.Context, enabled: bool):
         """Set whether or not the bot gains points.
 
         If enabled, the bot will gain a point if no one guesses correctly.
@@ -424,7 +423,7 @@ class Games(Database, commands.Cog):
             await ctx.send(("Alright, I won't embarrass you at trivia anymore."))
 
     @triviaset.command(name="revealanswer", usage="<true_or_false>")
-    async def trivaset_reveal_answer(self, ctx: commands.Context, enabled: bool):
+    async def triviaset_reveal_answer(self, ctx: commands.Context, enabled: bool):
         """Set whether or not the answer is revealed.
 
         If enabled, the bot will reveal the answer if no one guesses correctly
@@ -520,16 +519,16 @@ class Games(Database, commands.Cog):
         try:
             await self._save_trivia_list(ctx=ctx, attachment=parsedfile)
         except yaml.error.MarkedYAMLError as exc:
-            await ctx.send(("Invalid syntax: ") + str(exc))
+            await ctx.send(_("Invalid syntax:\n") + box(str(exc)))
         except yaml.error.YAMLError:
             await ctx.send(("There was an error parsing the trivia list. See logs for more info."))
             log.exception("Custom Trivia file %s failed to upload", parsedfile.filename)
-        except SchemaError as e:
+        except schema.SchemaError as exc:
             await ctx.send(
                 (
                     "The custom trivia list was not saved."
                     " The file does not follow the proper data format.\n{schema_error}"
-                ).format(schema_error=box(e))
+                ).format(schema_error=box(format_schema_error(exc)))
             )
 
     @commands.is_owner()
@@ -930,8 +929,18 @@ class Games(Database, commands.Cog):
         TRIVIA_LIST_SCHEMA.validate(trivia_dict)
 
         buffer.seek(0)
-        with file.open("wb") as fp:
-            fp.write(buffer.read())
+        try:
+            with file.open("wb") as fp:
+                fp.write(buffer.read())
+        except FileNotFoundError as e:
+            await ctx.send(
+                _(
+                    "There was an error saving the file.\n"
+                    "Please check the filename and try again, as it could be longer than your system supports."
+                )
+            )
+            return
+        
         await ctx.send(("Saved Trivia list as {filename}.").format(filename=filename))
 
     def _get_trivia_session(self, channel: discord.TextChannel) -> TriviaSession:
@@ -2429,8 +2438,6 @@ def get_list(path: pathlib.Path) -> Dict[str, Any]:
     ------
     InvalidListError
         Parsing of list's YAML file failed.
-    SchemaError
-        The list does not adhere to the schema.
     """
     with path.open(encoding="utf-8") as file:
         try:
@@ -2440,7 +2447,7 @@ def get_list(path: pathlib.Path) -> Dict[str, Any]:
 
     try:
         TRIVIA_LIST_SCHEMA.validate(trivia_dict)
-    except SchemaError as exc:
+    except schema.SchemaError as exc:
         raise InvalidListError("The list does not adhere to the schema.") from exc
     return trivia_dict
 

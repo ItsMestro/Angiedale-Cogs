@@ -5,6 +5,7 @@ from typing import Dict, Union
 import discord
 from redbot.core import commands
 from redbot.core.utils.chat_formatting import inline
+from redbot.core.utils import AsyncIter
 
 # the following regex is slightly modified from Red
 # it's changed to be slightly more strict on matching with finditer
@@ -32,23 +33,43 @@ class SelfRole(commands.Converter):
         admin = ctx.command.cog
         if admin is None:
             raise commands.BadArgument(("The Admin cog is not loaded."))
-
+        
+        selfroles = await admin.config.guild(ctx.guild).selfroles()
         role_converter = commands.RoleConverter()
-        role = await role_converter.convert(ctx, arg)
+        
+        pool = set()
+        async for role_id in AsyncIter(selfroles, steps=100):
+            role = ctx.guild.get_role(role_id)
+            if role is None:
+                continue
+            if role.name.casefold() == arg.casefold():
+                pool.add(role)
 
-        selfroles = await admin.adminconfig.guild(ctx.guild).selfroles()
-
-        if role.id not in selfroles:
+        if not pool:
+            role = await role_converter.convert(ctx, arg)
+            if role.id not in selfroles:
+                raise commands.BadArgument(
+                    ('The role "{role_name}" is not a valid selfrole.').format(
+                        role_name=role.name
+                    )
+                )
+        elif len(pool) > 1:
             raise commands.BadArgument(
-                ('The role "{role_name}" is not a valid selfrole.').format(role_name=role.name)
+                (
+                    "This selfrole has more than one case insensitive match. "
+                    "Please ask a moderator to resolve the ambiguity, or "
+                    "use the role ID to reference the role."
+                )
             )
+        else:
+            role = pool.pop()
         return role
 
 
 class MuteTime(commands.Converter):
     """
     This will parse my defined multi response pattern and provide usable formats
-    to be used in multiple reponses
+    to be used in multiple responses
     """
 
     async def convert(

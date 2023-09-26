@@ -344,7 +344,7 @@ class Mod(
                 ).format(command_1=command_1)
             )
 
-    # @commands.command()
+    # @commands.command(hidden=True)
     # @commands.is_owner()
     # async def moveignoredchannels(self, ctx: commands.Context) -> None:
     #     """Move ignored channels and servers to core"""
@@ -358,7 +358,7 @@ class Mod(
     #         await self.config.channel_from_id(channel_id).clear()
     #     await ctx.send(("Ignored channels and guilds restored."))
 
-    # @commands.command()
+    # @commands.command(hidden=True)
     # @commands.is_owner()
     # async def movedeletedelay(self, ctx: commands.Context) -> None:
     #     """
@@ -419,7 +419,7 @@ class Mod(
                 if exc.status == 400:  # BAD REQUEST
                     await ctx.send(("That nickname is invalid."))
                 else:
-                    await ctx.send(("An unexpected error has occured."))
+                    await ctx.send(("An unexpected error has occurred."))
             else:
                 await ctx.send(("Done."))
 
