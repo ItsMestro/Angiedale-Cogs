@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from math import ceil
 
 import discord
+from .converters import BeatMode
 from redbot.core import commands
 from redbot.core.utils.chat_formatting import humanize_number, humanize_timedelta, inline
 
@@ -50,7 +51,13 @@ class Data:
         """/users/{user}/scores"""
 
         data = self.scoredata(d)
-        data["extra_data"] = await self.extra_beatmap_info(data)
+        for s in range(3):
+            data["extra_data"] = await self.extra_beatmap_info(data)
+            try:
+                data["extra_data"]["Hitobjects"]
+                return data
+            except KeyError:
+                pass
         return data
 
     def scoredata(self, s):
@@ -102,6 +109,7 @@ class Data:
             score["creatorid"] = s["beatmapset"]["user_id"]
             score["status"] = s["beatmapset"]["status"]
             score["setid"] = s["beatmapset"]["id"]
+            score["hasvideo"] = s["beatmapset"]["video"]
         except:
             pass
 
@@ -297,7 +305,6 @@ class Data:
         return data
 
     def userdata(self, d):
-
         data = {}
 
         data = {**data, **self.userbasicdata(d)}
@@ -631,10 +638,9 @@ class Embed(Data):
         else:
             length = time.strftime("%-M:%S", length)
 
+        download = f'[Link](https://osu.ppy.sh/d/{d["setid"]})'
         if d["hasvideo"]:
-            download = f'[Link](https://osu.ppy.sh/d/{d["setid"]}) ([No Video](https://osu.ppy.sh/d/{d["setid"]}n))'
-        else:
-            download = f'[Link](https://osu.ppy.sh/d/{d["setid"]})'
+            download += f' ([No Video](https://osu.ppy.sh/d/{d["setid"]}n))'
 
         embed_list = []
         embed = discord.Embed(
@@ -1167,10 +1173,13 @@ class Embed(Data):
                     - 1
                 )
 
-            mapstart = int(embeddata["extra_data"]["Hitobjects"][0]["time"])
-            mapend = int(embeddata["extra_data"]["Hitobjects"][-1]["time"])
-            mapfail = int(embeddata["extra_data"]["Hitobjects"][failpoint]["time"])
-            failedat = "{:.2%}".format((mapfail - mapstart) / (mapend - mapstart))
+            try:
+                mapstart = int(embeddata["extra_data"]["Hitobjects"][0]["time"])
+                mapend = int(embeddata["extra_data"]["Hitobjects"][-1]["time"])
+                mapfail = int(embeddata["extra_data"]["Hitobjects"][failpoint]["time"])
+                failedat = "{:.2%}".format((mapfail - mapstart) / (mapend - mapstart))
+            except KeyError:
+                failedat = ""
 
         mods = ""
         if embeddata["mods"]:
@@ -1181,6 +1190,10 @@ class Embed(Data):
             performance = humanize_number(round(embeddata["scorepp"], 2))
         except TypeError:
             performance = 0
+
+        download = f'[Link](https://osu.ppy.sh/d/{embeddata["setid"]})'
+        if embeddata["hasvideo"]:
+            download += f' ([No Video](https://osu.ppy.sh/d/{embeddata["setid"]}n))'
 
         embed_out = []
 
@@ -1193,7 +1206,10 @@ class Embed(Data):
         )
 
         if embeddata["scorerank"] == "F":
-            embed.title = f"Failed at {failedat}"
+            if failedat:
+                embed.title = f"Failed at {failedat}"
+            else:
+                embed.title = f"Failed"
         else:
             embed.title = "Passed"
 
@@ -1210,7 +1226,8 @@ class Embed(Data):
         embed.add_field(
             name="Map Info",
             value=f'Mapper: [{embeddata["creator"]}](https://osu.ppy.sh/users/{embeddata["creatorid"]}) | {EMOJI["BPM"]} `{embeddata["bpm"]}` | Objects: `{humanize_number(embeddata["circles"] + embeddata["sliders"] + embeddata["spinners"])}` \n'
-            f'Status: {inline(embeddata["status"].capitalize())} | {stats}',
+            f'Status: {inline(embeddata["status"].capitalize())} | {stats}\n'
+            f"Download: {download}",
             inline=False,
         )
 
@@ -1339,7 +1356,6 @@ class Embed(Data):
     async def leaderboardembed(
         self, ctx: commands.Context, data, mode, userid, guildonly, findself
     ):
-
         mapdata = data["map"]
         leaderboard = data["leaderboard"]
 
@@ -1443,9 +1459,9 @@ class Embed(Data):
 
         return embed_list, page_start
 
-    async def osubeatstandingsembed(self, ctx: commands.Context, data, members=None, last=False):
-        mapdata = data["beatmap"]
-        leaderboard = members
+    async def osubeatstandingsembed(self, ctx: commands.Context, data, last=False):
+        mapdata = data["beat_data"]["beatmap"]
+        leaderboard = data["members"]
 
         embed_list = []
         base_embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
@@ -1471,7 +1487,6 @@ class Embed(Data):
         scorestrings = []
         index = 1
         for id, beat_score in leaderboard.items():
-
             score = beat_score["beat_score"]
 
             if score["score"] == 0:
@@ -1531,7 +1546,7 @@ class Embed(Data):
             embed.description = scores
 
             embed.set_footer(
-                text=f'Page {page_num}/{ceil(len(scorestrings) / 5)} ◈ {index - 1} submitted scores ◈ Ends on {datetime.strptime(data["ends"], "%Y-%m-%dT%H:%M:%S%z").strftime("%a %d %b %Y %H:%M:%S")} UTC'
+                text=f'Page {page_num}/{ceil(len(scorestrings) / 5)} ◈ {index - 1} submitted score{"s" if len(scorestrings) > 1 else ""} ◈ Ends on {datetime.strptime(data["ends"], "%Y-%m-%dT%H:%M:%S%z").strftime("%a %d %b %Y %H:%M:%S")} UTC'
             )
 
             embed_list.append(embed)
@@ -1540,9 +1555,14 @@ class Embed(Data):
         return embed_list
 
     async def osubeatannounceembed(
-        self, ctx: commands.Context, mapdata, mode: str, mods: list, time: datetime
+        self,
+        ctx: commands.Context,
+        mapdata,
+        mode: str,
+        mods: list,
+        time: datetime,
+        beatmode: BeatMode,
     ):
-
         embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
 
         embed.set_author(
@@ -1571,13 +1591,27 @@ class Embed(Data):
                 inline=False,
             )
 
+        if beatmode == BeatMode.NORMAL:
+            modestring = "\n\n"
+        elif beatmode == BeatMode.TUNNELVISION:
+            modestring = (
+                f"\n\nThis beat is using Tunnelvision!\n"
+                f"Scores will be hidden when running `{ctx.clean_prefix}osubeat standings` but placements are shown.\n\n"
+            )
+        elif beatmode == BeatMode.SECRET:
+            modestring = (
+                f"\n\nThis beat is using Secret!\n"
+                f"You won't be able to see others scores while the competition is running.\n\n"
+            )
+
         embed.add_field(
             name="How to participate",
             value=(
                 f"◈ Sign up to this beat with `{ctx.clean_prefix}osubeat join`.\n"
                 f"◈ Set scores on the map linked above.\n"
-                f"◈ Use `{ctx.clean_prefix}recent<mode>` to submit your score.\n"
-                f"◈ Have the best score out of everyone in this server by the end of the competition.\n\n"
+                f"◈ Use `{ctx.clean_prefix}recent<mode>` to submit your score. (Doesn't have to be in this server and even works in my DMs!)\n"
+                f"◈ Have the best score out of everyone in this server by the end of the competition."
+                f"{modestring}"
                 f"You can check the current standings with `{ctx.clean_prefix}osubeat standings`"
             ),
             inline=False,
@@ -1588,7 +1622,6 @@ class Embed(Data):
         return embed
 
     async def osubeatwinnerembed(self, channel: discord.TextChannel, osubeat, participants=None):
-
         embed = discord.Embed(color=await self.bot.get_embed_color(channel))
 
         embed.set_author(
@@ -1678,7 +1711,6 @@ class Embed(Data):
         return embed
 
     async def osubeatsignup(self, ctx: commands.Context, data):
-
         embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
         embed.set_author(
             name=f"You'll be signing up as this user. Are you sure?",
