@@ -9,20 +9,23 @@ import functools
 from typing import Iterable, List, Union
 
 import discord
+from redbot.core.bot import Red
 from redbot.core import commands
-from redbot.core.utils.menus import close_menu
 from redbot.core.utils.predicates import ReactionPredicate
 
 
 async def custom_menu(
     ctx: commands.Context,
     pages: Union[List[str], List[discord.Embed]],
-    controls: dict,
+    bot: Red,
+    controls: dict = None,
     message: discord.Message = None,
     page: int = 0,
+    chapter: int = 0,
     timeout: float = 30.0,
     data: list = None,
-    func=None,
+    func = None,
+    has_chapters = False,
 ):
     if not isinstance(pages[0], (discord.Embed, str)):
         raise RuntimeError("Pages must be of type discord.Embed or str")
@@ -30,13 +33,24 @@ async def custom_menu(
         isinstance(x, str) for x in pages
     ):
         raise RuntimeError("All pages must be of the same type")
+    
+    new_controls = check_controls(bot, pages, data, has_chapters)
+    if new_controls != controls:
+        if message:
+            with contextlib.suppress(discord.Forbidden):
+                await message.clear_reactions()
+        controls = new_controls
+
     for key, value in controls.items():
         maybe_coro = value
         if isinstance(value, functools.partial):
             maybe_coro = value.func
         if not asyncio.iscoroutinefunction(maybe_coro):
             raise RuntimeError("Function must be a coroutine")
-    current_page = pages[0]
+    if has_chapters:
+        current_page = pages[page]
+    else:
+        current_page = pages[0]
 
     if not message:
         if isinstance(current_page, discord.Embed):
@@ -81,20 +95,23 @@ async def custom_menu(
             return
     else:
         return await controls[react.emoji](
-            ctx, pages, controls, message, page, timeout, react.emoji, data, func
+            ctx, pages, bot, controls, message, page, chapter, timeout, react.emoji, data, func, has_chapters
         )
 
 
 async def custom_next_page(
     ctx: commands.Context,
     pages: list,
+    bot: Red,
     controls: dict,
     message: discord.Message,
     page: int,
+    chapter: int,
     timeout: float,
     emoji: str,
     data: list,
     func,
+    has_chapters: bool
 ):
     perms = message.channel.permissions_for(ctx.me)
     if perms.manage_messages:  # Can manage messages, so remove react
@@ -109,20 +126,23 @@ async def custom_next_page(
     embed = await func(ctx, data, page)
 
     return await custom_menu(
-        ctx, embed, controls, message=message, page=page, timeout=timeout, data=data, func=func
+        ctx, embed, bot, controls, message=message, page=page, chapter=chapter, timeout=timeout, data=data, func=func, has_chapters=has_chapters
     )
 
 
 async def custom_previous_page(
     ctx: commands.Context,
     pages: list,
+    bot: Red,
     controls: dict,
     message: discord.Message,
     page: int,
+    chapter: int,
     timeout: float,
     emoji: str,
     data: list,
     func,
+    has_chapters: bool,
 ):
     perms = message.channel.permissions_for(ctx.me)
     if perms.manage_messages:  # Can manage messages, so remove react
@@ -137,20 +157,83 @@ async def custom_previous_page(
     embed = await func(ctx, data, page)
 
     return await custom_menu(
-        ctx, embed, controls, message=message, page=page, timeout=timeout, data=data, func=func
+        ctx, embed, bot, controls, message=message, page=page, chapter=chapter, timeout=timeout, data=data, func=func, has_chapters=has_chapters
+    )
+
+async def custom_next_chapter(
+    ctx: commands.Context,
+    pages: list,
+    bot: Red,
+    controls: dict,
+    message: discord.Message,
+    page: int,
+    chapter: int,
+    timeout: float,
+    emoji: str,
+    data: list,
+    func,
+    has_chapters: bool
+):
+    perms = message.channel.permissions_for(ctx.me)
+    if perms.manage_messages:  # Can manage messages, so remove react
+        with contextlib.suppress(discord.NotFound):
+            await message.remove_reaction(emoji, ctx.author)
+
+    if page == len(data) - 1:
+        page = 0
+    else:
+        page += 1
+
+    embed = await func(ctx, data, page)
+
+    return await custom_menu(
+        ctx, embed, bot, controls, message=message, page=page, chapter=chapter, timeout=timeout, data=data, func=func, has_chapters=has_chapters
+    )
+
+async def custom_previous_chapter(
+    ctx: commands.Context,
+    pages: list,
+    bot: Red,
+    controls: dict,
+    message: discord.Message,
+    page: int,
+    chapter: int,
+    timeout: float,
+    emoji: str,
+    data: list,
+    func,
+    has_chapters: bool,
+):
+    perms = message.channel.permissions_for(ctx.me)
+    if perms.manage_messages:  # Can manage messages, so remove react
+        with contextlib.suppress(discord.NotFound):
+            await message.remove_reaction(emoji, ctx.author)
+
+    if page == 0:
+        page = len(data) - 1
+    else:
+        page -= 1
+
+    embed = await func(ctx, data, page)
+
+    return await custom_menu(
+        ctx, embed, bot, controls, message=message, page=page, chapter=chapter, timeout=timeout, data=data, func=func, has_chapters=has_chapters
     )
 
 
 async def custom_close_menu(
     ctx: commands.Context,
     pages: list,
+    bot: Red,
     controls: dict,
     message: discord.Message,
     page: int,
+    chapter: int,
     timeout: float,
     emoji: str,
     data: list,
     func,
+    has_chapters: bool,
 ):
     with contextlib.suppress(discord.NotFound):
         await message.delete()
@@ -168,14 +251,20 @@ def start_adding_reactions(
     return asyncio.create_task(task())
 
 
-def custompage(bot, embeds):
+def check_controls(bot: Red, embeds: Union[List[str], List[discord.Embed]], data: list, has_chapters: bool):
     """And here's another one just for good measure."""
-
     if len(embeds) > 1:
-        return {
+         output = {
             bot.get_emoji(755808378432913558): custom_previous_page,
             "\N{CROSS MARK}": custom_close_menu,
             bot.get_emoji(755808379170979971): custom_next_page,
         }
     else:
-        return {"\N{CROSS MARK}": custom_close_menu}
+        output = {"\N{CROSS MARK}": custom_close_menu}
+    
+    if has_chapters:
+        if len(data) > 1:
+            output["\N{UP ARROW}"] = custom_previous_chapter
+            output["\N{DOWN ARROW}"] = custom_next_chapter
+
+    return output
