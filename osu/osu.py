@@ -16,6 +16,7 @@ from redbot.core.utils.chat_formatting import humanize_timedelta
 from redbot.core.utils.menus import menu, start_adding_reactions
 from redbot.core.utils.predicates import MessagePredicate, ReactionPredicate
 
+from .converters import BeatMode, BeatModeConverter
 from .database import Database
 from .embeds import Data, Embed
 from .tools import (
@@ -28,8 +29,7 @@ from .tools import (
     singlepage,
     togglepage,
 )
-from .converters import BeatMode, BeatModeConverter
-from .utils.custommenu import custom_menu, check_controls
+from .utils.custommenu import check_controls, custom_menu
 
 log = logging.getLogger("red.angiedale.osu")
 
@@ -748,7 +748,7 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
 
     @checks.admin_or_permissions(administrator=True)
     @commands.guild_only()
-    @osubeat.commands(name="mode")
+    @osubeat.command(name="mode")
     async def _mode_beat(self, ctx: commands.Context, beatmode: BeatModeConverter):
         """Set the beat mode to be used for competitions.
         
