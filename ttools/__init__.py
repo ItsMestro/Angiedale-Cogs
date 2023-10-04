@@ -1,6 +1,6 @@
+from redbot.core.bot import Red
 from .ttools import TTools
 
 
-def setup(bot):
-    cog = TTools(bot)
-    bot.add_cog(cog)
+async def setup(bot: Red) -> None:
+    await bot.add_cog(TTools(bot))

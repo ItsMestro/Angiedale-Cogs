@@ -71,14 +71,11 @@ class TTools(commands.Cog):
 
         self.gs = gspread.service_account(filename=f"{bundled_data_path(self)}/key.json")
 
-        self.initialize_task: asyncio.Task = self.bot.loop.create_task(self.initialize())
-
     async def red_delete_data_for_user(self, **kwargs):
         """Nothing to delete"""
         return
 
-    async def initialize(self):
-        await self.bot.wait_until_ready()
+    async def cog_load(self) -> None:
         await self._update_listenchannels()
 
     async def _update_listenchannels(self):
@@ -97,14 +94,14 @@ class TTools(commands.Cog):
 
     @commands.group(hidden=True)
     @commands.guild_only()
-    @checks.admin_or_permissions(administrator=True)
+    @commands.admin_or_permissions(administrator=True)
     async def ttools(self, ctx: commands.Context):
         """"""
         pass
 
     @ttools.group()
     @commands.guild_only()
-    @checks.is_owner()
+    @commands.is_owner()
     async def debug(self, ctx: commands.Context):
         """"""
         pass
@@ -159,7 +156,7 @@ class TTools(commands.Cog):
                 await ctx.send("Cleared channel.")
 
     @ttools.command()
-    @checks.is_owner()
+    @commands.is_owner()
     async def toggleserver(self, ctx: commands.Context):
         """"""
         enabled = await self.config.guild(ctx.guild).enabled()
@@ -171,7 +168,7 @@ class TTools(commands.Cog):
             await ctx.send(("TTools disable in this server."))
 
     @ttools.command()
-    @checks.is_owner()
+    @commands.is_owner()
     async def resetserver(self, ctx: commands.Context):
         """"""
         can_react = ctx.channel.permissions_for(ctx.me).add_reactions
@@ -207,7 +204,7 @@ class TTools(commands.Cog):
         await self.settings(ctx)
 
     @ttools.command()
-    @checks.is_owner()
+    @commands.is_owner()
     async def settings(self, ctx: commands.Context):
         """"""
         embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
@@ -233,7 +230,7 @@ class TTools(commands.Cog):
         await ctx.send(embed=embed)
 
     @ttools.command()
-    @checks.is_owner()
+    @commands.is_owner()
     async def setup(self, ctx: commands.Context):
         """"""
         if not ctx.guild.me.guild_permissions.manage_channels:
@@ -269,7 +266,7 @@ class TTools(commands.Cog):
         await self.settings(ctx)
 
     @ttools.command()
-    @checks.is_owner()
+    @commands.is_owner()
     async def sheet(self, ctx: commands.Context, key: str = None):
         """"""
         await ctx.message.delete()
@@ -281,7 +278,7 @@ class TTools(commands.Cog):
             await ctx.send("Sheet key removed.")
 
     @ttools.command()
-    @checks.is_owner()
+    @commands.is_owner()
     async def mode(self, ctx: commands.Context, mode: str):
         """"""
         mode = mode.lower()
@@ -292,7 +289,7 @@ class TTools(commands.Cog):
             await ctx.send("Invalid mode. Please use one of: `osu, taiko, fruits, mania`")
 
     @ttools.command(name="referee")
-    @checks.is_owner()
+    @commands.is_owner()
     async def set_referee_role(self, ctx: commands.Context, role: discord.Role):
         """"""
         if role:
@@ -303,7 +300,7 @@ class TTools(commands.Cog):
             await ctx.send("Referee role removed.")
 
     @ttools.command()
-    @checks.is_owner()
+    @commands.is_owner()
     async def useimage(self, ctx: commands.Context):
         """"""
         useimg = await self.config.guild(ctx.guild).useimg()
@@ -315,7 +312,7 @@ class TTools(commands.Cog):
             await ctx.send("Referee pings will no longer use images.")
 
     @ttools.command()
-    @checks.is_owner()
+    @commands.is_owner()
     async def setimage(self, ctx: commands.Context):
         """"""
         if len(ctx.message.attachments) == 1:
@@ -341,7 +338,7 @@ class TTools(commands.Cog):
                 pass
 
     @ttools.command()
-    @checks.is_owner()
+    @commands.is_owner()
     async def setteamsize(self, ctx: commands.Context, teamsize: int):
         """"""
         if teamsize < 1 or teamsize > 4:
@@ -351,7 +348,7 @@ class TTools(commands.Cog):
         await ctx.send(f"Teamsize for tourney now set to {teamsize}")
 
     @ttools.command()
-    @checks.is_owner()
+    @commands.is_owner()
     async def setregcategory(self, ctx: commands.Context, category: discord.CategoryChannel):
         """"""
         await self.config.guild(ctx.guild).regcategory.set(category.id)
@@ -359,7 +356,7 @@ class TTools(commands.Cog):
         await ctx.send("Registration category updated.")
 
     @ttools.command()
-    @checks.is_owner()
+    @commands.is_owner()
     async def setregchannel(self, ctx: commands.Context, channel: discord.TextChannel):
         """"""
         await self.config.guild(ctx.guild).regchannel.set(channel.id)
@@ -406,7 +403,7 @@ class TTools(commands.Cog):
             await ctx.send(("Registrations closed."))
 
     @ttools.command()
-    @checks.is_owner()
+    @commands.is_owner()
     async def playerrole(self, ctx: commands.Context, role: Optional[discord.Role]):
         """"""
         if role:
