@@ -17,7 +17,16 @@ from redbot.core.utils import AsyncIter
 from redbot.core.utils.chat_formatting import box, escape, humanize_list, humanize_number
 
 from .bank import bank
-from .constants import DEV_LIST, REBIRTH_LVL, REBIRTH_STEP, ANSITextColours, HeroClasses, Rarities, Slot, Treasure
+from .constants import (
+    DEV_LIST,
+    REBIRTH_LVL,
+    REBIRTH_STEP,
+    ANSITextColours,
+    HeroClasses,
+    Rarities,
+    Slot,
+    Treasure,
+)
 
 log = logging.getLogger("red.angiedale.adventure")
 
@@ -57,7 +66,9 @@ class Item:
             self.total_stats *= 2
         self.max_main_stat = max(self.att, self.int, self.cha, 1)
         self.lvl: int = (
-            (kwargs.get("lvl") or self.get_equip_level()) if self.rarity is Rarities.event else self.get_equip_level()
+            (kwargs.get("lvl") or self.get_equip_level())
+            if self.rarity is Rarities.event
+            else self.get_equip_level()
         )
         self.degrade = kwargs.get("degrade", 5)
 
@@ -88,7 +99,9 @@ class Item:
             self.luck * (1 if self.slot is not Slot.two_handed else 2),
             f"{ANSITextColours.red.as_str(str(self.lvl))}" if not can_equip else f"{self.lvl}",
             self.owned,
-            f"[{self.degrade}]" if self.rarity in ["legendary", "event", "ascended"] and self.degrade >= 0 else "N/A",
+            f"[{self.degrade}]"
+            if self.rarity in ["legendary", "event", "ascended"] and self.degrade >= 0
+            else "N/A",
             self.set or "N/A",
         )
 
@@ -379,14 +392,18 @@ class Character:
                 .get("bonuses", {})
                 .get("req", {})
             )
-            if any(x in self.sets for x in ["The Supreme One", "Ainz Ooal Gown"]) and self.heroclass["pet"]["name"] in [
+            if any(
+                x in self.sets for x in ["The Supreme One", "Ainz Ooal Gown"]
+            ) and self.heroclass["pet"]["name"] in [
                 "Albedo",
                 "Rubedo",
                 "Guardians of Nazarick",
             ]:
                 return
 
-            if self.heroclass["pet"]["cha"] > (self.total_cha + (self.total_int // 3) + (self.luck // 2)):
+            if self.heroclass["pet"]["cha"] > (
+                self.total_cha + (self.total_int // 3) + (self.luck // 2)
+            ):
                 self.heroclass["pet"] = {}
                 return
 
@@ -401,7 +418,11 @@ class Character:
 
     def equip_level(self, item: Item, rebirths=None):
         level = getattr(self, "rebirths", rebirths)
-        return item.lvl if item.rarity is Rarities.event else max(item.lvl - min(max(level // 2 - 1, 0), 50), 1)
+        return (
+            item.lvl
+            if item.rarity is Rarities.event
+            else max(item.lvl - min(max(level // 2 - 1, 0), 50), 1)
+        )
 
     def get_stat_value(self, stat: str):
         """Calculates the stats dynamically for each slot of equipment."""
@@ -466,7 +487,10 @@ class Character:
             if set_name in set_names:
                 continue
             set_names[set_name] = (
-                max(bonus["parts"] for bonus in self._ctx.bot.get_cog("Adventure").SET_BONUSES[set_name]),
+                max(
+                    bonus["parts"]
+                    for bonus in self._ctx.bot.get_cog("Adventure").SET_BONUSES[set_name]
+                ),
                 0,
             )
         return set_names
@@ -497,7 +521,13 @@ class Character:
             if item.set and item.set not in set_names:
                 added.append(item.name)
                 set_names.update(
-                    {item.set: (item.parts, 1, self._ctx.bot.get_cog("Adventure").SET_BONUSES.get(item.set, []))}
+                    {
+                        item.set: (
+                            item.parts,
+                            1,
+                            self._ctx.bot.get_cog("Adventure").SET_BONUSES.get(item.set, []),
+                        )
+                    }
                 )
             elif item.set and item.set in set_names:
                 added.append(item.name)
@@ -539,16 +569,20 @@ class Character:
                 if not self.heroclass["pet"]:
                     class_desc += _("\n\n- Current pet: [None]")
                 elif self.heroclass["pet"]:
-                    if any(x in self.sets for x in ["The Supreme One", "Ainz Ooal Gown"]) and self.heroclass["pet"][
-                        "name"
-                    ] in [
+                    if any(
+                        x in self.sets for x in ["The Supreme One", "Ainz Ooal Gown"]
+                    ) and self.heroclass["pet"]["name"] in [
                         "Albedo",
                         "Rubedo",
                         "Guardians of Nazarick",
                     ]:
-                        class_desc += _("\n\n- Current servant: [{}]").format(self.heroclass["pet"]["name"])
+                        class_desc += _("\n\n- Current servant: [{}]").format(
+                            self.heroclass["pet"]["name"]
+                        )
                     else:
-                        class_desc += _("\n\n- Current pet: [{}]").format(self.heroclass["pet"]["name"])
+                        class_desc += _("\n\n- Current pet: [{}]").format(
+                            self.heroclass["pet"]["name"]
+                        )
             class_desc = hc.class_colour.as_str(class_desc)
         else:
             class_desc = _("Hero.")
@@ -595,7 +629,9 @@ class Character:
             luck=humanize_number(self.luck),
             bal=humanize_number(self.bal),
             xp=humanize_number(round(self.exp)),
-            next_lvl=humanize_number(next_lvl) if self.lvl < self.maxlevel else humanize_number(max_level_xp),
+            next_lvl=humanize_number(next_lvl)
+            if self.lvl < self.maxlevel
+            else humanize_number(max_level_xp),
             skill_points=0 if self.skill["pool"] < 0 else self.skill["pool"],
             set_bonus=(
                 f"( {self.gear_set_bonus.get('att'):<2} | "
@@ -616,7 +652,9 @@ class Character:
         """Define a secondary like __str__ to show our equipment."""
         form_string = ""
         last_slot = ""
-        rjust = max([len(str(getattr(self, i.get_name(), 1))) for i in Slot if i is not Slot.two_handed])
+        rjust = max(
+            [len(str(getattr(self, i.get_name(), 1))) for i in Slot if i is not Slot.two_handed]
+        )
         for slots in Slot:
             if slots is Slot.two_handed:
                 continue
@@ -633,19 +671,34 @@ class Character:
             form_string += _("\n\n {} slot").format(slot_name.title())
             last_slot = slot_name
             att = int(
-                ((item.att * 2 if slot_name == "two handed" else item.att) * self.gear_set_bonus.get("statmult", 1))
+                (
+                    (item.att * 2 if slot_name == "two handed" else item.att)
+                    * self.gear_set_bonus.get("statmult", 1)
+                )
             )
             inter = int(
-                ((item.int * 2 if slot_name == "two handed" else item.int) * self.gear_set_bonus.get("statmult", 1))
+                (
+                    (item.int * 2 if slot_name == "two handed" else item.int)
+                    * self.gear_set_bonus.get("statmult", 1)
+                )
             )
             cha = int(
-                ((item.cha * 2 if slot_name == "two handed" else item.cha) * self.gear_set_bonus.get("statmult", 1))
+                (
+                    (item.cha * 2 if slot_name == "two handed" else item.cha)
+                    * self.gear_set_bonus.get("statmult", 1)
+                )
             )
             dex = int(
-                ((item.dex * 2 if slot_name == "two handed" else item.dex) * self.gear_set_bonus.get("statmult", 1))
+                (
+                    (item.dex * 2 if slot_name == "two handed" else item.dex)
+                    * self.gear_set_bonus.get("statmult", 1)
+                )
             )
             luck = int(
-                ((item.luck * 2 if slot_name == "two handed" else item.luck) * self.gear_set_bonus.get("statmult", 1))
+                (
+                    (item.luck * 2 if slot_name == "two handed" else item.luck)
+                    * self.gear_set_bonus.get("statmult", 1)
+                )
             )
             att_space = " " if len(str(att)) >= 1 else ""
             cha_space = " " if len(str(cha)) >= 1 else ""
@@ -654,7 +707,10 @@ class Character:
             luck_space = " " if len(str(luck)) >= 1 else ""
 
             owned = ""
-            if item.rarity in [Rarities.legendary, Rarities.event, Rarities.ascended] and item.degrade >= 0:
+            if (
+                item.rarity in [Rarities.legendary, Rarities.event, Rarities.ascended]
+                and item.degrade >= 0
+            ):
                 owned += f" | [{item.degrade}#]"
             if item.set:
                 settext += f" | Set `{item.set}` ({item.parts}pcs)"
@@ -702,7 +758,9 @@ class Character:
         reverse_rarities = list(reversed(Rarities))
         return reverse_rarities.index(rarity)
 
-    async def get_sorted_backpack(self, backpack: dict, slot: Optional[Slot] = None, rarity: Optional[Rarities] = None):
+    async def get_sorted_backpack(
+        self, backpack: dict, slot: Optional[Slot] = None, rarity: Optional[Rarities] = None
+    ):
         tmp = {}
 
         def _sort(item):
@@ -810,9 +868,13 @@ class Character:
         consumed_list = consumed
         rows = []
         if not forging:
-            msg = _("{author}'s backpack\n\n").format(author=escape(self.user.display_name, formatting=True))
+            msg = _("{author}'s backpack\n\n").format(
+                author=escape(self.user.display_name, formatting=True)
+            )
         else:
-            msg = _("{author}'s forgeables\n\n").format(author=escape(self.user.display_name, formatting=True))
+            msg = _("{author}'s forgeables\n\n").format(
+                author=escape(self.user.display_name, formatting=True)
+            )
         async for slot_group in AsyncIter(bkpk, steps=100):
             slot_name_org = slot_group[0][1].slot
             slot_name = slot_name_org.get_name()
@@ -822,7 +884,9 @@ class Character:
                 continue
             current_equipped = getattr(self, slot_name_org.name, None)
             async for item_name, item in AsyncIter(slot_group, steps=100):
-                if forging and (item.rarity in [Rarities.forged, Rarities.set] or item in consumed_list):
+                if forging and (
+                    item.rarity in [Rarities.forged, Rarities.set] or item in consumed_list
+                ):
                     continue
                 if forging and item.rarity is Rarities.ascended:
                     if self.rebirths < 30:
@@ -856,10 +920,13 @@ class Character:
                         intel,
                         dex,
                         luck,
-                        f"{ANSITextColours.red.as_str(str(equip_level))}" if can_equip else f"{equip_level}",
+                        f"{ANSITextColours.red.as_str(str(equip_level))}"
+                        if can_equip
+                        else f"{equip_level}",
                         item.owned,
                         f"[{item.degrade}]"
-                        if item.rarity in [Rarities.legendary, Rarities.event, Rarities.ascended] and item.degrade >= 0
+                        if item.rarity in [Rarities.legendary, Rarities.event, Rarities.ascended]
+                        and item.degrade >= 0
                         else "N/A",
                         item.set or "N/A",
                     )
@@ -924,7 +991,11 @@ class Character:
                 e_level = self.equip_level(item)
                 if equippable and self.lvl < e_level:
                     continue
-                if degrade and item.rarity in [Rarities.legendary, Rarities.ascended, Rarities.event]:
+                if degrade and item.rarity in [
+                    Rarities.legendary,
+                    Rarities.ascended,
+                    Rarities.event,
+                ]:
                     if (d := degrade.get("equal")) is not None:
                         if item.degrade != d:
                             continue
@@ -1003,7 +1074,11 @@ class Character:
                 e_level = self.equip_level(item)
                 if equippable and self.lvl >= e_level:
                     continue
-                if degrade and item.rarity in [Rarities.legendary, Rarities.ascended, Rarities.event]:
+                if degrade and item.rarity in [
+                    Rarities.legendary,
+                    Rarities.ascended,
+                    Rarities.event,
+                ]:
                     if (d := degrade.get("equal")) is not None:
                         if item.degrade == d:
                             continue
@@ -1093,7 +1168,9 @@ class Character:
             _except=_except,
         )
 
-        msg = _("{author}'s backpack\n\n").format(author=escape(self.user.display_name, formatting=True))
+        msg = _("{author}'s backpack\n\n").format(
+            author=escape(self.user.display_name, formatting=True)
+        )
         table = BeautifulTable(default_alignment=ALIGN_LEFT, maxwidth=500)
         table.set_style(BeautifulTable.STYLE_RST)
         tables = []
@@ -1147,13 +1224,16 @@ class Character:
                     int,
                     dex,
                     luck,
-                    f"[{r}]" if (r := self.equip_level(item)) is not None and r > self.lvl else f"{r}",
+                    f"[{r}]"
+                    if (r := self.equip_level(item)) is not None and r > self.lvl
+                    else f"{r}",
                     item.owned,
                 ]
                 if "DEG" in headers:
                     data.append(
                         f"[{item.degrade}]"
-                        if item.rarity in [Rarities.legendary, Rarities.event, Rarities.ascended] and item.degrade >= 0
+                        if item.rarity in [Rarities.legendary, Rarities.event, Rarities.ascended]
+                        and item.degrade >= 0
                         else "N/A"
                     )
                 if "SET" in headers:
@@ -1205,8 +1285,12 @@ class Character:
         )
         return bkpk
 
-    def get_equipped_delta(self, equiped: Optional[Item], to_compare: Optional[Item], stat_name: str) -> str:
-        if (equiped and equiped.slot is Slot.two_handed) and (to_compare and to_compare.slot is Slot.two_handed):
+    def get_equipped_delta(
+        self, equiped: Optional[Item], to_compare: Optional[Item], stat_name: str
+    ) -> str:
+        if (equiped and equiped.slot is Slot.two_handed) and (
+            to_compare and to_compare.slot is Slot.two_handed
+        ):
             equipped_stat = getattr(equiped, stat_name, 0) * 2
             comparing_to_stat = getattr(to_compare, stat_name, 0) * 2
         elif to_compare and to_compare.slot is Slot.two_handed:
@@ -1214,7 +1298,9 @@ class Character:
             equipped_right_stat = getattr(self.right, stat_name, 0)
             equipped_stat = equipped_left_stat + equipped_right_stat
             comparing_to_stat = getattr(to_compare, stat_name, 0) * 2
-        elif (equiped and equiped.slot is Slot.two_handed) and (to_compare and to_compare.slot is not Slot.two_handed):
+        elif (equiped and equiped.slot is Slot.two_handed) and (
+            to_compare and to_compare.slot is not Slot.two_handed
+        ):
             equipped_stat = getattr(equiped, stat_name, 0) * 2
             comparing_to_stat = getattr(to_compare, stat_name, 0)
         else:
@@ -1288,7 +1374,9 @@ class Character:
                         max((item.get("lvl", 1) - min(max(self.rebirths // 2 - 1, 0), 50)), 1),
                     )
                 else:
-                    equiplevel = max((item.get("lvl", 1) - min(max(self.rebirths // 2 - 1, 0), 50)), 1)
+                    equiplevel = max(
+                        (item.get("lvl", 1) - min(max(self.rebirths // 2 - 1, 0), 50)), 1
+                    )
                 if equiplevel > self.lvl:
                     continue
 
@@ -1353,7 +1441,11 @@ class Character:
             balance = await bank.get_balance(user)
         except Exception:
             balance = 0
-        equipment = {k: Item.from_json(ctx, v) if v else None for k, v in data["items"].items() if k != "backpack"}
+        equipment = {
+            k: Item.from_json(ctx, v) if v else None
+            for k, v in data["items"].items()
+            if k != "backpack"
+        }
         if "int" not in data["skill"]:
             data["skill"]["int"] = 0
             # auto update old users with new skill slot
@@ -1479,7 +1571,9 @@ class Character:
             extra_pets = await config.themes.all()
             extra_pets = extra_pets.get(theme, {}).get("pets", {})
             pet_list = {**ctx.bot.get_cog("Adventure").PETS, **extra_pets}
-            self.heroclass["pet"] = pet_list.get(self.heroclass["pet"]["name"], self.heroclass["pet"])
+            self.heroclass["pet"] = pet_list.get(
+                self.heroclass["pet"]["name"], self.heroclass["pet"]
+            )
 
         return {
             "adventures": self.adventures,
@@ -1547,7 +1641,11 @@ class Character:
                             continue
                         forged += 1
                     backpack[n] = i
-                elif self.rebirths < 50 and i.get("rarity", False) in ["legendary", "event", "ascended"]:
+                elif self.rebirths < 50 and i.get("rarity", False) in [
+                    "legendary",
+                    "event",
+                    "ascended",
+                ]:
                     if "degrade" in i:
                         i["degrade"] -= 1
                         if i.get("degrade", 0) >= 0:
@@ -1608,7 +1706,9 @@ class Character:
                 last_slot = slots
                 continue
             item = getattr(self, slots.name)
-            items_to_keep[slots] = item.to_json() if self.rebirths >= 30 and item and item.set else {}
+            items_to_keep[slots] = (
+                item.to_json() if self.rebirths >= 30 and item and item.set else {}
+            )
         self.pieces_to_keep = items_to_keep
 
 
@@ -1620,7 +1720,13 @@ async def calculate_sp(lvl_end: int, c: Character):
     if 200 <= lvl_end < 300:
         points_200 += 1
         points_0 -= 1
-    points = (c.rebirths * 10) + (points_300 * 1) + (points_200 * 5) + (points_100 * 1) + (points_0 * 0.5)
+    points = (
+        (c.rebirths * 10)
+        + (points_300 * 1)
+        + (points_200 * 5)
+        + (points_100 * 1)
+        + (points_0 * 0.5)
+    )
 
     return int(points)
 
@@ -1630,9 +1736,9 @@ def has_funds_check(cost):
         if not await bank.can_spend(ctx.author, cost):
             currency_name = await bank.get_currency_name(ctx.guild)
             raise commands.CheckFailure(
-                _("You need {cost} {currency_name} to be able to take parts in an adventures").format(
-                    cost=humanize_number(cost), currency_name=currency_name
-                )
+                _(
+                    "You need {cost} {currency_name} to be able to take parts in an adventures"
+                ).format(cost=humanize_number(cost), currency_name=currency_name)
             )
         return True
 

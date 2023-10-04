@@ -41,7 +41,9 @@ class EconomyCommands(AdventureMixin):
         if amount <= 0:
             await smart_embed(
                 ctx,
-                _("{author.mention} You can't deposit 0 or negative values.").format(author=ctx.author),
+                _("{author.mention} You can't deposit 0 or negative values.").format(
+                    author=ctx.author
+                ),
             )
             return
         if not await bank.can_spend(ctx.author, amount=amount, _forced=True):
@@ -68,7 +70,9 @@ class EconomyCommands(AdventureMixin):
             await bank.set_balance(member=ctx.author, amount=exc.max_balance)
         await smart_embed(
             ctx,
-            _("{author.mention} you converted {amount} {currency} to {a_amount} {a_currency}.").format(
+            _(
+                "{author.mention} you converted {amount} {currency} to {a_amount} {a_currency}."
+            ).format(
                 author=ctx.author,
                 amount=humanize_number(amount),
                 a_amount=humanize_number(transferable_amount),
@@ -81,7 +85,10 @@ class EconomyCommands(AdventureMixin):
         except Exception as exc:
             log.exception("Error with the new character sheet", exc_info=exc)
         else:
-            if character.last_currency_check + 600 < time.time() or character.bal > character.last_known_currency:
+            if (
+                character.last_currency_check + 600 < time.time()
+                or character.bal > character.last_known_currency
+            ):
                 character.last_known_currency = await bank.get_balance(ctx.author)
                 character.last_currency_check = time.time()
                 await self.config.user(ctx.author).set(await character.to_json(ctx, self.config))
@@ -105,7 +112,9 @@ class EconomyCommands(AdventureMixin):
             if is_global:
                 string = _("{author.mention} my owner has disabled this option.")
             else:
-                string = _("{author.mention} the admins of this server do not allow you to withdraw here.")
+                string = _(
+                    "{author.mention} the admins of this server do not allow you to withdraw here."
+                )
             await smart_embed(
                 ctx,
                 string.format(author=ctx.author),
@@ -114,7 +123,9 @@ class EconomyCommands(AdventureMixin):
         if amount <= 0:
             await smart_embed(
                 ctx,
-                _("{author.mention} You can't withdraw 0 or negative values.").format(author=ctx.author),
+                _("{author.mention} You can't withdraw 0 or negative values.").format(
+                    author=ctx.author
+                ),
             )
             return
         configs = await self.config.all()
@@ -143,7 +154,9 @@ class EconomyCommands(AdventureMixin):
         await bank.withdraw_credits(member=ctx.author, amount=amount)
         await smart_embed(
             ctx,
-            _("{author.mention} you converted {a_amount} {a_currency} to {amount} {currency}.").format(
+            _(
+                "{author.mention} you converted {a_amount} {a_currency} to {amount} {currency}."
+            ).format(
                 author=ctx.author,
                 a_amount=humanize_number(amount),
                 amount=humanize_number(transferable_amount),
@@ -155,12 +168,16 @@ class EconomyCommands(AdventureMixin):
     @commands_atransfer.command(name="player", cooldown_after_parsing=True)
     @commands.guild_only()
     @commands.cooldown(rate=1, per=600, type=commands.BucketType.user)
-    async def commands_atransfer_player(self, ctx: commands.Context, amount: int, *, player: discord.Member):
+    async def commands_atransfer_player(
+        self, ctx: commands.Context, amount: int, *, player: discord.Member
+    ):
         """Transfer gold to another player."""
         if amount <= 0:
             await smart_embed(
                 ctx,
-                _("{author.mention} You can't transfer 0 or negative values.").format(author=ctx.author),
+                _("{author.mention} You can't transfer 0 or negative values.").format(
+                    author=ctx.author
+                ),
             )
             ctx.command.reset_cooldown(ctx)
             return
@@ -205,12 +222,16 @@ class EconomyCommands(AdventureMixin):
 
     @commands_atransfer.command(name="give")
     @commands.is_owner()
-    async def commands_atransfer_give(self, ctx: commands.Context, amount: int, *players: discord.Member):
+    async def commands_atransfer_give(
+        self, ctx: commands.Context, amount: int, *players: discord.Member
+    ):
         """[Owner] Give gold to adventurers."""
         if amount <= 0:
             await smart_embed(
                 ctx,
-                _("{author.mention} You can't give 0 or negative values.").format(author=ctx.author),
+                _("{author.mention} You can't give 0 or negative values.").format(
+                    author=ctx.author
+                ),
             )
             return
         players_string = ""
@@ -224,7 +245,9 @@ class EconomyCommands(AdventureMixin):
 
         await smart_embed(
             ctx,
-            _("{author.mention} I've given {amount} {name} to the following adventurers:\n\n{players}").format(
+            _(
+                "{author.mention} I've given {amount} {name} to the following adventurers:\n\n{players}"
+            ).format(
                 author=ctx.author,
                 amount=humanize_number(amount),
                 players=players_string,
@@ -296,7 +319,9 @@ class EconomyCommands(AdventureMixin):
                     "You're struggling to move under the weight of all your {currency}!"
                     "Please spend some more \N{GRIMACING FACE}\n\n"
                     "You currently have {new_balance} {currency}."
-                ).format(currency=adventure_credits_name, new_balance=humanize_number(exc.max_balance)),
+                ).format(
+                    currency=adventure_credits_name, new_balance=humanize_number(exc.max_balance)
+                ),
             )
         else:
             await smart_embed(
@@ -318,7 +343,10 @@ class EconomyCommands(AdventureMixin):
         except Exception as exc:
             log.exception("Error with the new character sheet", exc_info=exc)
         else:
-            if character.last_currency_check + 600 < time.time() or character.bal > character.last_known_currency:
+            if (
+                character.last_currency_check + 600 < time.time()
+                or character.bal > character.last_known_currency
+            ):
                 character.last_known_currency = await bank.get_balance(ctx.author)
                 character.last_currency_check = time.time()
                 await self.config.user(ctx.author).set(await character.to_json(ctx, self.config))
@@ -332,7 +360,12 @@ class EconomyCommands(AdventureMixin):
 
     @give.command(name="item")
     async def _give_item(
-        self, ctx: commands.Context, user: Union[discord.Member, discord.User], item_name: str, *, stats: Stats
+        self,
+        ctx: commands.Context,
+        user: Union[discord.Member, discord.User],
+        item_name: str,
+        *,
+        stats: Stats,
     ):
         """[Owner] Adds a custom item to a specified member.
 
@@ -372,9 +405,9 @@ class EconomyCommands(AdventureMixin):
             await self.config.user(user).set(await c.to_json(ctx, self.config))
         await ctx.send(
             box(
-                _("An item named {item} has been created and placed in {author}'s backpack.").format(
-                    item=item, author=escape(user.display_name)
-                ),
+                _(
+                    "An item named {item} has been created and placed in {author}'s backpack."
+                ).format(item=item, author=escape(user.display_name)),
                 lang="ansi",
             )
         )
@@ -402,15 +435,20 @@ class EconomyCommands(AdventureMixin):
             return await smart_embed(
                 ctx,
                 box(
-                    ("Valid loot types: {loot_types}: " "ex. `{prefix}give loot normal @locastan` ").format(
+                    (
+                        "Valid loot types: {loot_types}: "
+                        "ex. `{prefix}give loot normal @locastan` "
+                    ).format(
                         prefix=ctx.prefix, loot_types=humanize_list([i.ansi for i in loot_types])
                     ),
                     lang="ansi",
                 ),
             )
-        if loot_type in [Rarities.legendary, Rarities.set, Rarities.ascended] and not await ctx.bot.is_owner(
-            ctx.author
-        ):
+        if loot_type in [
+            Rarities.legendary,
+            Rarities.set,
+            Rarities.ascended,
+        ] and not await ctx.bot.is_owner(ctx.author):
             return await smart_embed(ctx, _("You are not worthy to award legendary loot."))
         for user in users:
             async with self.get_lock(user):

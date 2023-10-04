@@ -48,10 +48,14 @@ class LootCommands(AdventureMixin):
             if self.in_adventure(ctx):
                 return await smart_embed(
                     ctx,
-                    _("You tried to open a loot chest but then realised you left them all back at the inn."),
+                    _(
+                        "You tried to open a loot chest but then realised you left them all back at the inn."
+                    ),
                 )
             if not await self.allow_in_dm(ctx):
-                return await smart_embed(ctx, _("This command is not available in DM's on this bot."))
+                return await smart_embed(
+                    ctx, _("This command is not available in DM's on this bot.")
+                )
             msgs = []
             async with self.get_lock(ctx.author):
                 try:
@@ -72,22 +76,26 @@ class LootCommands(AdventureMixin):
                     )
                 if c.is_backpack_full(is_dev=is_dev(ctx.author)):
                     await ctx.send(
-                        _("{author}, your backpack is currently full.").format(author=bold(ctx.author.display_name))
+                        _("{author}, your backpack is currently full.").format(
+                            author=bold(ctx.author.display_name)
+                        )
                     )
                     return
                 if not box_type.is_chest:
                     return await smart_embed(
                         ctx,
-                        _("There is talk of a {} treasure chest but nobody ever saw one.").format(box_type.get_name()),
+                        _("There is talk of a {} treasure chest but nobody ever saw one.").format(
+                            box_type.get_name()
+                        ),
                     )
                 redux = box_type.value
                 treasure = c.treasure[redux]
                 if treasure < 1 or treasure < number:
                     await smart_embed(
                         ctx,
-                        _("{author}, you do not have enough {box} treasure chests to open.").format(
-                            author=bold(ctx.author.display_name), box=box_type
-                        ),
+                        _(
+                            "{author}, you do not have enough {box} treasure chests to open."
+                        ).format(author=bold(ctx.author.display_name), box=box_type),
                     )
                     return
                 else:
@@ -97,9 +105,13 @@ class LootCommands(AdventureMixin):
                         c.treasure[redux] -= number
                         await self.config.user(ctx.author).set(await c.to_json(ctx, self.config))
                         items = await self._open_chests(ctx, box_type, number, character=c)
-                        msg = _("{}, you've opened the following items:\n\n").format(escape(ctx.author.display_name))
+                        msg = _("{}, you've opened the following items:\n\n").format(
+                            escape(ctx.author.display_name)
+                        )
                         rows = []
-                        async for index, item in AsyncIter(items.values(), steps=100).enumerate(start=1):
+                        async for index, item in AsyncIter(items.values(), steps=100).enumerate(
+                            start=1
+                        ):
                             rows.append(item.row(c.lvl))
                         tables = await c.make_backpack_tables(rows, msg)
                         for t in tables:
@@ -109,7 +121,9 @@ class LootCommands(AdventureMixin):
                         # open chests
                         c.treasure[redux] -= 1
                         await self.config.user(ctx.author).set(await c.to_json(ctx, self.config))
-                        await self._open_chest(ctx, ctx.author, box_type, character=c)  # returns item and msg
+                        await self._open_chest(
+                            ctx, ctx.author, box_type, character=c
+                        )  # returns item and msg
         if msgs:
             await BaseMenu(
                 source=SimpleSource(msgs),
@@ -118,7 +132,9 @@ class LootCommands(AdventureMixin):
                 timeout=60,
             ).start(ctx=ctx)
 
-    async def _genitem(self, ctx: commands.Context, rarity: Optional[Rarities] = None, slot: Optional[Slot] = None):
+    async def _genitem(
+        self, ctx: commands.Context, rarity: Optional[Rarities] = None, slot: Optional[Slot] = None
+    ):
         """Generate an item."""
         if rarity is Rarities.set:
             items = list(self.TR_GEAR_SET.items())
@@ -126,7 +142,8 @@ class LootCommands(AdventureMixin):
                 [
                     i
                     for i in items
-                    if i[1]["slot"] == [slot.value] or (slot is Slot.two_handed and len(i[1]["slot"]) > 1)
+                    if i[1]["slot"] == [slot.value]
+                    or (slot is Slot.two_handed and len(i[1]["slot"]) > 1)
                 ]
                 if slot
                 else items
@@ -246,21 +263,23 @@ class LootCommands(AdventureMixin):
             if box_rarity is Rarities.rare and c.rebirths < rebirth_rare:
                 return await smart_embed(
                     ctx,
-                    ("{user}, you need to have {rebirth} or more rebirths to convert rare treasure chests.").format(
-                        user=bold(ctx.author.display_name), rebirth=rebirth_rare
-                    ),
+                    (
+                        "{user}, you need to have {rebirth} or more rebirths to convert rare treasure chests."
+                    ).format(user=bold(ctx.author.display_name), rebirth=rebirth_rare),
                 )
             elif box_rarity is Rarities.epic and c.rebirths < rebirth_epic:
                 return await smart_embed(
                     ctx,
-                    ("{user}, you need to have {rebirth} or more rebirths to convert epic treasure chests.").format(
-                        user=bold(ctx.author.display_name), rebirth=rebirth_epic
-                    ),
+                    (
+                        "{user}, you need to have {rebirth} or more rebirths to convert epic treasure chests."
+                    ).format(user=bold(ctx.author.display_name), rebirth=rebirth_epic),
                 )
             elif c.rebirths < 2:
                 return await smart_embed(
                     ctx,
-                    _("{c}, you need to 3 rebirths to use this.").format(c=bold(ctx.author.display_name)),
+                    _("{c}, you need to 3 rebirths to use this.").format(
+                        c=bold(ctx.author.display_name)
+                    ),
                 )
             msg = ""
             success_msg = _(
@@ -272,11 +291,15 @@ class LootCommands(AdventureMixin):
             if box_rarity is Rarities.normal and c.rebirths >= rebirth_normal:
                 rarity = Rarities.normal
                 to_rarity = Rarities.rare
-                converted = rarity.rarity_colour.as_str(f"{humanize_number(costs[rarity] * amount)} {rarity}")
+                converted = rarity.rarity_colour.as_str(
+                    f"{humanize_number(costs[rarity] * amount)} {rarity}"
+                )
                 if c.treasure.normal >= (costs[rarity] * amount):
                     c.treasure.normal -= costs[rarity] * amount
                     c.treasure.rare += 1 * amount
-                    to = to_rarity.rarity_colour.as_str(f"{humanize_number(1 * amount)} {to_rarity}")
+                    to = to_rarity.rarity_colour.as_str(
+                        f"{humanize_number(1 * amount)} {to_rarity}"
+                    )
                     msg = success_msg.format(
                         converted=converted,
                         to=to,
@@ -286,15 +309,21 @@ class LootCommands(AdventureMixin):
                     )
                     await self.config.user(ctx.author).set(await c.to_json(ctx, self.config))
                 else:
-                    msg = failed_msg.format(author=escape(ctx.author.display_name), amount=converted)
+                    msg = failed_msg.format(
+                        author=escape(ctx.author.display_name), amount=converted
+                    )
             elif box_rarity is Rarities.rare and c.rebirths >= rebirth_rare:
                 rarity = Rarities.rare
                 to_rarity = Rarities.epic
-                converted = rarity.rarity_colour.as_str(f"{humanize_number(costs[rarity] * amount)} {rarity}")
+                converted = rarity.rarity_colour.as_str(
+                    f"{humanize_number(costs[rarity] * amount)} {rarity}"
+                )
                 if c.treasure.rare >= (costs[rarity] * amount):
                     c.treasure.rare -= costs[rarity] * amount
                     c.treasure.epic += 1 * amount
-                    to = to_rarity.rarity_colour.as_str(f"{humanize_number(1 * amount)} {to_rarity}")
+                    to = to_rarity.rarity_colour.as_str(
+                        f"{humanize_number(1 * amount)} {to_rarity}"
+                    )
                     msg = success_msg.format(
                         converted=converted,
                         to=to,
@@ -304,15 +333,21 @@ class LootCommands(AdventureMixin):
                     )
                     await self.config.user(ctx.author).set(await c.to_json(ctx, self.config))
                 else:
-                    msg = failed_msg.format(author=escape(ctx.author.display_name), amount=converted)
+                    msg = failed_msg.format(
+                        author=escape(ctx.author.display_name), amount=converted
+                    )
             elif box_rarity is Rarities.epic and c.rebirths >= rebirth_epic:
                 rarity = Rarities.epic
                 to_rarity = Rarities.legendary
-                converted = rarity.rarity_colour.as_str(f"{humanize_number(costs[rarity] * amount)} {rarity}")
+                converted = rarity.rarity_colour.as_str(
+                    f"{humanize_number(costs[rarity] * amount)} {rarity}"
+                )
                 if c.treasure.epic >= (costs[rarity] * amount):
                     c.treasure.epic -= costs[rarity] * amount
                     c.treasure.legendary += 1 * amount
-                    to = to_rarity.rarity_colour.as_str(f"{humanize_number(1 * amount)} {to_rarity}")
+                    to = to_rarity.rarity_colour.as_str(
+                        f"{humanize_number(1 * amount)} {to_rarity}"
+                    )
                     msg = success_msg.format(
                         converted=converted,
                         to=to,
@@ -322,7 +357,9 @@ class LootCommands(AdventureMixin):
                     )
                     await self.config.user(ctx.author).set(await c.to_json(ctx, self.config))
                 else:
-                    msg = failed_msg.format(author=escape(ctx.author.display_name), amount=converted)
+                    msg = failed_msg.format(
+                        author=escape(ctx.author.display_name), amount=converted
+                    )
             await ctx.send(box(msg, lang="ansi"))
 
     async def _open_chests(
@@ -344,9 +381,13 @@ class LootCommands(AdventureMixin):
         await self.config.user(ctx.author).set(await character.to_json(ctx, self.config))
         return items
 
-    async def _open_chest(self, ctx: commands.Context, user: discord.User, chest_type: Rarities, character: Character):
+    async def _open_chest(
+        self, ctx: commands.Context, user: discord.User, chest_type: Rarities, character: Character
+    ):
         if hasattr(user, "display_name"):
-            chest_msg = _("{} is opening a treasure chest. What riches lay inside?").format(escape(user.display_name))
+            chest_msg = _("{} is opening a treasure chest. What riches lay inside?").format(
+                escape(user.display_name)
+            )
         else:
             chest_msg = _("{user}'s {f} is foraging for treasure. What will it find?").format(
                 user=escape(ctx.author.display_name), f=(user[:1] + user[1:])
@@ -529,7 +570,9 @@ class LootCommands(AdventureMixin):
                 )
             else:
                 equip_msg = box(
-                    _("{user} equipped {item} ({slot} slot) and put {old_item} into their backpack.").format(
+                    _(
+                        "{user} equipped {item} ({slot} slot) and put {old_item} into their backpack."
+                    ).format(
                         user=escape(ctx.author.display_name),
                         item=item,
                         slot=slot,

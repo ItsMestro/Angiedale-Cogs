@@ -28,7 +28,9 @@ log = logging.getLogger("red.angiedale.adventure")
 class LeaderboardCommands(AdventureMixin):
     """This class will handle generating and posting leaerboard information"""
 
-    async def get_leaderboard(self, positions: int = None, guild: discord.Guild = None) -> List[tuple]:
+    async def get_leaderboard(
+        self, positions: int = None, guild: discord.Guild = None
+    ) -> List[tuple]:
         """Gets the Adventure's leaderboard.
 
         Parameters
@@ -56,7 +58,7 @@ class LeaderboardCommands(AdventureMixin):
             for item in ["lvl", "rebirths", "set_items"]:
                 if item not in v:
                     v.update({item: 0})
-            for (vk, vi) in v.items():
+            for vk, vi in v.items():
                 if vk in ["lvl", "rebirths", "set_items"]:
                     user_data.update({vk: vi})
 
@@ -133,11 +135,11 @@ class LeaderboardCommands(AdventureMixin):
                     else:
                         v.update({item: 0})
 
-            for (vk, vi) in v.items():
+            for vk, vi in v.items():
                 if vk in ["rebirths"]:
                     user_data.update({vk: vi})
                 elif vk in ["adventures"]:
-                    for (s, sv) in vi.items():
+                    for s, sv in vi.items():
                         if s == keyword:
                             user_data.update(vi)
 
@@ -155,7 +157,9 @@ class LeaderboardCommands(AdventureMixin):
         else:
             return sorted_acc[:positions]
 
-    async def get_global_negaverse_scoreboard(self, positions: int = None, guild: discord.Guild = None) -> List[tuple]:
+    async def get_global_negaverse_scoreboard(
+        self, positions: int = None, guild: discord.Guild = None
+    ) -> List[tuple]:
         """Gets the bank's leaderboard.
 
         Parameters
@@ -185,9 +189,9 @@ class LeaderboardCommands(AdventureMixin):
         raw_accounts_new = {}
         async for (k, v) in AsyncIter(raw_accounts.items(), steps=200):
             user_data = {}
-            for (vk, vi) in v.items():
+            for vk, vi in v.items():
                 if vk in ["nega"]:
-                    for (s, sv) in vi.items():
+                    for s, sv in vi.items():
                         user_data.update(vi)
 
             if user_data:
@@ -210,7 +214,9 @@ class LeaderboardCommands(AdventureMixin):
     async def scoreboard(self, ctx: commands.Context, show_global: bool = False):
         """Print the scoreboard."""
 
-        rebirth_sorted = await self.get_global_scoreboard(guild=ctx.guild if not show_global else None, keyword="wins")
+        rebirth_sorted = await self.get_global_scoreboard(
+            guild=ctx.guild if not show_global else None, keyword="wins"
+        )
         if rebirth_sorted:
             await ScoreBoardMenu(
                 source=ScoreboardSource(entries=rebirth_sorted, stat="wins"),
@@ -229,7 +235,9 @@ class LeaderboardCommands(AdventureMixin):
     async def nvsb(self, ctx: commands.Context, show_global: bool = False):
         """Print the negaverse scoreboard."""
         guild = ctx.guild
-        rebirth_sorted = await self.get_global_negaverse_scoreboard(guild=guild if not show_global else None)
+        rebirth_sorted = await self.get_global_negaverse_scoreboard(
+            guild=guild if not show_global else None
+        )
         if rebirth_sorted:
             await BaseMenu(
                 source=NVScoreboardSource(entries=rebirth_sorted),
@@ -259,7 +267,9 @@ class LeaderboardCommands(AdventureMixin):
         else:
             await smart_embed(ctx, _("No stats to show for this week."))
 
-    async def get_weekly_scoreboard(self, positions: int = None, guild: discord.Guild = None) -> List[tuple]:
+    async def get_weekly_scoreboard(
+        self, positions: int = None, guild: discord.Guild = None
+    ) -> List[tuple]:
         """Gets the bank's leaderboard.
 
         Parameters
@@ -296,10 +306,10 @@ class LeaderboardCommands(AdventureMixin):
                     if item == "weekly_score":
                         v.update({item: {keyword: 0, "rebirths": 0}})
 
-            for (vk, vi) in v.items():
+            for vk, vi in v.items():
                 if vk in ["weekly_score"]:
                     if vi.get("week", -1) == current_week:
-                        for (s, sv) in vi.items():
+                        for s, sv in vi.items():
                             if s in [keyword]:
                                 user_data.update(vi)
 

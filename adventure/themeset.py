@@ -32,7 +32,9 @@ class ThemesetCommands(AdventureMixin):
         """[Owner] Add/Update objects in the specified theme."""
 
     @themeset_add.command(name="monster")
-    async def themeset_add_monster(self, ctx: commands.Context, *, theme_data: ThemeSetMonterConverter):
+    async def themeset_add_monster(
+        self, ctx: commands.Context, *, theme_data: ThemeSetMonterConverter
+    ):
         """[Owner] Add/Update a monster object in the specified theme.
 
         Usage: `[p]themeset add monster theme++name++hp++dipl++pdef++mdef++cdef++boss++image`
@@ -153,11 +155,15 @@ class ThemesetCommands(AdventureMixin):
             if monster in config_data[theme]["monsters"]:
                 del config_data[theme]["monsters"][monster]
             else:
-                text = _("Monster: `{monster}` does not exist in `{theme}` theme").format(monster=monster, theme=theme)
+                text = _("Monster: `{monster}` does not exist in `{theme}` theme").format(
+                    monster=monster, theme=theme
+                )
                 await smart_embed(ctx, text)
                 return
 
-        text = _("Monster: `{monster}` has been deleted from the `{theme}` theme").format(monster=monster, theme=theme)
+        text = _("Monster: `{monster}` has been deleted from the `{theme}` theme").format(
+            monster=monster, theme=theme
+        )
         await smart_embed(ctx, text)
 
     @themeset_delete.command(name="pet")
@@ -177,11 +183,15 @@ class ThemesetCommands(AdventureMixin):
             if pet in config_data[theme]["pet"]:
                 del config_data[theme]["pet"][pet]
             else:
-                text = _("Pet: `{pet}` does not exist in `{theme}` theme").format(pet=pet, theme=theme)
+                text = _("Pet: `{pet}` does not exist in `{theme}` theme").format(
+                    pet=pet, theme=theme
+                )
                 await smart_embed(ctx, text)
                 return
 
-        text = _("Pet: `{pet}` has been deleted from the `{theme}` theme").format(pet=pet, theme=theme)
+        text = _("Pet: `{pet}` has been deleted from the `{theme}` theme").format(
+            pet=pet, theme=theme
+        )
         await smart_embed(ctx, text)
 
     @themeset.group(name="list", aliases=["show"])

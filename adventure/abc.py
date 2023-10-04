@@ -79,7 +79,9 @@ class AdventureMixin(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def in_adventure(self, ctx: Optional[commands.Context] = None, user: Optional[discord.Member] = None) -> bool:
+    def in_adventure(
+        self, ctx: Optional[commands.Context] = None, user: Optional[discord.Member] = None
+    ) -> bool:
         raise NotImplementedError()
 
     @abstractmethod
@@ -140,7 +142,9 @@ class AdventureMixin(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def _simple(self, ctx: commands.Context, adventure_msg, challenge: str = None, attribute: str = None):
+    async def _simple(
+        self, ctx: commands.Context, adventure_msg, challenge: str = None, attribute: str = None
+    ):
         raise NotImplementedError()
 
     @abstractmethod
@@ -185,7 +189,12 @@ class AdventureMixin(ABC):
 
     @abstractmethod
     async def _add_rewards(
-        self, ctx: commands.Context, user: Union[discord.Member, discord.User], exp: int, cp: int, special: Treasure
+        self,
+        ctx: commands.Context,
+        user: Union[discord.Member, discord.User],
+        exp: int,
+        cp: int,
+        special: Treasure,
     ) -> Optional[str]:
         raise NotImplementedError()
 
@@ -230,11 +239,15 @@ class AdventureMixin(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def adventureset_locks_user(self, ctx: commands.Context, users: commands.Greedy[discord.User]):
+    async def adventureset_locks_user(
+        self, ctx: commands.Context, users: commands.Greedy[discord.User]
+    ):
         raise NotImplementedError()
 
     @abstractmethod
-    async def adventureset_daily_bonus(self, ctx: commands.Context, day: DayConverter, percentage: PercentageConverter):
+    async def adventureset_daily_bonus(
+        self, ctx: commands.Context, day: DayConverter, percentage: PercentageConverter
+    ):
         raise NotImplementedError()
 
     @abstractmethod
@@ -258,15 +271,21 @@ class AdventureMixin(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def commands_adventureset_economy_tax(self, ctx: commands.Context, *, taxes: TaxesConverter):
+    async def commands_adventureset_economy_tax(
+        self, ctx: commands.Context, *, taxes: TaxesConverter
+    ):
         raise NotImplementedError()
 
     @abstractmethod
-    async def commands_adventureset_economy_conversion_rate(self, ctx: commands.Context, rate_in: int, rate_out: int):
+    async def commands_adventureset_economy_conversion_rate(
+        self, ctx: commands.Context, rate_in: int, rate_out: int
+    ):
         raise NotImplementedError()
 
     @abstractmethod
-    async def commands_adventureset_economy_maxwithdraw(self, ctx: commands.Context, *, amount: int):
+    async def commands_adventureset_economy_maxwithdraw(
+        self, ctx: commands.Context, *, amount: int
+    ):
         raise NotImplementedError()
 
     @abstractmethod
@@ -311,7 +330,11 @@ class AdventureMixin(ABC):
 
     @abstractmethod
     async def remove_item(
-        self, ctx: commands.Context, user: Union[discord.Member, discord.User], *, full_item_name: str
+        self,
+        ctx: commands.Context,
+        user: Union[discord.Member, discord.User],
+        *,
+        full_item_name: str,
     ):
         raise NotImplementedError()
 
@@ -411,7 +434,9 @@ class AdventureMixin(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def commands_cbackpack_disassemble(self, ctx: commands.Context, *, query: BackpackFilterParser):
+    async def commands_cbackpack_disassemble(
+        self, ctx: commands.Context, *, query: BackpackFilterParser
+    ):
         raise NotImplementedError()
 
     @abstractmethod
@@ -431,12 +456,19 @@ class AdventureMixin(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def stats(self, ctx: commands.Context, *, user: Union[discord.Member, discord.User] = None):
+    async def stats(
+        self, ctx: commands.Context, *, user: Union[discord.Member, discord.User] = None
+    ):
         raise NotImplementedError()
 
     @abstractmethod
     async def _build_loadout_display(
-        self, ctx: commands.Context, userdata, loadout=True, rebirths: int = None, index: int = None
+        self,
+        ctx: commands.Context,
+        userdata,
+        loadout=True,
+        rebirths: int = None,
+        index: int = None,
     ):
         raise NotImplementedError()
 
@@ -513,7 +545,9 @@ class AdventureMixin(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def _genitem(self, ctx: commands.Context, rarity: Optional[Rarities] = None, slot: str = None) -> Item:
+    async def _genitem(
+        self, ctx: commands.Context, rarity: Optional[Rarities] = None, slot: str = None
+    ) -> Item:
         raise NotImplementedError()
 
     @abstractmethod
@@ -535,7 +569,9 @@ class AdventureMixin(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def devreset(self, ctx: commands.Context, users: commands.Greedy[Union[discord.Member, discord.User]]):
+    async def devreset(
+        self, ctx: commands.Context, users: commands.Greedy[Union[discord.Member, discord.User]]
+    ):
         raise NotImplementedError()
 
     @abstractmethod
@@ -559,11 +595,15 @@ class AdventureMixin(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def commands_atransfer_player(self, ctx: commands.Context, amount: int, *, player: discord.Member):
+    async def commands_atransfer_player(
+        self, ctx: commands.Context, amount: int, *, player: discord.Member
+    ):
         raise NotImplementedError()
 
     @abstractmethod
-    async def commands_atransfer_give(self, ctx: commands.Context, amount: int, *players: discord.Member):
+    async def commands_atransfer_give(
+        self, ctx: commands.Context, amount: int, *players: discord.Member
+    ):
         raise NotImplementedError()
 
     @abstractmethod
@@ -580,7 +620,12 @@ class AdventureMixin(ABC):
 
     @abstractmethod
     async def _give_item(
-        self, ctx: commands.Context, user: Union[discord.Member, discord.User], item_name: str, *, stats: Stats
+        self,
+        ctx: commands.Context,
+        user: Union[discord.Member, discord.User],
+        item_name: str,
+        *,
+        stats: Stats,
     ):
         raise NotImplementedError()
 
@@ -599,7 +644,9 @@ class AdventureMixin(ABC):
     #######################################################################
 
     @abstractmethod
-    async def get_leaderboard(self, positions: int = None, guild: discord.Guild = None) -> List[tuple]:
+    async def get_leaderboard(
+        self, positions: int = None, guild: discord.Guild = None
+    ) -> List[tuple]:
         raise NotImplementedError()
 
     @abstractmethod
@@ -613,7 +660,9 @@ class AdventureMixin(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def get_global_negaverse_scoreboard(self, positions: int = None, guild: discord.Guild = None) -> List[tuple]:
+    async def get_global_negaverse_scoreboard(
+        self, positions: int = None, guild: discord.Guild = None
+    ) -> List[tuple]:
         raise NotImplementedError()
 
     @abstractmethod
@@ -629,7 +678,9 @@ class AdventureMixin(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def get_weekly_scoreboard(self, positions: int = None, guild: discord.Guild = None) -> List[tuple]:
+    async def get_weekly_scoreboard(
+        self, positions: int = None, guild: discord.Guild = None
+    ) -> List[tuple]:
         raise NotImplementedError()
 
     #######################################################################
@@ -679,7 +730,9 @@ class AdventureMixin(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def _open_chest(self, ctx: commands.Context, user: discord.User, chest_type: Rarities, character: Character):
+    async def _open_chest(
+        self, ctx: commands.Context, user: discord.User, chest_type: Rarities, character: Character
+    ):
         raise NotImplementedError()
 
     #######################################################################
@@ -717,7 +770,9 @@ class AdventureMixin(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def themeset_add_monster(self, ctx: commands.Context, *, theme_data: ThemeSetMonterConverter):
+    async def themeset_add_monster(
+        self, ctx: commands.Context, *, theme_data: ThemeSetMonterConverter
+    ):
         raise NotImplementedError()
 
     @abstractmethod

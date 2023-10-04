@@ -34,7 +34,9 @@ log = logging.getLogger("red.angiedale.adventure")
 
 
 class BackpackSellView(discord.ui.View):
-    def __init__(self, timeout: float, ctx: commands.Context, character: Character, item: Item, price: int):
+    def __init__(
+        self, timeout: float, ctx: commands.Context, character: Character, item: Item, price: int
+    ):
         super().__init__(timeout=timeout)
         self.author = ctx.author
         self.character = character
@@ -43,10 +45,14 @@ class BackpackSellView(discord.ui.View):
         self.price = price
         self.cog: AdventureMixin = self.ctx.bot.get_cog("Adventure")
 
-    async def final_message(self, msg: str, interaction: discord.Interaction, character: Character):
+    async def final_message(
+        self, msg: str, interaction: discord.Interaction, character: Character
+    ):
         character.last_known_currency = await bank.get_balance(self.ctx.author)
         character.last_currency_check = time.time()
-        await self.cog.config.user(self.ctx.author).set(await character.to_json(self.ctx, self.cog.config))
+        await self.cog.config.user(self.ctx.author).set(
+            await character.to_json(self.ctx, self.cog.config)
+        )
         self.stop()
         pages = [page for page in pagify(msg, delims=["\n"], page_length=1900)]
         await BaseMenu(
@@ -56,11 +62,16 @@ class BackpackSellView(discord.ui.View):
             timeout=180,
         ).start(None, interaction=interaction)
 
-    @discord.ui.button(style=discord.ButtonStyle.red, emoji="\N{HEAVY MULTIPLICATION X}\N{VARIATION SELECTOR-16}")
+    @discord.ui.button(
+        style=discord.ButtonStyle.red, emoji="\N{HEAVY MULTIPLICATION X}\N{VARIATION SELECTOR-16}"
+    )
     async def stop_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.stop()
         await interaction.response.edit_message(
-            content=box(_("You decide not to sell {item}").format(item=str(self.item)), lang="ansi"), view=None
+            content=box(
+                _("You decide not to sell {item}").format(item=str(self.item)), lang="ansi"
+            ),
+            view=None,
         )
 
     @discord.ui.button(
@@ -73,7 +84,9 @@ class BackpackSellView(discord.ui.View):
         # sell one of the item
         async with self.cog.get_lock(self.author):
             try:
-                character = await Character.from_json(self.ctx, self.cog.config, self.author, self.cog._daily_bonus)
+                character = await Character.from_json(
+                    self.ctx, self.cog.config, self.author, self.cog._daily_bonus
+                )
             except Exception as exc:
                 self.ctx.command.reset_cooldown(self.ctx)
                 log.exception("Error with the new character sheet", exc_info=exc)
@@ -109,7 +122,9 @@ class BackpackSellView(discord.ui.View):
         self.ctx.command.reset_cooldown(self.ctx)
         async with self.cog.get_lock(self.author):
             try:
-                character = await Character.from_json(self.ctx, self.cog.config, self.author, self.cog._daily_bonus)
+                character = await Character.from_json(
+                    self.ctx, self.cog.config, self.author, self.cog._daily_bonus
+                )
             except Exception as exc:
                 self.ctx.command.reset_cooldown(self.ctx)
                 log.exception("Error with the new character sheet", exc_info=exc)
@@ -126,7 +141,9 @@ class BackpackSellView(discord.ui.View):
                 if character.backpack[self.item.name].owned <= 0:
                     del character.backpack[self.item.name]
                 count += 1
-            msg = _("**{author}** sold all their {old_item} for {price} {currency_name}.\n").format(
+            msg = _(
+                "**{author}** sold all their {old_item} for {price} {currency_name}.\n"
+            ).format(
                 author=escape(self.ctx.author.display_name),
                 old_item=box(self.item.ansi + " - " + str(old_owned), lang="ansi"),
                 price=humanize_number(price),
@@ -145,7 +162,9 @@ class BackpackSellView(discord.ui.View):
         emoji="\N{CLOCKWISE RIGHTWARDS AND LEFTWARDS OPEN CIRCLE ARROWS WITH CIRCLED ONE OVERLAY}",
         style=discord.ButtonStyle.grey,
     )
-    async def sell_all_but_one_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def sell_all_but_one_button(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ):
         if self.item.owned == 1:
             self.ctx.command.reset_cooldown(self.ctx)
             return await smart_embed(self.ctx, _("You already only own one of those items."))
@@ -154,7 +173,9 @@ class BackpackSellView(discord.ui.View):
         )
         async with self.cog.get_lock(self.author):
             try:
-                character = await Character.from_json(self.ctx, self.cog.config, self.author, self.cog._daily_bonus)
+                character = await Character.from_json(
+                    self.ctx, self.cog.config, self.author, self.cog._daily_bonus
+                )
             except Exception as exc:
                 self.ctx.command.reset_cooldown(self.ctx)
                 log.exception("Error with the new character sheet", exc_info=exc)
@@ -162,7 +183,9 @@ class BackpackSellView(discord.ui.View):
             price = 0
             old_owned = self.item.owned
             count = 0
-            async for _loop_counter in AsyncIter(range(1, character.backpack[self.item.name].owned), steps=50):
+            async for _loop_counter in AsyncIter(
+                range(1, character.backpack[self.item.name].owned), steps=50
+            ):
                 if character.backpack[self.item.name].owned == 1:
                     break
                 character.backpack[self.item.name].owned -= 1
@@ -170,7 +193,9 @@ class BackpackSellView(discord.ui.View):
                 count += 1
 
             if price != 0:
-                msg = _("**{author}** sold all but one of their {old_item} for {price} {currency_name}.\n").format(
+                msg = _(
+                    "**{author}** sold all but one of their {old_item} for {price} {currency_name}.\n"
+                ).format(
                     author=escape(self.ctx.author.display_name),
                     old_item=box(self.item.ansi + " - " + str(old_owned - 1), lang="ansi"),
                     price=humanize_number(price),
@@ -243,7 +268,9 @@ class BackPackCommands(AdventureMixin):
         if self.in_adventure(ctx):
             return await smart_embed(
                 ctx,
-                _("You tried to equip an item but the monster ahead of you commands your attention."),
+                _(
+                    "You tried to equip an item but the monster ahead of you commands your attention."
+                ),
                 ephemeral=True,
             )
         await ctx.defer()
@@ -260,7 +287,9 @@ class BackPackCommands(AdventureMixin):
             if not c.can_equip(equip_item):
                 return await smart_embed(
                     ctx,
-                    _("You need to be level `{level}` to equip this item.").format(level=equiplevel),
+                    _("You need to be level `{level}` to equip this item.").format(
+                        level=equiplevel
+                    ),
                 )
 
             equip = c.backpack.get(equip_item.name)
@@ -269,13 +298,17 @@ class BackPackCommands(AdventureMixin):
                 if not getattr(c, equip.slot.char_slot):
                     equip_msg = box(
                         _("{author} equipped {item} ({slot} slot).").format(
-                            author=escape(ctx.author.display_name), item=str(equip), slot=slot.get_name()
+                            author=escape(ctx.author.display_name),
+                            item=str(equip),
+                            slot=slot.get_name(),
                         ),
                         lang="ansi",
                     )
                 else:
                     equip_msg = box(
-                        _("{author} equipped {item} ({slot} slot) and put {put} into their backpack.").format(
+                        _(
+                            "{author} equipped {item} ({slot} slot) and put {put} into their backpack."
+                        ).format(
                             author=escape(ctx.author.display_name),
                             item=str(equip),
                             slot=slot,
@@ -296,20 +329,28 @@ class BackPackCommands(AdventureMixin):
             ctx.command.reset_cooldown(ctx)
             return await smart_embed(
                 ctx,
-                _("You tried to magically equip multiple items at once, but the monster ahead nearly killed you."),
+                _(
+                    "You tried to magically equip multiple items at once, but the monster ahead nearly killed you."
+                ),
                 ephemeral=True,
             )
         await ctx.defer()
-        set_list = humanize_list(sorted([f"`{i}`" for i in self.SET_BONUSES.keys()], key=str.lower))
+        set_list = humanize_list(
+            sorted([f"`{i}`" for i in self.SET_BONUSES.keys()], key=str.lower)
+        )
         if set_name is None:
             ctx.command.reset_cooldown(ctx)
             return await smart_embed(
                 ctx,
-                _("Use this command with one of the following set names: \n{sets}").format(sets=set_list),
+                _("Use this command with one of the following set names: \n{sets}").format(
+                    sets=set_list
+                ),
             )
         async with self.get_lock(ctx.author):
             try:
-                character = await Character.from_json(ctx, self.config, ctx.author, self._daily_bonus)
+                character = await Character.from_json(
+                    ctx, self.config, ctx.author, self._daily_bonus
+                )
             except Exception as exc:
                 log.exception("Error with the new character sheet", exc_info=exc)
                 ctx.command.reset_cooldown(ctx)
@@ -320,14 +361,18 @@ class BackPackCommands(AdventureMixin):
                 ctx.command.reset_cooldown(ctx)
                 return await smart_embed(
                     ctx,
-                    _("You have no pieces of `{set_name}` that you can equip.").format(set_name=set_name),
+                    _("You have no pieces of `{set_name}` that you can equip.").format(
+                        set_name=set_name
+                    ),
                 )
             for piece in pieces:
                 character = await character.equip_item(piece, from_backpack=True)
             await self.config.user(ctx.author).set(await character.to_json(ctx, self.config))
             await smart_embed(
                 ctx,
-                _("I've equipped all pieces of `{set_name}` that you are able to equip.").format(set_name=set_name),
+                _("I've equipped all pieces of `{set_name}` that you are able to equip.").format(
+                    set_name=set_name
+                ),
             )
 
     @_backpack.command(name="disassemble")
@@ -341,7 +386,9 @@ class BackPackCommands(AdventureMixin):
         if self.in_adventure(ctx):
             return await smart_embed(
                 ctx,
-                _("You tried to disassemble an item but the monster ahead of you commands your attention."),
+                _(
+                    "You tried to disassemble an item but the monster ahead of you commands your attention."
+                ),
                 ephemeral=True,
             )
         await ctx.defer()
@@ -361,7 +408,9 @@ class BackPackCommands(AdventureMixin):
                     return
 
             try:
-                character = await Character.from_json(ctx, self.config, ctx.author, self._daily_bonus)
+                character = await Character.from_json(
+                    ctx, self.config, ctx.author, self._daily_bonus
+                )
             except Exception as exc:
                 log.exception("Error with the new character sheet", exc_info=exc)
                 return
@@ -390,22 +439,28 @@ class BackPackCommands(AdventureMixin):
                         item.owned -= 1
                         if item.owned <= 0:
                             del character.backpack[item.name]
-                        await self.config.user(ctx.author).set(await character.to_json(ctx, self.config))
+                        await self.config.user(ctx.author).set(
+                            await character.to_json(ctx, self.config)
+                        )
                         return await smart_embed(
                             ctx,
-                            _("Your attempt at disassembling `{}` failed and it has been destroyed.").format(item.name),
+                            _(
+                                "Your attempt at disassembling `{}` failed and it has been destroyed."
+                            ).format(item.name),
                         )
                     else:
                         item.owned -= 1
                         if item.owned <= 0:
                             del character.backpack[item.name]
                         character.treasure[index] += chests
-                        await self.config.user(ctx.author).set(await character.to_json(ctx, self.config))
+                        await self.config.user(ctx.author).set(
+                            await character.to_json(ctx, self.config)
+                        )
                         return await smart_embed(
                             ctx,
-                            _("Your attempt at disassembling `{}` was successful and you have received {} {}.").format(
-                                item.name, chests, _("chests") if chests > 1 else _("chest")
-                            ),
+                            _(
+                                "Your attempt at disassembling `{}` was successful and you have received {} {}."
+                            ).format(item.name, chests, _("chests") if chests > 1 else _("chest")),
                         )
                 elif op == "all":
                     disassembled.add(item.name)
@@ -431,9 +486,9 @@ class BackPackCommands(AdventureMixin):
             await self.config.user(ctx.author).set(await character.to_json(ctx, self.config))
             return await smart_embed(
                 ctx,
-                _("You attempted to disassemble multiple items: {succ} were successful and {fail} failed.").format(
-                    succ=humanize_number(success), fail=humanize_number(failed)
-                ),
+                _(
+                    "You attempted to disassemble multiple items: {succ} were successful and {fail} failed."
+                ).format(succ=humanize_number(success), fail=humanize_number(failed)),
             )
 
     @_backpack.command(name="sellall")
@@ -450,23 +505,30 @@ class BackPackCommands(AdventureMixin):
         if self.in_adventure(ctx):
             return await smart_embed(
                 ctx,
-                _("You tried to go sell your items but the monster ahead is not allowing you to leave."),
+                _(
+                    "You tried to go sell your items but the monster ahead is not allowing you to leave."
+                ),
                 ephemeral=True,
             )
         if rarity:
             if rarity.name.lower() in ["forged"]:
                 return await smart_embed(
-                    ctx, _("You cannot sell `{rarity}` rarity items.").format(rarity=rarity), ephemeral=True
+                    ctx,
+                    _("You cannot sell `{rarity}` rarity items.").format(rarity=rarity),
+                    ephemeral=True,
                 )
 
         async with ctx.typing():
             if rarity and slot:
-                msg = _("Are you sure you want to sell all {rarity} {slot} items in your inventory?").format(
-                    rarity=rarity, slot=slot.get_name()
-                )
+                msg = _(
+                    "Are you sure you want to sell all {rarity} {slot} items in your inventory?"
+                ).format(rarity=rarity, slot=slot.get_name())
             elif rarity or slot:
-                msg = _("Are you sure you want to sell all{rarity}{slot} items in your inventory?").format(
-                    rarity=f" {rarity}" if rarity else "", slot=f" {slot.get_name()}" if slot else ""
+                msg = _(
+                    "Are you sure you want to sell all{rarity}{slot} items in your inventory?"
+                ).format(
+                    rarity=f" {rarity}" if rarity else "",
+                    slot=f" {slot.get_name()}" if slot else "",
                 )
             else:
                 msg = _("Are you sure you want to sell **ALL ITEMS** in your inventory?")
@@ -541,16 +603,18 @@ class BackPackCommands(AdventureMixin):
         if self.in_adventure(ctx):
             return await smart_embed(
                 ctx,
-                _("You tried to go sell your items but the monster ahead is not allowing you to leave."),
+                _(
+                    "You tried to go sell your items but the monster ahead is not allowing you to leave."
+                ),
                 ephemeral=True,
             )
         if item.rarity in [Rarities.forged]:
             ctx.command.reset_cooldown(ctx)
             return await ctx.send(
                 box(
-                    _("\n{author}, your {device} is refusing to be sold and bit your finger for trying.").format(
-                        author=escape(ctx.author.display_name), device=item.ansi
-                    ),
+                    _(
+                        "\n{author}, your {device} is refusing to be sold and bit your finger for trying."
+                    ).format(author=escape(ctx.author.display_name), device=item.ansi),
                     lang="ansi",
                 )
             )
@@ -590,21 +654,25 @@ class BackPackCommands(AdventureMixin):
         if ctx.author == buyer:
             return await smart_embed(
                 ctx,
-                _("You take the item and pass it from one hand to the other. Congratulations, you traded yourself."),
+                _(
+                    "You take the item and pass it from one hand to the other. Congratulations, you traded yourself."
+                ),
                 ephemeral=True,
             )
         if self.in_adventure(ctx):
             return await smart_embed(
                 ctx,
-                _("You tried to trade an item to a party member but the monster ahead commands your attention."),
+                _(
+                    "You tried to trade an item to a party member but the monster ahead commands your attention."
+                ),
                 ephemeral=True,
             )
         if self.in_adventure(user=buyer):
             return await smart_embed(
                 ctx,
-                _("{buyer} is currently in an adventure... you were unable to reach them via pigeon.").format(
-                    buyer=bold(buyer.display_name)
-                ),
+                _(
+                    "{buyer} is currently in an adventure... you were unable to reach them via pigeon."
+                ).format(buyer=bold(buyer.display_name)),
                 ephemeral=True,
             )
         if asking < 0:
@@ -622,7 +690,9 @@ class BackPackCommands(AdventureMixin):
             return
 
         if buy_user.is_backpack_full(is_dev=is_dev(buyer)):
-            await ctx.send(_("{author}'s backpack is currently full.").format(author=bold(buyer.display_name)))
+            await ctx.send(
+                _("{author}'s backpack is currently full.").format(author=bold(buyer.display_name))
+            )
             return
 
         if not any([x for x in c.backpack if item.name.lower() == x.lower()]):
@@ -658,9 +728,9 @@ class BackPackCommands(AdventureMixin):
         elif any([x for x in lookup if x.rarity is Rarities.set]):
             return await ctx.send(
                 box(
-                    _("\n{character}, you cannot trade Set items as they are bound to your soul.").format(
-                        character=escape(ctx.author.display_name)
-                    ),
+                    _(
+                        "\n{character}, you cannot trade Set items as they are bound to your soul."
+                    ).format(character=escape(ctx.author.display_name)),
                     lang="ansi",
                 )
             )
@@ -732,14 +802,20 @@ class BackPackCommands(AdventureMixin):
                                 else:
                                     item.owned = 1
                                     buy_user.backpack[item.name] = item
-                                await self.config.user(buyer).set(await buy_user.to_json(ctx, self.config))
+                                await self.config.user(buyer).set(
+                                    await buy_user.to_json(ctx, self.config)
+                                )
                                 item.owned = newly_owned
-                                await self.config.user(ctx.author).set(await c.to_json(ctx, self.config))
+                                await self.config.user(ctx.author).set(
+                                    await c.to_json(ctx, self.config)
+                                )
 
                             await trade_msg.edit(
                                 content=(
                                     box(
-                                        _("\n{author} traded {item} to {buyer} for {asking} {currency_name}.").format(
+                                        _(
+                                            "\n{author} traded {item} to {buyer} for {asking} {currency_name}."
+                                        ).format(
                                             author=escape(ctx.author.display_name),
                                             item=item,
                                             buyer=escape(buyer.display_name),
@@ -753,7 +829,9 @@ class BackPackCommands(AdventureMixin):
                             await self._clear_react(trade_msg)
                         else:
                             await trade_msg.edit(
-                                content=_("{buyer}, you do not have enough {currency_name}.").format(
+                                content=_(
+                                    "{buyer}, you do not have enough {currency_name}."
+                                ).format(
                                     buyer=bold(buyer.display_name),
                                     currency_name=currency_name,
                                 )
@@ -789,7 +867,9 @@ class BackPackCommands(AdventureMixin):
                 log.exception("Error with the new character sheet", exc_info=exc)
                 return
 
-            backpack_pages = await c.get_backpack(rarity=rarity, slot=slot, show_delta=show_diff, equippable=True)
+            backpack_pages = await c.get_backpack(
+                rarity=rarity, slot=slot, show_delta=show_diff, equippable=True
+            )
             if backpack_pages:
                 await BackpackMenu(
                     source=SimpleSource(backpack_pages),
@@ -849,7 +929,9 @@ class BackPackCommands(AdventureMixin):
             )
 
     @commands_cbackpack.command(name="disassemble")
-    async def commands_cbackpack_disassemble(self, ctx: commands.Context, *, query: BackpackFilterParser):
+    async def commands_cbackpack_disassemble(
+        self, ctx: commands.Context, *, query: BackpackFilterParser
+    ):
         """
         Disassemble items from your backpack.
 
@@ -861,12 +943,16 @@ class BackPackCommands(AdventureMixin):
         if self.in_adventure(ctx):
             return await smart_embed(
                 ctx,
-                _("You tried to disassemble an item but the monster ahead of you commands your attention."),
+                _(
+                    "You tried to disassemble an item but the monster ahead of you commands your attention."
+                ),
             )
         query.pop("degrade", None)  # Disallow selling by degrade levels
         async with self.get_lock(ctx.author):
             try:
-                character = await Character.from_json(ctx, self.config, ctx.author, self._daily_bonus)
+                character = await Character.from_json(
+                    ctx, self.config, ctx.author, self._daily_bonus
+                )
             except Exception as exc:
                 log.exception("Error with the new character sheet", exc_info=exc)
                 return
@@ -930,9 +1016,9 @@ class BackPackCommands(AdventureMixin):
             await self.config.user(ctx.author).set(await character.to_json(ctx, self.config))
             return await smart_embed(
                 ctx,
-                _("You attempted to disassemble multiple items: {succ} were successful and {fail} failed.").format(
-                    succ=humanize_number(success), fail=humanize_number(failed)
-                ),
+                _(
+                    "You attempted to disassemble multiple items: {succ} were successful and {fail} failed."
+                ).format(succ=humanize_number(success), fail=humanize_number(failed)),
             )
 
     @commands_cbackpack.command(name="sell", cooldown_after_parsing=True)
@@ -948,12 +1034,16 @@ class BackPackCommands(AdventureMixin):
         if self.in_adventure(ctx):
             return await smart_embed(
                 ctx,
-                _("You tried to go sell your items but the monster ahead is not allowing you to leave."),
+                _(
+                    "You tried to go sell your items but the monster ahead is not allowing you to leave."
+                ),
             )
         query.pop("degrade", None)  # Disallow selling by degrade levels
         async with self.get_lock(ctx.author):
             try:
-                character = await Character.from_json(ctx, self.config, ctx.author, self._daily_bonus)
+                character = await Character.from_json(
+                    ctx, self.config, ctx.author, self._daily_bonus
+                )
             except Exception as exc:
                 log.exception("Error with the new character sheet", exc_info=exc)
                 return
@@ -1005,7 +1095,9 @@ class BackPackCommands(AdventureMixin):
                 )
             if msg:
                 msg_list = []
-                new_msg = _("{author} sold {number} items and their duplicates for {price}.\n\n{items}").format(
+                new_msg = _(
+                    "{author} sold {number} items and their duplicates for {price}.\n\n{items}"
+                ).format(
                     author=escape(ctx.author.display_name),
                     number=humanize_number(total_items),
                     price=humanize_number(total_price),

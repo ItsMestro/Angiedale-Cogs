@@ -38,7 +38,9 @@ class LoadoutCommands(AdventureMixin):
                 log.exception("Error with the new character sheet", exc_info=exc)
                 return
             if name in c.loadouts:
-                msg = await ctx.send("Are you sure you want to update your existing loadout: `{}`?".format(name))
+                msg = await ctx.send(
+                    "Are you sure you want to update your existing loadout: `{}`?".format(name)
+                )
                 start_adding_reactions(msg, ReactionPredicate.YES_OR_NO_EMOJIS)
                 pred = ReactionPredicate.yes_or_no(msg, ctx.author)
                 try:
@@ -103,7 +105,9 @@ class LoadoutCommands(AdventureMixin):
         if not c.loadouts:
             return await smart_embed(
                 ctx,
-                _("{author}, you don't have any loadouts saved.").format(author=bold(ctx.author.display_name)),
+                _("{author}, you don't have any loadouts saved.").format(
+                    author=bold(ctx.author.display_name)
+                ),
             )
         if name is not None and name.lower() not in c.loadouts:
             return await smart_embed(
@@ -116,10 +120,12 @@ class LoadoutCommands(AdventureMixin):
             msg_list = []
             index = 0
             count = 0
-            for (l_name, loadout) in c.loadouts.items():
+            for l_name, loadout in c.loadouts.items():
                 if name and name.lower() == l_name:
                     index = count
-                stats = await self._build_loadout_display(ctx, {"items": loadout}, rebirths=c.rebirths, index=count + 1)
+                stats = await self._build_loadout_display(
+                    ctx, {"items": loadout}, rebirths=c.rebirths, index=count + 1
+                )
                 msg = _("{name} Loadout for {author}\n\n{stats}").format(
                     name=l_name, author=escape(ctx.author.display_name), stats=stats
                 )
@@ -141,7 +147,9 @@ class LoadoutCommands(AdventureMixin):
             ctx.command.reset_cooldown(ctx)
             return await smart_embed(
                 ctx,
-                _("You tried to magically equip multiple items at once, but the monster ahead nearly killed you."),
+                _(
+                    "You tried to magically equip multiple items at once, but the monster ahead nearly killed you."
+                ),
             )
         if not await self.allow_in_dm(ctx):
             ctx.command.reset_cooldown(ctx)

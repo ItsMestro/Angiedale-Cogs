@@ -74,13 +74,17 @@ class AdventureSetCommands(AdventureMixin):
             await self.config.guild(ctx.guild).rebirth_cost.set(percentage)
             await smart_embed(
                 ctx,
-                _("I will now charge {0:.0%} of the user's balance for a rebirth.").format(percentage / 100),
+                _("I will now charge {0:.0%} of the user's balance for a rebirth.").format(
+                    percentage / 100
+                ),
             )
         else:
             await self.config.rebirth_cost.set(percentage)
             await smart_embed(
                 ctx,
-                _("I will now charge {0:.0%} of the user's global balance for a rebirth.").format(percentage / 100),
+                _("I will now charge {0:.0%} of the user's global balance for a rebirth.").format(
+                    percentage / 100
+                ),
             )
 
     @adventureset.command()
@@ -89,10 +93,14 @@ class AdventureSetCommands(AdventureMixin):
         """[Admin] Lock carts to a specific text channel."""
         if room is None:
             await self.config.guild(ctx.guild).cartroom.set(None)
-            return await smart_embed(ctx, _("Done, carts will be able to appear in any text channel the bot can see."))
+            return await smart_embed(
+                ctx, _("Done, carts will be able to appear in any text channel the bot can see.")
+            )
 
         await self.config.guild(ctx.guild).cartroom.set(room.id)
-        await smart_embed(ctx, _("Done, carts will only appear in {room.mention}.").format(room=room))
+        await smart_embed(
+            ctx, _("Done, carts will only appear in {room.mention}.").format(room=room)
+        )
 
     @adventureset.group(name="locks")
     @commands.bot_has_permissions(add_reactions=True)
@@ -102,7 +110,9 @@ class AdventureSetCommands(AdventureMixin):
 
     @adventureset_locks.command(name="user")
     @commands.is_owner()
-    async def adventureset_locks_user(self, ctx: commands.Context, users: commands.Greedy[discord.User]):
+    async def adventureset_locks_user(
+        self, ctx: commands.Context, users: commands.Greedy[discord.User]
+    ):
         """[Owner] Reset a multiple adventurers lock."""
         for user in users:
             lock = self.get_lock(user)
@@ -112,7 +122,9 @@ class AdventureSetCommands(AdventureMixin):
 
     @adventureset.command(name="dailybonus")
     @commands.is_owner()
-    async def adventureset_daily_bonus(self, ctx: commands.Context, day: DayConverter, percentage: PercentageConverter):
+    async def adventureset_daily_bonus(
+        self, ctx: commands.Context, day: DayConverter, percentage: PercentageConverter
+    ):
         """[Owner] Set the daily xp and currency bonus.
 
         **percentage** must be between 0% and 100%.
@@ -123,7 +135,9 @@ class AdventureSetCommands(AdventureMixin):
             self._daily_bonus = daily_bonus_data.copy()
         await smart_embed(
             ctx,
-            _("Daily bonus for `{0}` has been set to: {1:.0%}").format(day_text.title(), percentage),
+            _("Daily bonus for `{0}` has been set to: {1:.0%}").format(
+                day_text.title(), percentage
+            ),
         )
 
     @commands.guild_only()
@@ -140,7 +154,9 @@ class AdventureSetCommands(AdventureMixin):
         """[Owner] Set whether or not adventurers are restricted to one adventure at a time."""
         toggle = await self.config.restrict()
         await self.config.restrict.set(not toggle)
-        await smart_embed(ctx, _("Adventurers restricted to one adventure at a time: {}").format(not toggle))
+        await smart_embed(
+            ctx, _("Adventurers restricted to one adventure at a time: {}").format(not toggle)
+        )
 
     @adventureset.command()
     @commands.is_owner()
@@ -152,7 +168,10 @@ class AdventureSetCommands(AdventureMixin):
         toggle = await self.config.easy_mode()
         await self.config.easy_mode.set(not toggle)
         await smart_embed(
-            ctx, _("Adventure easy mode is now {}.").format(bold(_("Enabled") if not toggle else _("Disabled")))
+            ctx,
+            _("Adventure easy mode is now {}.").format(
+                bold(_("Enabled") if not toggle else _("Disabled"))
+            ),
         )
 
     @adventureset.command()
@@ -163,7 +182,10 @@ class AdventureSetCommands(AdventureMixin):
         await self.config.separate_economy.set(not toggle)
         self._separate_economy = not toggle
         await smart_embed(
-            ctx, _("Adventurer currency is: {}").format(bold(_("Separated") if not toggle else _("Unified")))
+            ctx,
+            _("Adventurer currency is: {}").format(
+                bold(_("Separated") if not toggle else _("Unified"))
+            ),
         )
 
     @adventureset.group(name="economy")
@@ -175,7 +197,9 @@ class AdventureSetCommands(AdventureMixin):
 
     @commands_adventureset_economy.command(name="tax", usage="<bits,tax ...>")
     @commands.is_owner()
-    async def commands_adventureset_economy_tax(self, ctx: commands.Context, *, taxes: TaxesConverter):
+    async def commands_adventureset_economy_tax(
+        self, ctx: commands.Context, *, taxes: TaxesConverter
+    ):
         """[Owner] Set the tax thresholds.
 
         **bits** must be positive
@@ -340,13 +364,18 @@ class AdventureSetCommands(AdventureMixin):
         """
         time_delta = parse_timedelta(time)
         if time_delta is None:
-            return await smart_embed(ctx, _("You must supply a amount and time unit like `120 seconds`."))
+            return await smart_embed(
+                ctx, _("You must supply a amount and time unit like `120 seconds`.")
+            )
         if time_delta.total_seconds() < 600:
             cartname = await self.config.guild(ctx.guild).cart_name()
             if not cartname:
                 cartname = await self.config.cart_name()
             return await smart_embed(
-                ctx, _("{} doesn't have the energy to return that often. Try 10 minutes or more.").format(cartname)
+                ctx,
+                _(
+                    "{} doesn't have the energy to return that often. Try 10 minutes or more."
+                ).format(cartname),
             )
         await self.config.guild(ctx.guild).cart_timeout.set(int(time_delta.total_seconds()))
         await ctx.tick()
@@ -357,12 +386,18 @@ class AdventureSetCommands(AdventureMixin):
         """[Owner] Lets you clear multiple users character sheets."""
         for user in users:
             await self.config.user(user).clear()
-            await smart_embed(ctx, _("{user}'s character sheet has been erased.").format(user=user))
+            await smart_embed(
+                ctx, _("{user}'s character sheet has been erased.").format(user=user)
+            )
 
     @adventureset.command(name="remove")
     @commands.is_owner()
     async def remove_item(
-        self, ctx: commands.Context, user: Union[discord.Member, discord.User], *, full_item_name: str
+        self,
+        ctx: commands.Context,
+        user: Union[discord.Member, discord.User],
+        *,
+        full_item_name: str,
     ):
         """[Owner] Lets you remove an item from a user.
 
@@ -389,12 +424,19 @@ class AdventureSetCommands(AdventureMixin):
                     item = c.backpack[full_item_name]
                 except KeyError:
                     return await smart_embed(
-                        ctx, _("{} does not have an item named `{}`.").format(bold(user), full_item_name)
+                        ctx,
+                        _("{} does not have an item named `{}`.").format(
+                            bold(user), full_item_name
+                        ),
                     )
             with contextlib.suppress(KeyError):
                 del c.backpack[item.name]
             await self.config.user(user).set(await c.to_json(self.config))
-        await ctx.send(_("{item} removed from {user}.").format(item=box(str(item), lang="ansi"), user=bold(user)))
+        await ctx.send(
+            _("{item} removed from {user}.").format(
+                item=box(str(item), lang="ansi"), user=bold(user)
+            )
+        )
 
     # @adventureset.command()
     # @commands.is_owner()
@@ -479,7 +521,9 @@ class AdventureSetCommands(AdventureMixin):
             return await self.config.guild(ctx.guild).cart_channels.set(new_channels)
         else:
             channel_list.append(channel.id)
-            await smart_embed(ctx, _("The {} channel has been added to the cart delivery list.").format(channel))
+            await smart_embed(
+                ctx, _("The {} channel has been added to the cart delivery list.").format(channel)
+            )
             await self.config.guild(ctx.guild).cart_channels.set(channel_list)
 
     @commands.guild_only()
@@ -491,12 +535,18 @@ class AdventureSetCommands(AdventureMixin):
         guild_data = await self.config.guild(ctx.guild).all()
         is_owner = await self.bot.is_owner(ctx.author)
         theme = global_data["theme"]
-        god_name = global_data["god_name"] if not guild_data["god_name"] else guild_data["god_name"]
-        cart_trader_name = global_data["cart_name"] if not guild_data["cart_name"] else guild_data["cart_name"]
+        god_name = (
+            global_data["god_name"] if not guild_data["god_name"] else guild_data["god_name"]
+        )
+        cart_trader_name = (
+            global_data["cart_name"] if not guild_data["cart_name"] else guild_data["cart_name"]
+        )
 
         cart_channel_ids = guild_data["cart_channels"]
         if cart_channel_ids:
-            cart_channels = humanize_list([f"{self.bot.get_channel(x).name}" for x in cart_channel_ids])
+            cart_channels = humanize_list(
+                [f"{self.bot.get_channel(x).name}" for x in cart_channel_ids]
+            )
         else:
             cart_channels = _("None")
 
@@ -564,19 +614,33 @@ class AdventureSetCommands(AdventureMixin):
                 economy_string += _("\n# Tax Settings\n")
                 taxes = global_data["tax_brackets"]
                 for cur, tax in sorted(taxes.items(), key=lambda x: x[1]):
-                    economy_string += _("[{tax:06.2%}]:                               {currency}\n").format(
-                        tax=tax, currency=humanize_number(int(cur))
-                    )
+                    economy_string += _(
+                        "[{tax:06.2%}]:                               {currency}\n"
+                    ).format(tax=tax, currency=humanize_number(int(cur)))
 
         daily_bonus = global_data["daily_bonus"]
         daily_bonus_string = "\n# Daily Bonuses\n"
-        daily_bonus_string += _("[Monday]:                               {v:.2%}\n").format(v=daily_bonus.get("1", 0))
-        daily_bonus_string += _("[Tuesday]:                              {v:.2%}\n").format(v=daily_bonus.get("2", 0))
-        daily_bonus_string += _("[Wednesday]:                            {v:.2%}\n").format(v=daily_bonus.get("3", 0))
-        daily_bonus_string += _("[Thursday]:                             {v:.2%}\n").format(v=daily_bonus.get("4", 0))
-        daily_bonus_string += _("[Friday]:                               {v:.2%}\n").format(v=daily_bonus.get("5", 0))
-        daily_bonus_string += _("[Saturday]:                             {v:.2%}\n").format(v=daily_bonus.get("6", 0))
-        daily_bonus_string += _("[Sunday]:                               {v:.2%}\n").format(v=daily_bonus.get("7", 0))
+        daily_bonus_string += _("[Monday]:                               {v:.2%}\n").format(
+            v=daily_bonus.get("1", 0)
+        )
+        daily_bonus_string += _("[Tuesday]:                              {v:.2%}\n").format(
+            v=daily_bonus.get("2", 0)
+        )
+        daily_bonus_string += _("[Wednesday]:                            {v:.2%}\n").format(
+            v=daily_bonus.get("3", 0)
+        )
+        daily_bonus_string += _("[Thursday]:                             {v:.2%}\n").format(
+            v=daily_bonus.get("4", 0)
+        )
+        daily_bonus_string += _("[Friday]:                               {v:.2%}\n").format(
+            v=daily_bonus.get("5", 0)
+        )
+        daily_bonus_string += _("[Saturday]:                             {v:.2%}\n").format(
+            v=daily_bonus.get("6", 0)
+        )
+        daily_bonus_string += _("[Sunday]:                               {v:.2%}\n").format(
+            v=daily_bonus.get("7", 0)
+        )
 
         easy_mode = global_data["easy_mode"]
         msg = _("Adventure Settings\n\n")
@@ -586,7 +650,9 @@ class AdventureSetCommands(AdventureMixin):
         )
         msg += _("[Theme]:                                {theme}\n").format(theme=theme)
         msg += _("[God name]:                             {god_name}\n").format(god_name=god_name)
-        msg += _("[Base rebirth cost]:                    {rebirth_cost}\n").format(rebirth_cost=rebirth_cost)
+        msg += _("[Base rebirth cost]:                    {rebirth_cost}\n").format(
+            rebirth_cost=rebirth_cost
+        )
         msg += _("[Adventure message style]:              {adventure_in_embed}\n").format(
             adventure_in_embed=adventure_in_embed
         )
@@ -600,11 +666,15 @@ class AdventureSetCommands(AdventureMixin):
         msg += _("[Cart trader name]:                     {cart_trader_name}\n").format(
             cart_trader_name=cart_trader_name
         )
-        msg += _("[Cart delivery channels]:               {cart_channels}\n").format(cart_channels=cart_channels)
+        msg += _("[Cart delivery channels]:               {cart_channels}\n").format(
+            cart_channels=cart_channels
+        )
         msg += _("[Cart channel lock override]:           {cart_channel_lock_override}\n").format(
             cart_channel_lock_override=cart_channel_lock_override
         )
-        msg += _("[Cart timeout (hh:mm:ss)]:              {cart_timeout}\n").format(cart_timeout=cart_timeout)
+        msg += _("[Cart timeout (hh:mm:ss)]:              {cart_timeout}\n").format(
+            cart_timeout=cart_timeout
+        )
         # msg += _("[Lootboxes in carts]:                   {lootbox_in_carts}\n").format(
         #     lootbox_in_carts=lootbox_in_carts
         # )

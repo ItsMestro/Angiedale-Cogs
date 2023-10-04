@@ -41,13 +41,18 @@ class TraderModal(discord.ui.Modal):
         self.add_item(self.amount_input)
 
     async def wasting_time(self, interaction: discord.Interaction):
-        await smart_embed(None, _("You're wasting my time."), interaction=interaction, ephemeral=True)
+        await smart_embed(
+            None, _("You're wasting my time."), interaction=interaction, ephemeral=True
+        )
 
     async def on_submit(self, interaction: discord.Interaction):
         if datetime.now(timezone.utc) >= self.view.end_time:
             self.view.stop()
             await interaction.response.send_message(
-                _("{cart_name} has moved onto the next village.").format(cart_name=self.view.cart_name), ephemeral=True
+                _("{cart_name} has moved onto the next village.").format(
+                    cart_name=self.view.cart_name
+                ),
+                ephemeral=True,
             )
             return
         number = self.amount_input.value
@@ -75,14 +80,18 @@ class TraderModal(discord.ui.Modal):
             await bank.withdraw_credits(spender, price)
             async with self.cog.get_lock(spender):
                 try:
-                    c = await Character.from_json(self.ctx, self.cog.config, spender, self.cog._daily_bonus)
+                    c = await Character.from_json(
+                        self.ctx, self.cog.config, spender, self.cog._daily_bonus
+                    )
                 except Exception as exc:
                     log.exception("Error with the new character sheet", exc_info=exc)
                     return
 
                 if c.is_backpack_full(is_dev=is_dev(spender)):
                     await interaction.response.send_message(
-                        _("**{author}**, Your backpack is currently full.").format(author=escape(spender.display_name))
+                        _("**{author}**, Your backpack is currently full.").format(
+                            author=escape(spender.display_name)
+                        )
                     )
                     return
                 item = self.item
@@ -123,7 +132,10 @@ class TraderButton(discord.ui.Button):
             self.view.stop()
             await self.view.on_timeout()
             await interaction.response.send_message(
-                _("{cart_name} has moved onto the next village.").format(cart_name=self.view.cart_name), ephemeral=True
+                _("{cart_name} has moved onto the next village.").format(
+                    cart_name=self.view.cart_name
+                ),
+                ephemeral=True,
             )
             return
         modal = TraderModal(self.item, self.cog, view=self.view, ctx=self.view.ctx)
@@ -155,12 +167,14 @@ class Trader(discord.ui.View):
         self.end_time = datetime.now(timezone.utc) + timedelta(seconds=self.timeout)
         timestamp = f"<t:{int(self.end_time.timestamp())}:R>"
         text = self.stock_str
-        text += _("I am leaving {time}.\nDo you want to buy any of these fine items? Tell me which one below:").format(
-            time=timestamp
-        )
+        text += _(
+            "I am leaving {time}.\nDo you want to buy any of these fine items? Tell me which one below:"
+        ).format(time=timestamp)
         await self.message.edit(content=text)
 
-    async def start(self, ctx: commands.Context, bypass: bool = False, stockcount: Optional[int] = None):
+    async def start(
+        self, ctx: commands.Context, bypass: bool = False, stockcount: Optional[int] = None
+    ):
         cart = await self.cog.config.cart_name()
         if await self.cog.config.guild(ctx.guild).cart_name():
             cart = await self.cog.config.guild(ctx.guild).cart_name()
@@ -194,7 +208,7 @@ class Trader(discord.ui.View):
         )
         if str(currency_name).startswith("<"):
             currency_name = "credits"
-        for (index, item) in enumerate(stock):
+        for index, item in enumerate(stock):
             item = stock[index]
             if item["item"].slot is Slot.two_handed:  # two handed weapons add their bonuses twice
                 hand = item["item"].slot.get_name()
@@ -239,9 +253,9 @@ class Trader(discord.ui.View):
             )
         self.stock_str = text
         timestamp = f"<t:{int(self.end_time.timestamp())}:R>"
-        text += _("I am leaving {time}.\nDo you want to buy any of these fine items? Tell me which one below:").format(
-            time=timestamp
-        )
+        text += _(
+            "I am leaving {time}.\nDo you want to buy any of these fine items? Tell me which one below:"
+        ).format(time=timestamp)
         self.message = await room.send(text, view=self)
 
     async def generate(self, howmany: int = 5):
@@ -272,9 +286,11 @@ class Trader(discord.ui.View):
             # 35% normal
             price *= item.max_main_stat
 
-            self.items.update({item.name: {"itemname": item.name, "item": item, "price": price, "lvl": item.lvl}})
+            self.items.update(
+                {item.name: {"itemname": item.name, "item": item, "price": price, "lvl": item.lvl}}
+            )
             self.add_item(TraderButton(item, self.cog))
 
-        for (index, item) in enumerate(self.items):
+        for index, item in enumerate(self.items):
             output.update({index: self.items[item]})
         return output

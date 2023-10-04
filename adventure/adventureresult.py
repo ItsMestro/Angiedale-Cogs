@@ -27,7 +27,9 @@ class AdventureResults:
         self._num_raids: int = num_raids
         self._last_raids: MutableMapping[int, List[Raid]] = {}
 
-    def add_result(self, ctx: commands.Context, main_action: str, amount: float, num_ppl: int, success: bool):
+    def add_result(
+        self, ctx: commands.Context, main_action: str, amount: float, num_ppl: int, success: bool
+    ):
         """Add result to this object.
         :main_action: Main damage action taken by the adventurers
             (highest amount dealt). Should be either "attack" or
@@ -66,7 +68,9 @@ class AdventureResults:
         stat_type: str = "hp"
         win_percent: float = 0.0
         if len(self._last_raids.get(ctx.guild.id, [])) == 0:
-            return StatRange(stat_type=stat_type, min_stat=min_stat, max_stat=max_stat, win_percent=win_percent)
+            return StatRange(
+                stat_type=stat_type, min_stat=min_stat, max_stat=max_stat, win_percent=win_percent
+            )
 
         # tally up stats for raids
         num_attack = 0
@@ -110,7 +114,9 @@ class AdventureResults:
             if win_percent < 0.5:
                 min_stat = avg_amount * win_percent
                 max_stat = avg_amount * 1.5
-        return StatRange(stat_type=stat_type, min_stat=min_stat, max_stat=max_stat, win_percent=win_percent)
+        return StatRange(
+            stat_type=stat_type, min_stat=min_stat, max_stat=max_stat, win_percent=win_percent
+        )
 
     def __str__(self):
         return str(self._last_raids)

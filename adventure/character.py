@@ -43,7 +43,9 @@ class CharacterCommands(AdventureMixin):
         if self.in_adventure(ctx):
             return await smart_embed(
                 ctx,
-                _("The skill cleric is back in town and the monster ahead of you is demanding your attention."),
+                _(
+                    "The skill cleric is back in town and the monster ahead of you is demanding your attention."
+                ),
                 ephemeral=True,
             )
         if not await self.allow_in_dm(ctx):
@@ -61,7 +63,9 @@ class CharacterCommands(AdventureMixin):
             if skill == "reset":
                 last_reset = await self.config.user(ctx.author).last_skill_reset()
                 if last_reset + 3600 > time.time():
-                    return await smart_embed(ctx, _("You reset your skills within the last hour, try again later."))
+                    return await smart_embed(
+                        ctx, _("You reset your skills within the last hour, try again later.")
+                    )
                 bal = c.bal
                 currency_name = await bank.get_currency_name(
                     ctx.guild,
@@ -99,7 +103,9 @@ class CharacterCommands(AdventureMixin):
                     await bank.withdraw_credits(ctx.author, offering)
                     await smart_embed(
                         ctx,
-                        _("{}, your skill points have been reset.").format(bold(ctx.author.display_name)),
+                        _("{}, your skill points have been reset.").format(
+                            bold(ctx.author.display_name)
+                        ),
                     )
                 else:
                     await smart_embed(
@@ -111,7 +117,9 @@ class CharacterCommands(AdventureMixin):
             if c.skill["pool"] <= 0:
                 return await smart_embed(
                     ctx,
-                    _("{}, you do not have unspent skillpoints.").format(bold(ctx.author.display_name)),
+                    _("{}, you do not have unspent skillpoints.").format(
+                        bold(ctx.author.display_name)
+                    ),
                 )
             elif c.skill["pool"] < amount:
                 return await smart_embed(
@@ -177,11 +185,15 @@ class CharacterCommands(AdventureMixin):
     async def set_show(self, ctx: commands.Context, *, set_name: str = None):
         """Show set bonuses for the specified set."""
 
-        set_list = humanize_list(sorted([f"`{i}`" for i in self.SET_BONUSES.keys()], key=str.lower))
+        set_list = humanize_list(
+            sorted([f"`{i}`" for i in self.SET_BONUSES.keys()], key=str.lower)
+        )
         if set_name is None:
             return await smart_embed(
                 ctx,
-                _("Use this command with one of the following set names: \n{sets}").format(sets=set_list),
+                _("Use this command with one of the following set names: \n{sets}").format(
+                    sets=set_list
+                ),
                 ephemeral=True,
             )
 
@@ -190,9 +202,9 @@ class CharacterCommands(AdventureMixin):
         if sets is None:
             return await smart_embed(
                 ctx,
-                _("`{input}` is not a valid set.\n\nPlease use one of the following full set names: \n{sets}").format(
-                    input=title_cased_set_name, sets=set_list
-                ),
+                _(
+                    "`{input}` is not a valid set.\n\nPlease use one of the following full set names: \n{sets}"
+                ).format(input=title_cased_set_name, sets=set_list),
                 ephemeral=True,
             )
         await ctx.defer()
@@ -251,7 +263,11 @@ class CharacterCommands(AdventureMixin):
             stats_msg += breakdown
             stats_msg += "Multiple complete set bonuses stack."
             msg_list.append(box(stats_msg, lang="ini"))
-        set_items = {key: value for key, value in self.TR_GEAR_SET.items() if value["set"] == title_cased_set_name}
+        set_items = {
+            key: value
+            for key, value in self.TR_GEAR_SET.items()
+            if value["set"] == title_cased_set_name
+        }
 
         d = {}
         for k, v in set_items.items():
@@ -261,7 +277,9 @@ class CharacterCommands(AdventureMixin):
             else:
                 d.update({v["slot"][0]: {k: v}})
 
-        loadout_display = await self._build_loadout_display(ctx, {"items": d}, loadout=False, rebirths=c.rebirths)
+        loadout_display = await self._build_loadout_display(
+            ctx, {"items": d}, loadout=False, rebirths=c.rebirths
+        )
         set_msg = _("{set_name} Set Pieces\n\n").format(set_name=title_cased_set_name)
         set_msg += loadout_display
         msg_list.append(box(set_msg, lang="ansi"))
@@ -288,7 +306,9 @@ class CharacterCommands(AdventureMixin):
 
     @commands.hybrid_command()
     @commands.bot_has_permissions(add_reactions=True)
-    async def stats(self, ctx: commands.Context, *, user: Union[discord.Member, discord.User] = None):
+    async def stats(
+        self, ctx: commands.Context, *, user: Union[discord.Member, discord.User] = None
+    ):
         """This draws up a character sheet of you or an optionally specified member."""
         if not await self.allow_in_dm(ctx):
             return await smart_embed(ctx, _("This command is not available in DM's on this bot."))
@@ -327,7 +347,12 @@ class CharacterCommands(AdventureMixin):
         ).start(ctx=ctx)
 
     async def _build_loadout_display(
-        self, ctx: commands.Context, userdata: dict, loadout=True, rebirths: int = None, index: int = None
+        self,
+        ctx: commands.Context,
+        userdata: dict,
+        loadout=True,
+        rebirths: int = None,
+        index: int = None,
     ):
         table = BeautifulTable(default_alignment=ALIGN_LEFT, maxwidth=500)
         table.set_style(BeautifulTable.STYLE_RST)
@@ -359,7 +384,7 @@ class CharacterCommands(AdventureMixin):
 
         data_sorted = sorted(userdata["items"].items(), key=get_slot_index)
         items_names = set()
-        for (slot, data) in data_sorted:
+        for slot, data in data_sorted:
             if slot == "backpack":
                 continue
             if last_slot == "two handed":
@@ -382,7 +407,9 @@ class CharacterCommands(AdventureMixin):
                 item.int * (1 if slots == 1 else 2),
                 item.dex * (1 if slots == 1 else 2),
                 item.luck * (1 if slots == 1 else 2),
-                item.lvl if item.rarity is Rarities.event else max(item.lvl - min(max(rebirths // 2 - 1, 0), 50), 1),
+                item.lvl
+                if item.rarity is Rarities.event
+                else max(item.lvl - min(max(rebirths // 2 - 1, 0), 50), 1),
                 item.set or "N/A",
             )
             if data not in table.rows:
@@ -411,7 +438,9 @@ class CharacterCommands(AdventureMixin):
         if self.in_adventure(ctx):
             return await smart_embed(
                 ctx,
-                _("You tried to unequip your items, but the monster ahead of you looks mighty hungry..."),
+                _(
+                    "You tried to unequip your items, but the monster ahead of you looks mighty hungry..."
+                ),
                 ephemeral=True,
             )
         if not await self.allow_in_dm(ctx):
@@ -440,27 +469,27 @@ class CharacterCommands(AdventureMixin):
             if isinstance(item, list):
                 for i in item:
                     await c.unequip_item(i)
-                msg = _("{author} unequipped all their items and put them into their backpack.").format(
-                    author=escape(ctx.author.display_name)
-                )
+                msg = _(
+                    "{author} unequipped all their items and put them into their backpack."
+                ).format(author=escape(ctx.author.display_name))
             elif item in slots:
                 current_item = getattr(c, item, None)
                 if not current_item:
-                    msg = _("{author}, you do not have an item equipped in the {item} slot.").format(
-                        author=escape(ctx.author.display_name), item=item
-                    )
+                    msg = _(
+                        "{author}, you do not have an item equipped in the {item} slot."
+                    ).format(author=escape(ctx.author.display_name), item=item)
                     return await ctx.send(box(msg, lang="ansi"))
                 await c.unequip_item(current_item)
-                msg = _("{author} removed the {current_item} and put it into their backpack.").format(
-                    author=escape(ctx.author.display_name), current_item=current_item
-                )
+                msg = _(
+                    "{author} removed the {current_item} and put it into their backpack."
+                ).format(author=escape(ctx.author.display_name), current_item=current_item)
             else:
                 for current_item in c.get_current_equipment():
                     if item.name.lower() in current_item.name.lower():
                         await c.unequip_item(current_item)
-                        msg = _("{author} removed the {current_item} and put it into their backpack.").format(
-                            author=escape(ctx.author.display_name), current_item=current_item
-                        )
+                        msg = _(
+                            "{author} removed the {current_item} and put it into their backpack."
+                        ).format(author=escape(ctx.author.display_name), current_item=current_item)
                         # We break if this works because unequip
                         # will autmatically remove multiple items
                         break
@@ -480,7 +509,9 @@ class CharacterCommands(AdventureMixin):
         """This equips an item from your backpack."""
         if self.in_adventure(ctx):
             return await smart_embed(
-                ctx, _("You tried to equip your item but the monster ahead nearly decapitated you."), ephemeral=True
+                ctx,
+                _("You tried to equip your item but the monster ahead nearly decapitated you."),
+                ephemeral=True,
             )
         if not await self.allow_in_dm(ctx):
             return await smart_embed(ctx, _("This command is not available in DM's on this bot."))

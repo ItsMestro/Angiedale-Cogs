@@ -273,7 +273,9 @@ class TreasureChest:
             return self
         if chest.rarity is not self.rarity:
             raise TypeError(
-                "Treasure Chest of rarity %s cannot add Treasure Chest of rarity %s", self.rarity, chest.rarity
+                "Treasure Chest of rarity %s cannot add Treasure Chest of rarity %s",
+                self.rarity,
+                chest.rarity,
             )
         self.number += chest.number
         return self
@@ -284,7 +286,9 @@ class TreasureChest:
             return self
         if chest.rarity is not self.rarity:
             raise TypeError(
-                "Treasure Chest of rarity %s cannot add Treasure Chest of rarity %s", self.rarity, chest.rarity
+                "Treasure Chest of rarity %s cannot add Treasure Chest of rarity %s",
+                self.rarity,
+                chest.rarity,
             )
         self.number -= chest.number
         return self
@@ -334,7 +338,13 @@ class TreasureChest:
 
 class Treasure:
     def __init__(
-        self, normal: int = 0, rare: int = 0, epic: int = 0, legendary: int = 0, ascended: int = 0, _set: int = 0
+        self,
+        normal: int = 0,
+        rare: int = 0,
+        epic: int = 0,
+        legendary: int = 0,
+        ascended: int = 0,
+        _set: int = 0,
     ):
         self.normal: TreasureChest = TreasureChest(normal, Rarities.normal)
         self.rare: TreasureChest = TreasureChest(rare, Rarities.rare)

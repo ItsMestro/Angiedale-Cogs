@@ -24,7 +24,9 @@ class RebirthCommands(AdventureMixin):
         """Resets your character level and increases your rebirths by 1."""
         if self.in_adventure(ctx):
             return await smart_embed(
-                ctx, _("You tried to rebirth but the monster ahead is commanding your attention."), ephemeral=True
+                ctx,
+                _("You tried to rebirth but the monster ahead is commanding your attention."),
+                ephemeral=True,
             )
         if not await self.allow_in_dm(ctx):
             return await smart_embed(ctx, _("This command is not available in DM's on this bot."))
@@ -36,9 +38,13 @@ class RebirthCommands(AdventureMixin):
                 log.exception("Error with the new character sheet", exc_info=exc)
                 return
             if c.lvl < c.maxlevel:
-                return await smart_embed(ctx, _("You need to be level `{c.maxlevel}` to rebirth.").format(c=c))
+                return await smart_embed(
+                    ctx, _("You need to be level `{c.maxlevel}` to rebirth.").format(c=c)
+                )
             if not c.last_currency_check + 10 < time.time():
-                return await smart_embed(ctx, _("You need to wait a little before rebirthing.").format(c=c))
+                return await smart_embed(
+                    ctx, _("You need to wait a little before rebirthing.").format(c=c)
+                )
             if not await bank.is_global():
                 rebirth_cost = await self.config.guild(ctx.guild).rebirth_cost()
             else:
@@ -68,7 +74,9 @@ class RebirthCommands(AdventureMixin):
                 )
                 return await smart_embed(
                     ctx,
-                    _("You need more {currency_name} to be able to rebirth.").format(currency_name=currency_name),
+                    _("You need more {currency_name} to be able to rebirth.").format(
+                        currency_name=currency_name
+                    ),
                 )
             space = "\N{EN SPACE}"
             view = ConfirmView(60, ctx.author)

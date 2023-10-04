@@ -137,7 +137,12 @@ class WeeklyScoreboardSource(menus.ListPageSource):
             rebirths = humanize_number(account_data["rebirths"])
             stats_value = humanize_number(account_data[self._stat.lower()])
 
-            data = f"{f'{pos_str}.':{pos_len}}" f"{stats_value:{stats_len}}" f"{rebirths:{rebirth_len}}" f"{username}"
+            data = (
+                f"{f'{pos_str}.':{pos_len}}"
+                f"{stats_value:{stats_len}}"
+                f"{rebirths:{rebirth_len}}"
+                f"{username}"
+            )
             players.append(data)
 
         embed = discord.Embed(
@@ -213,7 +218,12 @@ class ScoreboardSource(WeeklyScoreboardSource):
             rebirths = humanize_number(account_data["rebirths"])
             stats_value = humanize_number(account_data[self._stat.lower()])
 
-            data = f"{f'{pos_str}.':{pos_len}}" f"{stats_value:{stats_len}}" f"{rebirths:{rebirth_len}}" f"{username}"
+            data = (
+                f"{f'{pos_str}.':{pos_len}}"
+                f"{stats_value:{stats_len}}"
+                f"{rebirths:{rebirth_len}}"
+                f"{username}"
+            )
             players.append(data)
 
         embed = discord.Embed(
@@ -318,13 +328,17 @@ class EconomySource(menus.ListPageSource):
     def is_paginating(self):
         return True
 
-    async def format_page(self, menu: menus.MenuPages, entries: List[Tuple[str, Dict[str, Any]]]) -> discord.Embed:
+    async def format_page(
+        self, menu: menus.MenuPages, entries: List[Tuple[str, Dict[str, Any]]]
+    ) -> discord.Embed:
         guild = menu.ctx.guild
         author = menu.ctx.author
         position = (menu.current_page * self.per_page) + 1
         bal_len = len(humanize_number(entries[0][1]["balance"]))
         pound_len = len(str(position + 9))
-        user_bal = await bank.get_balance(menu.ctx.author, _forced=not menu.ctx.cog._separate_economy)
+        user_bal = await bank.get_balance(
+            menu.ctx.author, _forced=not menu.ctx.cog._separate_economy
+        )
         if self.author_position is None:
             self.author_position = await bank.get_leaderboard_position(menu.ctx.author)
         header_primary = "{pound:{pound_len}}{score:{bal_len}}{name:2}\n".format(
@@ -421,7 +435,9 @@ class StopButton(discord.ui.Button):
 
 
 class _NavigateButton(discord.ui.Button):
-    def __init__(self, style: discord.ButtonStyle, emoji: Union[str, discord.PartialEmoji], direction: int):
+    def __init__(
+        self, style: discord.ButtonStyle, emoji: Union[str, discord.PartialEmoji], direction: int
+    ):
         super().__init__(style=style, emoji=emoji)
         self.direction = direction
 
@@ -570,7 +586,10 @@ class BaseMenu(discord.ui.View):
         await interaction.response.edit_message(**kwargs, view=self)
 
     async def send_initial_message(
-        self, ctx: Optional[commands.Context], page: int = 0, interaction: Optional[discord.Interaction] = None
+        self,
+        ctx: Optional[commands.Context],
+        page: int = 0,
+        interaction: Optional[discord.Interaction] = None,
     ):
         """
 
@@ -607,7 +626,9 @@ class BaseMenu(discord.ui.View):
 
     async def interaction_check(self, interaction: discord.Interaction):
         if interaction.user.id not in (*interaction.client.owner_ids, self._author_id):
-            await interaction.response.send_message(_("You are not authorized to interact with this."), ephemeral=True)
+            await interaction.response.send_message(
+                _("You are not authorized to interact with this."), ephemeral=True
+            )
             return False
         return True
 
@@ -671,7 +692,8 @@ class ScoreBoardMenu(BaseMenu):
             guild=self.ctx.guild if not self.show_global else None, keyword=self._current
         )
         await self.change_source(
-            source=ScoreboardSource(entries=rebirth_sorted, stat=self._current), interaction=interaction
+            source=ScoreboardSource(entries=rebirth_sorted, stat=self._current),
+            interaction=interaction,
         )
 
     @discord.ui.button(label=_("Losses"), style=discord.ButtonStyle.grey, emoji="\N{FIRE}", row=1)
@@ -684,10 +706,13 @@ class ScoreBoardMenu(BaseMenu):
             guild=self.ctx.guild if not self.show_global else None, keyword=self._current
         )
         await self.change_source(
-            source=ScoreboardSource(entries=rebirth_sorted, stat=self._current), interaction=interaction
+            source=ScoreboardSource(entries=rebirth_sorted, stat=self._current),
+            interaction=interaction,
         )
 
-    @discord.ui.button(label=_("Physical"), style=discord.ButtonStyle.grey, emoji="\N{DAGGER KNIFE}", row=1)
+    @discord.ui.button(
+        label=_("Physical"), style=discord.ButtonStyle.grey, emoji="\N{DAGGER KNIFE}", row=1
+    )
     async def physical(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         """stops the pagination session."""
         if self._current == "fight":
@@ -698,10 +723,13 @@ class ScoreBoardMenu(BaseMenu):
             guild=self.ctx.guild if not self.show_global else None, keyword=self._current
         )
         await self.change_source(
-            source=ScoreboardSource(entries=rebirth_sorted, stat=self._current), interaction=interaction
+            source=ScoreboardSource(entries=rebirth_sorted, stat=self._current),
+            interaction=interaction,
         )
 
-    @discord.ui.button(label=_("Magic"), style=discord.ButtonStyle.grey, emoji="\N{SPARKLES}", row=1)
+    @discord.ui.button(
+        label=_("Magic"), style=discord.ButtonStyle.grey, emoji="\N{SPARKLES}", row=1
+    )
     async def magic(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         if self._current == "spell":
             await interaction.response.defer()
@@ -711,10 +739,13 @@ class ScoreBoardMenu(BaseMenu):
             guild=self.ctx.guild if not self.show_global else None, keyword=self._current
         )
         await self.change_source(
-            source=ScoreboardSource(entries=rebirth_sorted, stat=self._current), interaction=interaction
+            source=ScoreboardSource(entries=rebirth_sorted, stat=self._current),
+            interaction=interaction,
         )
 
-    @discord.ui.button(label=_("Charisma"), style=discord.ButtonStyle.grey, emoji="\N{LEFT SPEECH BUBBLE}", row=1)
+    @discord.ui.button(
+        label=_("Charisma"), style=discord.ButtonStyle.grey, emoji="\N{LEFT SPEECH BUBBLE}", row=1
+    )
     async def diplomacy(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         if self._current == "talk":
             await interaction.response.defer()
@@ -724,10 +755,16 @@ class ScoreBoardMenu(BaseMenu):
             guild=self.ctx.guild if not self.show_global else None, keyword=self._current
         )
         await self.change_source(
-            source=ScoreboardSource(entries=rebirth_sorted, stat=self._current), interaction=interaction
+            source=ScoreboardSource(entries=rebirth_sorted, stat=self._current),
+            interaction=interaction,
         )
 
-    @discord.ui.button(label=_("Pray"), style=discord.ButtonStyle.grey, emoji="\N{PERSON WITH FOLDED HANDS}", row=2)
+    @discord.ui.button(
+        label=_("Pray"),
+        style=discord.ButtonStyle.grey,
+        emoji="\N{PERSON WITH FOLDED HANDS}",
+        row=2,
+    )
     async def praying(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         if self._current == "pray":
             await interaction.response.defer()
@@ -737,7 +774,8 @@ class ScoreBoardMenu(BaseMenu):
             guild=self.ctx.guild if not self.show_global else None, keyword=self._current
         )
         await self.change_source(
-            source=ScoreboardSource(entries=rebirth_sorted, stat=self._current), interaction=interaction
+            source=ScoreboardSource(entries=rebirth_sorted, stat=self._current),
+            interaction=interaction,
         )
 
     @discord.ui.button(label=_("Run"), style=discord.ButtonStyle.grey, emoji="\N{RUNNER}", row=2)
@@ -750,10 +788,16 @@ class ScoreBoardMenu(BaseMenu):
             guild=self.ctx.guild if not self.show_global else None, keyword=self._current
         )
         await self.change_source(
-            source=ScoreboardSource(entries=rebirth_sorted, stat=self._current), interaction=interaction
+            source=ScoreboardSource(entries=rebirth_sorted, stat=self._current),
+            interaction=interaction,
         )
 
-    @discord.ui.button(label=_("Fumbles"), style=discord.ButtonStyle.grey, emoji="\N{EXCLAMATION QUESTION MARK}", row=2)
+    @discord.ui.button(
+        label=_("Fumbles"),
+        style=discord.ButtonStyle.grey,
+        emoji="\N{EXCLAMATION QUESTION MARK}",
+        row=2,
+    )
     async def fumble(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         if self._current == "fumbles":
             await interaction.response.defer()
@@ -763,7 +807,8 @@ class ScoreBoardMenu(BaseMenu):
             guild=self.ctx.guild if not self.show_global else None, keyword=self._current
         )
         await self.change_source(
-            source=ScoreboardSource(entries=rebirth_sorted, stat=self._current), interaction=interaction
+            source=ScoreboardSource(entries=rebirth_sorted, stat=self._current),
+            interaction=interaction,
         )
 
 
@@ -813,10 +858,16 @@ class LeaderboardMenu(BaseMenu):
             await interaction.response.defer()
             return
         self._current = "leaderboard"
-        rebirth_sorted = await self.cog.get_leaderboard(guild=self.ctx.guild if not self.show_global else None)
-        await self.change_source(source=LeaderboardSource(entries=rebirth_sorted), interaction=interaction)
+        rebirth_sorted = await self.cog.get_leaderboard(
+            guild=self.ctx.guild if not self.show_global else None
+        )
+        await self.change_source(
+            source=LeaderboardSource(entries=rebirth_sorted), interaction=interaction
+        )
 
-    @discord.ui.button(label=_("Economy"), style=discord.ButtonStyle.grey, emoji="\N{MONEY WITH WINGS}", row=1)
+    @discord.ui.button(
+        label=_("Economy"), style=discord.ButtonStyle.grey, emoji="\N{MONEY WITH WINGS}", row=1
+    )
     async def economy(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         if self._current == "economy":
             await interaction.response.defer()
@@ -825,7 +876,9 @@ class LeaderboardMenu(BaseMenu):
         bank_sorted = await bank.get_leaderboard(
             guild=self.ctx.guild if not self.show_global else None, _forced=self._unified_bank()
         )
-        await self.change_source(source=EconomySource(entries=bank_sorted), interaction=interaction)
+        await self.change_source(
+            source=EconomySource(entries=bank_sorted), interaction=interaction
+        )
 
 
 class BackpackMenu(BaseMenu):
@@ -849,7 +902,11 @@ class BackpackMenu(BaseMenu):
         )
         self.__help_command = help_command
 
-    @discord.ui.button(style=discord.ButtonStyle.grey, emoji="\N{INFORMATION SOURCE}\N{VARIATION SELECTOR-16}", row=1)
+    @discord.ui.button(
+        style=discord.ButtonStyle.grey,
+        emoji="\N{INFORMATION SOURCE}\N{VARIATION SELECTOR-16}",
+        row=1,
+    )
     async def send_help(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         """Sends help for the provided command."""
         await self.ctx.send_help(self.__help_command)

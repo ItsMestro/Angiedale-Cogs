@@ -65,7 +65,9 @@ _bot: Red = None
 def _init(bot: Red):
     global _config, _bot
     if _config is None:
-        _config = Config.get_conf(None, identifier=1387000, cog_name="AdventureBank", force_registration=True)
+        _config = Config.get_conf(
+            None, identifier=1387000, cog_name="AdventureBank", force_registration=True
+        )
         _config.register_user(**_DEFAULT_MEMBER)
     _bot = bot
 
@@ -197,7 +199,9 @@ async def can_spend(member: discord.Member, amount: int, _forced: bool = False) 
     return await get_balance(member, _forced=_forced) >= amount
 
 
-async def set_balance(member: Union[discord.Member, discord.User], amount: int, _forced: bool = False) -> int:
+async def set_balance(
+    member: Union[discord.Member, discord.User], amount: int, _forced: bool = False
+) -> int:
     """Set an account balance.
     Parameters
     ----------
@@ -227,7 +231,9 @@ async def set_balance(member: Union[discord.Member, discord.User], amount: int, 
     max_bal = await get_max_balance(guild)
     if amount > max_bal:
         currency = await get_currency_name(guild)
-        raise errors.BalanceTooHigh(user=member.display_name, max_balance=max_bal, currency_name=currency)
+        raise errors.BalanceTooHigh(
+            user=member.display_name, max_balance=max_bal, currency_name=currency
+        )
     group = _config.user(member)
     await group.balance.set(amount)
     return amount
@@ -342,7 +348,9 @@ async def transfer_credits(
     new_amount = int(amount - (amount * tax))
     if await get_balance(to) + new_amount > max_bal:
         currency = await get_currency_name(guild)
-        raise errors.BalanceTooHigh(user=to.display_name, max_balance=max_bal, currency_name=currency)
+        raise errors.BalanceTooHigh(
+            user=to.display_name, max_balance=max_bal, currency_name=currency
+        )
 
     await withdraw_credits(from_, int(amount))
     await deposit_credits(to, int(new_amount))
@@ -411,7 +419,9 @@ async def bank_prune(bot: Red, guild: discord.Guild = None, user_id: int = None)
                 del bank_data[user_id]
 
 
-async def get_leaderboard(positions: int = None, guild: discord.Guild = None, _forced: bool = False) -> List[tuple]:
+async def get_leaderboard(
+    positions: int = None, guild: discord.Guild = None, _forced: bool = False
+) -> List[tuple]:
     """
     Gets the bank's leaderboard
     Parameters
@@ -737,7 +747,9 @@ def cost(amount: int):
                     break
 
             if not context.guild and not await is_global():
-                raise commands.UserFeedbackCheckFailure(_("Can't pay for this command in DM without a global bank."))
+                raise commands.UserFeedbackCheckFailure(
+                    _("Can't pay for this command in DM without a global bank.")
+                )
             try:
                 await withdraw_credits(context.author, amount)
             except Exception:

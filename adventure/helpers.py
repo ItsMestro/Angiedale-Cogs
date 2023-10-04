@@ -71,16 +71,22 @@ async def smart_embed(
             embed.set_thumbnail(url=image)
         if interaction_only:
             if interaction.response.is_done():
-                msg = await interaction.followup.send(embed=embed, ephemeral=ephemeral, view=view, wait=True)
+                msg = await interaction.followup.send(
+                    embed=embed, ephemeral=ephemeral, view=view, wait=True
+                )
             else:
-                await interaction.response.send_message(embed=embed, ephemeral=ephemeral, view=view)
+                await interaction.response.send_message(
+                    embed=embed, ephemeral=ephemeral, view=view
+                )
                 msg = await interaction.original_response()
             return msg
         else:
             return await ctx.send(embed=embed, ephemeral=ephemeral, view=view)
     if interaction_only:
         if interaction.response.is_done():
-            msg = await interaction.followup.send(message, ephemeral=ephemeral, view=view, wait=True)
+            msg = await interaction.followup.send(
+                message, ephemeral=ephemeral, view=view, wait=True
+            )
         else:
             await interaction.response.send_message(message, ephemeral=ephemeral, view=view)
             msg = await interaction.original_response()
@@ -90,7 +96,7 @@ async def smart_embed(
 
 
 def check_running_adventure(ctx):
-    for (guild_id, session) in ctx.bot.get_cog("Adventure")._sessions.items():
+    for guild_id, session in ctx.bot.get_cog("Adventure")._sessions.items():
         user_ids: list = []
         options = ["fight", "magic", "talk", "pray", "run"]
         for i in options:
@@ -104,7 +110,9 @@ async def _title_case(phrase: str):
     exceptions = ["a", "and", "in", "of", "or", "the"]
     lowercase_words = re.split(" ", phrase.lower())
     final_words = [lowercase_words[0].capitalize()]
-    final_words += [word if word in exceptions else word.capitalize() for word in lowercase_words[1:]]
+    final_words += [
+        word if word in exceptions else word.capitalize() for word in lowercase_words[1:]
+    ]
     return " ".join(final_words)
 
 
@@ -183,7 +191,9 @@ class ConfirmView(discord.ui.View):
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.author.id:
-            await interaction.response.send_message(_("You are not authorized to interact with this."), ephemeral=True)
+            await interaction.response.send_message(
+                _("You are not authorized to interact with this."), ephemeral=True
+            )
             return False
         return True
 
@@ -220,6 +230,8 @@ class LootView(discord.ui.View):
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.author.id:
-            await interaction.response.send_message(_("You are not authorized to interact with this."), ephemeral=True)
+            await interaction.response.send_message(
+                _("You are not authorized to interact with this."), ephemeral=True
+            )
             return False
         return True

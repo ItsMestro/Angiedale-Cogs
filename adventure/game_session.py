@@ -38,7 +38,9 @@ class AttackButton(discord.ui.Button):
     async def send_response(self, interaction: discord.Interaction):
         user = interaction.user
         try:
-            c = await Character.from_json(self.view.ctx, self.view.cog.config, user, self.view.cog._daily_bonus)
+            c = await Character.from_json(
+                self.view.ctx, self.view.cog.config, user, self.view.cog._daily_bonus
+            )
         except Exception as exc:
             log.exception("Error with the new character sheet", exc_info=exc)
             pass
@@ -70,7 +72,9 @@ class AttackButton(discord.ui.Button):
             await self.send_response(interaction)
             await self.view.update()
         else:
-            await interaction.response.send_message("You are already fighting this monster.", ephemeral=True)
+            await interaction.response.send_message(
+                "You are already fighting this monster.", ephemeral=True
+            )
 
 
 class MagicButton(discord.ui.Button):
@@ -88,7 +92,9 @@ class MagicButton(discord.ui.Button):
     async def send_response(self, interaction: discord.Interaction):
         user = interaction.user
         try:
-            c = await Character.from_json(self.view.ctx, self.view.cog.config, user, self.view.cog._daily_bonus)
+            c = await Character.from_json(
+                self.view.ctx, self.view.cog.config, user, self.view.cog._daily_bonus
+            )
         except Exception as exc:
             log.exception("Error with the new character sheet", exc_info=exc)
             pass
@@ -120,7 +126,9 @@ class MagicButton(discord.ui.Button):
             await self.send_response(interaction)
             await self.view.update()
         else:
-            await interaction.response.send_message("You have already cast a spell at this monster.", ephemeral=True)
+            await interaction.response.send_message(
+                "You have already cast a spell at this monster.", ephemeral=True
+            )
 
 
 class TalkButton(discord.ui.Button):
@@ -138,7 +146,9 @@ class TalkButton(discord.ui.Button):
     async def send_response(self, interaction: discord.Interaction):
         user = interaction.user
         try:
-            c = await Character.from_json(self.view.ctx, self.view.cog.config, user, self.view.cog._daily_bonus)
+            c = await Character.from_json(
+                self.view.ctx, self.view.cog.config, user, self.view.cog._daily_bonus
+            )
         except Exception as exc:
             log.exception("Error with the new character sheet", exc_info=exc)
             pass
@@ -170,7 +180,9 @@ class TalkButton(discord.ui.Button):
             await self.send_response(interaction)
             await self.view.update()
         else:
-            await interaction.response.send_message("You are already talking to this monster.", ephemeral=True)
+            await interaction.response.send_message(
+                "You are already talking to this monster.", ephemeral=True
+            )
 
 
 class PrayButton(discord.ui.Button):
@@ -188,7 +200,9 @@ class PrayButton(discord.ui.Button):
     async def send_response(self, interaction: discord.Interaction):
         user = interaction.user
         try:
-            c = await Character.from_json(self.view.ctx, self.view.cog.config, user, self.view.cog._daily_bonus)
+            c = await Character.from_json(
+                self.view.ctx, self.view.cog.config, user, self.view.cog._daily_bonus
+            )
         except Exception as exc:
             log.exception("Error with the new character sheet", exc_info=exc)
             pass
@@ -240,7 +254,9 @@ class RunButton(discord.ui.Button):
     async def send_response(self, interaction: discord.Interaction):
         user = interaction.user
         try:
-            c = await Character.from_json(self.view.ctx, self.view.cog.config, user, self.view.cog._daily_bonus)
+            c = await Character.from_json(
+                self.view.ctx, self.view.cog.config, user, self.view.cog._daily_bonus
+            )
         except Exception as exc:
             log.exception("Error with the new character sheet", exc_info=exc)
             pass
@@ -272,7 +288,9 @@ class RunButton(discord.ui.Button):
             await self.send_response(interaction)
             await self.view.update()
         else:
-            await interaction.response.send_message("You have already run from this monster.", ephemeral=True)
+            await interaction.response.send_message(
+                "You have already run from this monster.", ephemeral=True
+            )
 
 
 class SpecialActionButton(discord.ui.Button):
@@ -287,19 +305,25 @@ class SpecialActionButton(discord.ui.Button):
         self.action_type = "special_action"
         self.label_name = "Special Action"
 
-    async def send_cooldown(self, interaction: discord.Interaction, c: Character, cooldown_time: int):
+    async def send_cooldown(
+        self, interaction: discord.Interaction, c: Character, cooldown_time: int
+    ):
         cooldown_time = int((c.heroclass["cooldown"]) + cooldown_time)
         msg = _(
             "Your hero is currently recovering from the last time "
             "they used this skill or they have just changed their heroclass. "
             "Try again in {cooldown}."
         ).format(cooldown=f"<t:{cooldown_time}:R>")
-        await smart_embed(interaction=interaction, message=msg, success=False, ephemeral=True, cog=self.view.cog)
+        await smart_embed(
+            interaction=interaction, message=msg, success=False, ephemeral=True, cog=self.view.cog
+        )
 
     async def send_in_use(self, interaction: discord.Interaction):
         user = interaction.user
         msg = _("**{}**, ability already in use.").format(escape(user.display_name))
-        await smart_embed(interaction=interaction, message=msg, success=False, ephemeral=True, cog=self.view.cog)
+        await smart_embed(
+            interaction=interaction, message=msg, success=False, ephemeral=True, cog=self.view.cog
+        )
 
     async def send_cleric(self, interaction: discord.Interaction, c: Character):
         user = interaction.user
@@ -313,7 +337,9 @@ class SpecialActionButton(discord.ui.Button):
             if c.heroclass["cooldown"] <= time.time():
                 c.heroclass["ability"] = True
                 c.heroclass["cooldown"] = time.time() + cooldown_time
-                await self.view.cog.config.user(user).set(await c.to_json(self.view.ctx, self.view.cog.config))
+                await self.view.cog.config.user(user).set(
+                    await c.to_json(self.view.ctx, self.view.cog.config)
+                )
                 msg = _("{bless} **{c}** is starting an inspiring sermon. {bless}").format(
                     c=escape(user.display_name), bless=self.view.cog.emojis.skills.bless
                 )
@@ -347,7 +373,9 @@ class SpecialActionButton(discord.ui.Button):
             c.heroclass["ability"] = True
             c.heroclass["cooldown"] = time.time()
             async with self.view.cog.get_lock(c.user):
-                await self.view.cog.config.user(user).set(await c.to_json(self.view.ctx, self.view.cog.config))
+                await self.view.cog.config.user(user).set(
+                    await c.to_json(self.view.ctx, self.view.cog.config)
+                )
                 if good:
                     msg = _("{skill} **{c}** is focusing on the monster ahead...{skill}").format(
                         c=escape(user.display_name),
@@ -370,7 +398,9 @@ class SpecialActionButton(discord.ui.Button):
                     diplo = session.monster_modified_stats["dipl"]
                     if roll == 1:
                         hp = int(hp * self.ATTRIBS[session.attribute][0] * session.monster_stats)
-                        dipl = int(diplo * self.ATTRIBS[session.attribute][1] * session.monster_stats)
+                        dipl = int(
+                            diplo * self.ATTRIBS[session.attribute][1] * session.monster_stats
+                        )
                         msg += _(
                             "This monster is **a{attr} {challenge}** ({hp_symbol} {hp}/{dipl_symbol} {dipl}){trans}.\n"
                         ).format(
@@ -401,7 +431,9 @@ class SpecialActionButton(discord.ui.Button):
                         self.view.exposed = True
                     elif roll >= 0.90:
                         hp = hp * self.ATTRIBS[session.attribute][0] * session.monster_stats
-                        msg += _("This monster is **a{attr} {challenge}** ({hp_symbol} {hp}).\n").format(
+                        msg += _(
+                            "This monster is **a{attr} {challenge}** ({hp_symbol} {hp}).\n"
+                        ).format(
                             challenge=session.challenge,
                             attr=session.attribute,
                             hp_symbol=self.emojis.hp,
@@ -421,7 +453,9 @@ class SpecialActionButton(discord.ui.Button):
                         self.view.exposed = True
                     if roll >= 0.4:
                         if pdef >= 1.5:
-                            msg += _("Swords bounce off this monster as it's skin is **almost impenetrable!**\n")
+                            msg += _(
+                                "Swords bounce off this monster as it's skin is **almost impenetrable!**\n"
+                            )
                         elif pdef >= 1.25:
                             msg += _("This monster has **extremely tough** armour!\n")
                         elif pdef > 1:
@@ -429,7 +463,9 @@ class SpecialActionButton(discord.ui.Button):
                         elif pdef > 0.75:
                             msg += _("This monster is **soft and easy** to slice!\n")
                         else:
-                            msg += _("Swords slice through this monster like a **hot knife through butter!**\n")
+                            msg += _(
+                                "Swords slice through this monster like a **hot knife through butter!**\n"
+                            )
                     if roll >= 0.6:
                         if mdef >= 1.5:
                             msg += _("Magic? Pfft, magic is **no match** for this creature!\n")
@@ -440,16 +476,22 @@ class SpecialActionButton(discord.ui.Button):
                         elif mdef > 0.75:
                             msg += _("This monster's hide **melts to magic!**\n")
                         else:
-                            msg += _("Magic spells are **hugely effective** against this monster!\n")
+                            msg += _(
+                                "Magic spells are **hugely effective** against this monster!\n"
+                            )
                     if roll >= 0.8:
                         if cdef >= 1.5:
                             msg += _(
                                 "You think you are charismatic? Pfft, this creature couldn't care less for what you want to say!\n"
                             )
                         elif cdef >= 1.25:
-                            msg += _("Any attempts to communicate with this creature will be **very difficult!**\n")
+                            msg += _(
+                                "Any attempts to communicate with this creature will be **very difficult!**\n"
+                            )
                         elif cdef > 1:
-                            msg += _("Any attempts to talk to this creature will be **difficult!**\n")
+                            msg += _(
+                                "Any attempts to talk to this creature will be **difficult!**\n"
+                            )
                         elif cdef > 0.75:
                             msg += _("This creature **can be reasoned** with!\n")
                         else:
@@ -489,7 +531,9 @@ class SpecialActionButton(discord.ui.Button):
         if c.heroclass["cooldown"] <= time.time():
             c.heroclass["ability"] = True
             c.heroclass["cooldown"] = time.time() + cooldown_time
-            await self.view.cog.config.user(user).set(await c.to_json(self.view.ctx, self.view.cog.config))
+            await self.view.cog.config.user(user).set(
+                await c.to_json(self.view.ctx, self.view.cog.config)
+            )
             await smart_embed(
                 None,
                 _("{skill} **{c}** is starting to froth at the mouth... {skill}").format(
@@ -514,7 +558,9 @@ class SpecialActionButton(discord.ui.Button):
             c.heroclass["ability"] = True
             c.heroclass["cooldown"] = time.time() + cooldown_time
 
-            await self.view.cog.config.user(user).set(await c.to_json(self.view.ctx, self.view.cog.config))
+            await self.view.cog.config.user(user).set(
+                await c.to_json(self.view.ctx, self.view.cog.config)
+            )
             await smart_embed(
                 None,
                 _("{skill} **{c}** is focusing all of their energy... {skill}").format(
@@ -538,7 +584,9 @@ class SpecialActionButton(discord.ui.Button):
         if c.heroclass["cooldown"] <= time.time():
             c.heroclass["ability"] = True
             c.heroclass["cooldown"] = time.time() + cooldown_time
-            await self.view.cog.config.user(user).set(await c.to_json(self.view.ctx, self.view.cog.config))
+            await self.view.cog.config.user(user).set(
+                await c.to_json(self.view.ctx, self.view.cog.config)
+            )
             await smart_embed(
                 None,
                 _("{skill} **{c}** is whipping up a performance... {skill}").format(
@@ -551,10 +599,12 @@ class SpecialActionButton(discord.ui.Button):
             await self.send_cooldown(interaction, c, cooldown_time)
 
     async def not_in_adventure(self, interaction: discord.Interaction):
-        msg = _("**{user}**, you need to be participating in this adventure to use this ability.").format(
-            user=interaction.user.display_name
+        msg = _(
+            "**{user}**, you need to be participating in this adventure to use this ability."
+        ).format(user=interaction.user.display_name)
+        await smart_embed(
+            None, msg, success=False, ephemeral=True, cog=self.view.cog, interaction=interaction
         )
-        await smart_embed(None, msg, success=False, ephemeral=True, cog=self.view.cog, interaction=interaction)
         return
 
     async def callback(self, interaction: discord.Interaction):
@@ -565,17 +615,25 @@ class SpecialActionButton(discord.ui.Button):
             return
         async with self.view.cog.get_lock(user):
             try:
-                c = await Character.from_json(self.view.ctx, self.view.cog.config, user, self.view.cog._daily_bonus)
+                c = await Character.from_json(
+                    self.view.ctx, self.view.cog.config, user, self.view.cog._daily_bonus
+                )
             except Exception as exc:
                 log.exception("Error with the new character sheet", exc_info=exc)
-                await interaction.response.send_message(_("There was an error loading your character."), ephemeral=True)
+                await interaction.response.send_message(
+                    _("There was an error loading your character."), ephemeral=True
+                )
                 return
             if not c.hc.has_action:
-                available_classes = humanize_list([c.class_name for c in HeroClasses if c.has_action], style="or")
-                msg = _("**{user}**, you need to be a {available_classes} to use this ability.").format(
-                    user=interaction.user.display_name, available_classes=available_classes
+                available_classes = humanize_list(
+                    [c.class_name for c in HeroClasses if c.has_action], style="or"
                 )
-                await smart_embed(None, msg, ephemeral=True, cog=self.view.cog, interaction=interaction)
+                msg = _(
+                    "**{user}**, you need to be a {available_classes} to use this ability."
+                ).format(user=interaction.user.display_name, available_classes=available_classes)
+                await smart_embed(
+                    None, msg, ephemeral=True, cog=self.view.cog, interaction=interaction
+                )
                 return
             if c.hc is HeroClasses.cleric:
                 await self.send_cleric(interaction, c)

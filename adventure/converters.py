@@ -143,7 +143,9 @@ class Stats(Converter):
                 if (
                     (key not in ["degrade", "lvl"] and stat > 10) or (key == "lvl" and stat < 50)
                 ) and not await ctx.bot.is_owner(ctx.author):
-                    raise BadArgument(_("Don't you think that's a bit overpowered? Not creating item."))
+                    raise BadArgument(
+                        _("Don't you think that's a bit overpowered? Not creating item.")
+                    )
                 result[key] = stat
             except (AttributeError, ValueError):
                 pass
@@ -180,7 +182,9 @@ class ItemsConverter(Converter):
         if rarity is None:
             no_markdown = Item.remove_markdowns(argument)
             lookup = list(i for x, i in c.backpack.items() if no_markdown.lower() in x.lower())
-            lookup_m = list(i for i in c.backpack.values() if argument.lower() == str(i).lower() and str(i))
+            lookup_m = list(
+                i for i in c.backpack.values() if argument.lower() == str(i).lower() and str(i)
+            )
             lookup_e = list(i for i in c.backpack.values() if argument == str(i))
             _temp_items = set()
             for i in lookup:
@@ -210,7 +214,9 @@ class ItemsConverter(Converter):
             lookup = list(i for i in c.backpack.values() if str(i) in _temp_items)
             if len(lookup) > 10:
                 raise BadArgument(
-                    _("You have too many items matching the name `{}`, please be more specific.").format(argument)
+                    _(
+                        "You have too many items matching the name `{}`, please be more specific."
+                    ).format(argument)
                 )
             items = ""
             for number, item in enumerate(lookup):
@@ -252,7 +258,9 @@ class ConfirmItemView(discord.ui.View):
 
     async def interaction_check(self, interaction: discord.Interaction):
         if interaction.user.id != self.author.id:
-            await interaction.response.send_message(_("You are not authorized to interact with this."), ephemeral=True)
+            await interaction.response.send_message(
+                _("You are not authorized to interact with this."), ephemeral=True
+            )
             return False
         return True
 
@@ -272,7 +280,9 @@ class ItemConverter(Transformer):
             raise BadArgument
         no_markdown = Item.remove_markdowns(argument)
         lookup = list(i for x, i in c.backpack.items() if no_markdown.lower() in x.lower())
-        lookup_m = list(i for i in c.backpack.values() if argument.lower() == str(i).lower() and str(i))
+        lookup_m = list(
+            i for i in c.backpack.values() if argument.lower() == str(i).lower() and str(i)
+        )
         lookup_e = list(i for i in c.backpack.values() if argument == str(i))
 
         _temp_items = set()
@@ -295,7 +305,9 @@ class ItemConverter(Transformer):
             lookup = list(i for i in c.backpack.values() if str(i) in _temp_items)
             if len(lookup) > 25:
                 raise BadArgument(
-                    _("You have too many items matching the name `{}`, please be more specific.").format(argument)
+                    _(
+                        "You have too many items matching the name `{}`, please be more specific."
+                    ).format(argument)
                 )
             items = ""
             view = ConfirmItemView(60, lookup, ctx.author)
@@ -330,9 +342,11 @@ class ItemConverter(Transformer):
         except Exception as exc:
             log.exception("Error with the new character sheet", exc_info=exc)
             return []
-        return [Choice(name=str(x), value=x.name) for x in c.backpack.values() if current.lower() in str(x).lower()][
-            :25
-        ]
+        return [
+            Choice(name=str(x), value=x.name)
+            for x in c.backpack.values()
+            if current.lower() in str(x).lower()
+        ][:25]
 
 
 class EquipableItemConverter(Transformer):
@@ -357,20 +371,32 @@ class EquipableItemConverter(Transformer):
                 equipped_items.add(str(item))
         no_markdown = Item.remove_markdowns(argument)
         lookup = list(
-            i for x, i in c.backpack.items() if no_markdown.lower() in x.lower() and str(i) not in equipped_items
+            i
+            for x, i in c.backpack.items()
+            if no_markdown.lower() in x.lower() and str(i) not in equipped_items
         )
         lookup_m = list(
-            i for i in c.backpack.values() if argument.lower() == str(i).lower() and str(i) not in equipped_items
+            i
+            for i in c.backpack.values()
+            if argument.lower() == str(i).lower() and str(i) not in equipped_items
         )
-        lookup_e = list(i for i in c.backpack.values() if argument == str(i) and str(i) not in equipped_items)
+        lookup_e = list(
+            i for i in c.backpack.values() if argument == str(i) and str(i) not in equipped_items
+        )
 
         already_lookup = list(
-            i for x, i in c.backpack.items() if no_markdown.lower() in x.lower() and str(i) in equipped_items
+            i
+            for x, i in c.backpack.items()
+            if no_markdown.lower() in x.lower() and str(i) in equipped_items
         )
         already_lookup_m = list(
-            i for i in c.backpack.values() if argument.lower() == str(i).lower() and str(i) in equipped_items
+            i
+            for i in c.backpack.values()
+            if argument.lower() == str(i).lower() and str(i) in equipped_items
         )
-        already_lookup_e = list(i for i in c.backpack.values() if argument == str(i) and str(i) in equipped_items)
+        already_lookup_e = list(
+            i for i in c.backpack.values() if argument == str(i) and str(i) in equipped_items
+        )
 
         _temp_items = set()
         for i in lookup:
@@ -388,13 +414,17 @@ class EquipableItemConverter(Transformer):
             return lookup_m[0]
         elif len(lookup) == 0 and len(lookup_m) == 0:
             if any(x for x in [already_lookup, already_lookup_m, already_lookup_e]):
-                raise BadArgument(_("`{}` matches the name of an item already equipped.").format(argument))
+                raise BadArgument(
+                    _("`{}` matches the name of an item already equipped.").format(argument)
+                )
             raise BadArgument(_("`{}` doesn't seem to match any items you own.").format(argument))
         else:
             lookup = list(i for i in c.backpack.values() if str(i) in _temp_items)
             if len(lookup) > 10:
                 raise BadArgument(
-                    _("You have too many items matching the name `{}`, please be more specific.").format(argument)
+                    _(
+                        "You have too many items matching the name `{}`, please be more specific."
+                    ).format(argument)
                 )
             items = ""
             for number, item in enumerate(lookup):
@@ -502,11 +532,15 @@ class EquipmentConverter(Transformer):
         elif len(lookup_m) == 1:
             return lookup_m[0]
         elif len(lookup) == 0 and len(lookup_m) == 0:
-            raise BadArgument(_("`{}` doesn't seem to match any items you have equipped.").format(argument))
+            raise BadArgument(
+                _("`{}` doesn't seem to match any items you have equipped.").format(argument)
+            )
         else:
             if len(lookup) > 10:
                 raise BadArgument(
-                    _("You have too many items matching the name `{}`, please be more specific").format(argument)
+                    _(
+                        "You have too many items matching the name `{}`, please be more specific"
+                    ).format(argument)
                 )
             items = ""
             for number, item in enumerate(lookup):
@@ -527,7 +561,9 @@ class EquipmentConverter(Transformer):
             return lookup[pred.result]
 
     @classmethod
-    async def transform(cls, interaction: discord.Interaction, argument: str) -> Union[Item, List[Item]]:
+    async def transform(
+        cls, interaction: discord.Interaction, argument: str
+    ) -> Union[Item, List[Item]]:
         ctx = await interaction.client.get_context(interaction)
         return await cls.convert(ctx, argument)
 
@@ -544,7 +580,9 @@ class EquipmentConverter(Transformer):
             log.exception("Error with the new character sheet", exc_info=exc)
             raise BadArgument
         choices = [
-            Choice(name=str(i), value=i.name) for i in c.get_current_equipment() if current.lower() in str(i).lower()
+            Choice(name=str(i), value=i.name)
+            for i in c.get_current_equipment()
+            if current.lower() in str(i).lower()
         ]
         return choices[:25]
 
@@ -572,7 +610,9 @@ class ThemeSetMonterConverter(Converter):
         except BadArgument:
             raise
         except Exception:
-            raise BadArgument("Invalid format, Excepted:\n`theme++name++hp++dipl++pdef++mdef++cdef++boss++image`")
+            raise BadArgument(
+                "Invalid format, Excepted:\n`theme++name++hp++dipl++pdef++mdef++cdef++boss++image`"
+            )
         if "transcended" in name.lower() or "ascended" in name.lower():
             raise BadArgument("You are not worthy.")
         return {
@@ -646,7 +686,11 @@ class SlotConverter(Transformer):
         return await cls.convert(ctx, argument)
 
     async def autocomplete(self, interaction: discord.Interaction, current: str) -> List[Choice]:
-        return [Choice(name=i.get_name(), value=i.name) for i in Slot if current.lower() in i.get_name().lower()]
+        return [
+            Choice(name=i.get_name(), value=i.name)
+            for i in Slot
+            if current.lower() in i.get_name().lower()
+        ]
 
 
 class RarityConverter(Transformer):
@@ -657,13 +701,16 @@ class RarityConverter(Transformer):
         except KeyError:
             raise BadArgument(
                 _("{rarity} is not a valid rarity, select one of {rarities}").format(
-                    rarity=argument, rarities=humanize_list([i.get_name() for i in Rarities if i.is_chest])
+                    rarity=argument,
+                    rarities=humanize_list([i.get_name() for i in Rarities if i.is_chest]),
                 )
             )
         return rarity
 
     @classmethod
-    async def transform(cls, interaction: discord.Interaction, argument: str) -> Optional[Rarities]:
+    async def transform(
+        cls, interaction: discord.Interaction, argument: str
+    ) -> Optional[Rarities]:
         ctx = await interaction.client.get_context(interaction)
         return await cls.convert(ctx, argument)
 
@@ -674,7 +721,11 @@ class RarityConverter(Transformer):
         for rarity in Rarities:
             if rarity is Rarities.pet:
                 continue
-            if interaction.command and interaction.command.name in ["loot", "convert"] and not rarity.is_chest:
+            if (
+                interaction.command
+                and interaction.command.name in ["loot", "convert"]
+                and not rarity.is_chest
+            ):
                 continue
             if current.lower() in rarity.get_name().lower():
                 choices.append(Choice(name=rarity.get_name(), value=rarity.name))
@@ -697,7 +748,9 @@ class SkillConverter(Transformer):
         if argument.lower() == "reset":
             ret = Skills("reset")
         if ret is None:
-            raise BadArgument(_("`{argument}` is not an available skill.").format(argument=argument))
+            raise BadArgument(
+                _("`{argument}` is not an available skill.").format(argument=argument)
+            )
         return ret
 
     @classmethod
@@ -706,7 +759,9 @@ class SkillConverter(Transformer):
         return await cls.convert(ctx, argument)
 
     async def autocomplete(self, interaction: discord.Interaction, current: str) -> List[Choice]:
-        choices = [Choice(name=s.name.title(), value=s.value) for s in Skills if current.lower() in s.name]
+        choices = [
+            Choice(name=s.name.title(), value=s.value) for s in Skills if current.lower() in s.name
+        ]
         return choices
 
 
@@ -744,19 +799,27 @@ class HeroClassConverter(Transformer):
         try:
             hc = HeroClasses.from_name(argument)
         except ValueError:
-            await smart_embed(ctx, _("{} may be a class somewhere, but not on my watch.").format(argument))
+            await smart_embed(
+                ctx, _("{} may be a class somewhere, but not on my watch.").format(argument)
+            )
             return None
         return hc
 
     @classmethod
-    async def transform(cls, interaction: discord.Interaction, argument: str) -> Optional[HeroClasses]:
+    async def transform(
+        cls, interaction: discord.Interaction, argument: str
+    ) -> Optional[HeroClasses]:
         ctx = await interaction.client.get_context(interaction)
         return await cls.convert(ctx, argument)
 
     async def autocomplete(self, interaction: discord.Interaction, current: str) -> List[Choice]:
         if interaction.guild is not None:
             await set_contextual_locales_from_guild(interaction.client, interaction.guild)
-        return [Choice(name=c.class_name, value=c.value) for c in HeroClasses if current.lower() in c.class_name]
+        return [
+            Choice(name=c.class_name, value=c.value)
+            for c in HeroClasses
+            if current.lower() in c.class_name
+        ]
 
 
 class DayConverter(Converter):
@@ -869,10 +932,22 @@ class BackpackFilterParser(commands.Converter):
         parser.add_argument("--deg", dest="degrade", nargs="+")
         parser.add_argument("--degrade", dest="degrade", nargs="+")
 
-        parser.add_argument("--slot", nargs="*", dest="slot", default=[i for i in Slot], type=Slot, action=RarityAction)
+        parser.add_argument(
+            "--slot",
+            nargs="*",
+            dest="slot",
+            default=[i for i in Slot],
+            type=Slot,
+            action=RarityAction,
+        )
 
         parser.add_argument(
-            "--rarity", nargs="*", dest="rarity", default=[i for i in Rarities], type=Rarities, action=RarityAction
+            "--rarity",
+            nargs="*",
+            dest="rarity",
+            default=[i for i in Rarities],
+            type=Rarities,
+            action=RarityAction,
         )
 
         parser.add_argument("--set", nargs="*", dest="set", choices=set_names, default=[])
