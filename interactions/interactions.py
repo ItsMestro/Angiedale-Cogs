@@ -27,19 +27,10 @@ class Interactions(commands.Cog):
         self.bonks = 0
 
         self.statstask: Optional[asyncio.Task] = None
-        self._ready_event: asyncio.Event = asyncio.Event()
-        self._init_task: asyncio.Task = self.bot.loop.create_task(self.initialize())
 
-    async def cog_before_invoke(self, ctx: commands.Context):
-        await self._ready_event.wait()
-
-    async def initialize(self) -> None:
+    async def cog_load(self) -> None:
         """Should be called straight after cog instantiation."""
-        await self.bot.wait_until_ready()
-
         self.statstask = asyncio.create_task(self.updatestats())
-
-        self._ready_event.set()
 
     def cog_unload(self):
         self.statstask.cancel()
@@ -351,8 +342,6 @@ class Interactions(commands.Cog):
             description = "Dr. Love is busy right now"
         else:
             description = description.strip()
-
-        result_image = soup_object.find("img", class_="result__image").get("src")
 
         result_text = soup_object.find("div", class_="result-text").get_text()
         result_text = " ".join(result_text.split())
