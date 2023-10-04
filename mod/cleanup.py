@@ -1,12 +1,12 @@
 import contextlib
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Callable, List, Optional, Set, Union
 
 import discord
 from redbot.cogs.mod.converters import RawUserIds
 from redbot.core import checks, commands
-from redbot.core.commands import Context, permissions_check
+from redbot.core.commands import Context, permissions_check, RawUserIdConverter
 from redbot.core.utils.chat_formatting import humanize_number
 from redbot.core.utils.mod import check_permissions, is_mod_or_superior, mass_purge, slow_deletion
 from redbot.core.utils.predicates import MessagePredicate
@@ -74,10 +74,16 @@ class Cleanup(MixinMeta):
     @staticmethod
     async def get_messages_for_deletion(
         *,
-        channel: Union[discord.TextChannel, discord.DMChannel],
-        number: Optional[PositiveInt] = None,
+        channel: Union[
+            discord.TextChannel,
+            discord.VoiceChannel,
+            discord.StageChannel,
+            discord.DMChannel,
+            discord.Thread,
+        ],
+        number: Optional[int] = None,
         check: Callable[[discord.Message], bool] = lambda x: True,
-        limit: Optional[PositiveInt] = None,
+        limit: Optional[int] = None,
         before: Union[discord.Message, datetime] = None,
         after: Union[discord.Message, datetime] = None,
         delete_pinned: bool = False,
@@ -98,7 +104,7 @@ class Cleanup(MixinMeta):
         """
 
         # This isn't actually two weeks ago to allow some wiggle room on API limits
-        two_weeks_ago = datetime.utcnow() - timedelta(days=14, minutes=-5)
+        two_weeks_ago = datetime.now(timezone.utc) - timedelta(days=14, minutes=-5)
 
         def message_filter(message):
             return (
@@ -128,14 +134,20 @@ class Cleanup(MixinMeta):
     async def send_optional_notification(
         self,
         num: int,
-        channel: Union[discord.TextChannel, discord.DMChannel],
+        channel: Union[
+            discord.TextChannel,
+            discord.VoiceChannel,
+            discord.StageChannel,
+            discord.DMChannel,
+            discord.Thread,
+        ],
         *,
         subtract_invoking: bool = False,
     ) -> None:
         """
         Sends a notification to the channel that a certain number of messages have been deleted.
         """
-        if not hasattr(channel, "guild") or await self.cleanupconfig.guild(channel.guild).notify():
+        if not channel.guild or await self.cleanupconfig.guild(channel.guild).notify():
             if subtract_invoking:
                 num -= 1
             if num == 1:
@@ -148,7 +160,10 @@ class Cleanup(MixinMeta):
 
     @staticmethod
     async def get_message_from_reference(
-        channel: discord.TextChannel, reference: discord.MessageReference
+        channel: Union[
+            discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread
+        ],
+        reference: discord.MessageReference,
     ) -> Optional[discord.Message]:
         message = None
         resolved = reference.resolved
@@ -163,7 +178,7 @@ class Cleanup(MixinMeta):
                 pass
         return message
 
-    @checks.mod_or_permissions(manage_messages=True)
+    @commands.mod_or_permissions(manage_messages=True)
     @commands.guild_only()
     @commands.group()
     async def cleanup(self, ctx: Context):
@@ -178,7 +193,7 @@ class Cleanup(MixinMeta):
         """Delete the last X messages matching the specified text in the current channel.
 
         Example:
-            - `[p]cleanup text "test" 5`
+        - `[p]cleanup text "test" 5`
 
         Remember to use double quotes.
 
@@ -212,8 +227,8 @@ class Cleanup(MixinMeta):
         )
         to_delete.append(ctx.message)
 
-        reason = "{}({}) deleted {} messages containing '{}' in channel #{}.".format(
-            author.name,
+        reason = "{} ({}) deleted {} messages containing '{}' in channel #{}.".format(
+            author,
             author.id,
             humanize_number(len(to_delete), override_locale="en_us"),
             text,
@@ -221,7 +236,7 @@ class Cleanup(MixinMeta):
         )
         log.info(reason)
 
-        await mass_purge(to_delete, channel)
+        await mass_purge(to_delete, channel, reason=reason)
         await self.send_optional_notification(len(to_delete), channel, subtract_invoking=True)
 
     @cleanup.command()
@@ -229,15 +244,15 @@ class Cleanup(MixinMeta):
     async def user(
         self,
         ctx: commands.Context,
-        user: Union[discord.Member, RawUserIds],
+        user: Union[discord.Member, RawUserIdConverter],
         number: positive_int,
         delete_pinned: bool = False,
     ):
         """Delete the last X messages from a specified user in the current channel.
 
         Examples:
-            - `[p]cleanup user @Twentysix 2`
-            - `[p]cleanup user Red 6`
+        - `[p]cleanup user @Twentysix 2`
+        - `[p]cleanup user Red 6`
 
         **Arguments:**
 
@@ -277,10 +292,10 @@ class Cleanup(MixinMeta):
         to_delete.append(ctx.message)
 
         reason = (
-            "{}({}) deleted {} messages"
-            " made by {}({}) in channel #{}."
+            "{} ({}) deleted {} messages"
+            " made by {} ({}) in channel #{}."
             "".format(
-                author.name,
+                author,
                 author.id,
                 humanize_number(len(to_delete), override_locale="en_US"),
                 member or "???",
@@ -290,7 +305,7 @@ class Cleanup(MixinMeta):
         )
         log.info(reason)
 
-        await mass_purge(to_delete, channel)
+        await mass_purge(to_delete, channel, reason=reason)
         await self.send_optional_notification(len(to_delete), channel, subtract_invoking=True)
 
     @cleanup.command()
@@ -333,15 +348,15 @@ class Cleanup(MixinMeta):
             channel=channel, number=None, after=after, delete_pinned=delete_pinned
         )
 
-        reason = "{}({}) deleted {} messages in channel #{}.".format(
-            author.name,
+        reason = "{} ({}) deleted {} messages in channel #{}.".format(
+            author,
             author.id,
             humanize_number(len(to_delete), override_locale="en_US"),
             channel.name,
         )
         log.info(reason)
 
-        await mass_purge(to_delete, channel)
+        await mass_purge(to_delete, channel, reason=reason)
         await self.send_optional_notification(len(to_delete), channel)
 
     @cleanup.command()
@@ -387,15 +402,15 @@ class Cleanup(MixinMeta):
         )
         to_delete.append(ctx.message)
 
-        reason = "{}({}) deleted {} messages in channel #{}.".format(
-            author.name,
+        reason = "{} ({}) deleted {} messages in channel #{}.".format(
+            author,
             author.id,
             humanize_number(len(to_delete), override_locale="en_US"),
             channel.name,
         )
         log.info(reason)
 
-        await mass_purge(to_delete, channel)
+        await mass_purge(to_delete, channel, reason=reason)
         await self.send_optional_notification(len(to_delete), channel, subtract_invoking=True)
 
     @cleanup.command()
@@ -412,7 +427,7 @@ class Cleanup(MixinMeta):
         The first message ID should be the older message and the second one the newer.
 
         Example:
-            - `[p]cleanup between 123456789123456789 987654321987654321`
+        - `[p]cleanup between 123456789123456789 987654321987654321`
 
         **Arguments:**
 
@@ -434,15 +449,15 @@ class Cleanup(MixinMeta):
             channel=channel, before=mtwo, after=mone, delete_pinned=delete_pinned
         )
         to_delete.append(ctx.message)
-        reason = "{}({}) deleted {} messages in channel #{}.".format(
-            author.name,
+        reason = "{} ({}) deleted {} messages in channel #{}.".format(
+            author,
             author.id,
             humanize_number(len(to_delete), override_locale="en_US"),
             channel.name,
         )
         log.info(reason)
 
-        await mass_purge(to_delete, channel)
+        await mass_purge(to_delete, channel, reason=reason)
         await self.send_optional_notification(len(to_delete), channel, subtract_invoking=True)
 
     @cleanup.command()
@@ -451,7 +466,7 @@ class Cleanup(MixinMeta):
         """Delete the last X messages in the current channel.
 
         Example:
-            - `[p]cleanup messages 26`
+        - `[p]cleanup messages 26`
 
         **Arguments:**
 
@@ -472,12 +487,12 @@ class Cleanup(MixinMeta):
         )
         to_delete.append(ctx.message)
 
-        reason = "{}({}) deleted {} messages in channel #{}.".format(
-            author.name, author.id, len(to_delete), channel.name
+        reason = "{} ({}) deleted {} messages in channel #{}.".format(
+            author, author.id, len(to_delete), channel.name
         )
         log.info(reason)
 
-        await mass_purge(to_delete, channel)
+        await mass_purge(to_delete, channel, reason=reason)
         await self.send_optional_notification(len(to_delete), channel, subtract_invoking=True)
 
     @cleanup.command(name="bot")
@@ -549,10 +564,10 @@ class Cleanup(MixinMeta):
         to_delete.append(ctx.message)
 
         reason = (
-            "{}({}) deleted {}"
+            "{} ({}) deleted {}"
             " command messages in channel #{}."
             "".format(
-                author.name,
+                author,
                 author.id,
                 humanize_number(len(to_delete), override_locale="en_US"),
                 channel.name,
@@ -560,7 +575,7 @@ class Cleanup(MixinMeta):
         )
         log.info(reason)
 
-        await mass_purge(to_delete, channel)
+        await mass_purge(to_delete, channel, reason=reason)
         await self.send_optional_notification(len(to_delete), channel, subtract_invoking=True)
 
     @cleanup.command(name="self")
@@ -578,9 +593,9 @@ class Cleanup(MixinMeta):
         it is used for pattern matching - only messages containing the given text will be deleted.
 
         Examples:
-            - `[p]cleanup self 6`
-            - `[p]cleanup self 10 Pong`
-            - `[p]cleanup self 7 "" True`
+        - `[p]cleanup self 6`
+        - `[p]cleanup self 10 Pong`
+        - `[p]cleanup self 7 "" True`
 
         **Arguments:**
 
@@ -600,7 +615,7 @@ class Cleanup(MixinMeta):
         can_mass_purge = False
         if type(author) is discord.Member:
             me = ctx.guild.me
-            can_mass_purge = channel.permissions_for(me).manage_messages
+            can_mass_purge = ctx.bot_permissions.manage_messages
 
         if match_pattern:
 
@@ -632,20 +647,16 @@ class Cleanup(MixinMeta):
         else:
             channel_name = str(channel)
 
-        reason = (
-            "{}({}) deleted {} messages "
-            "sent by the bot in {}."
-            "".format(
-                author.name,
-                author.id,
-                humanize_number(len(to_delete), override_locale="en_US"),
-                channel_name,
-            )
+        reason = "{} ({}) deleted {} messages sent by the bot in {}.".format(
+            author,
+            author.id,
+            humanize_number(len(to_delete), override_locale="en_US"),
+            channel_name,
         )
         log.info(reason)
 
         if can_mass_purge:
-            await mass_purge(to_delete, channel)
+            await mass_purge(to_delete, channel, reason=reason)
         else:
             await slow_deletion(to_delete)
         await self.send_optional_notification(
@@ -654,7 +665,7 @@ class Cleanup(MixinMeta):
 
     @cleanup.command(name="duplicates", aliases=["spam"])
     @commands.bot_has_permissions(manage_messages=True)
-    async def cleanup_duplicates(self, ctx: Context, number: positive_int = PositiveInt(50)):
+    async def cleanup_duplicates(self, ctx: Context, number: positive_int = 50):
         """Deletes duplicate messages in the channel from the last X messages and keeps only one copy.
 
         Defaults to 50.
@@ -669,7 +680,12 @@ class Cleanup(MixinMeta):
         def check(m):
             if m.attachments:
                 return False
-            c = (m.author.id, m.content, [e.to_dict() for e in m.embeds])
+            c = (
+                m.author.id,
+                m.content,
+                [embed.to_dict() for embed in m.embeds],
+                [sticker.id for sticker in m.stickers],
+            )
             if c in msgs:
                 spam.append(m)
                 return True
@@ -696,5 +712,5 @@ class Cleanup(MixinMeta):
         )
 
         to_delete.append(ctx.message)
-        await mass_purge(to_delete, ctx.channel)
+        await mass_purge(to_delete, ctx.channel, reason="Duplicate message cleanup")
         await self.send_optional_notification(len(to_delete), ctx.channel, subtract_invoking=True)

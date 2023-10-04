@@ -12,9 +12,6 @@ log = logging.getLogger("red.angiedale.mod.converter")
 SNOWFLAKE_THRESHOLD = 2**63
 
 
-_id_regex = re.compile(r"([0-9]{15,20})$")
-_mention_regex = re.compile(r"<@!?([0-9]{15,20})>$")
-
 # the following regex is slightly modified from Red
 # it's changed to be slightly more strict on matching with finditer
 # this is to prevent "empty" matches when parsing the full reason
@@ -64,36 +61,9 @@ class MuteTime(Converter):
         return result
 
 
-class RawUserIds(Converter):
-    async def convert(self, ctx, argument):
-        # This is for the hackban and unban commands, where we receive IDs that
-        # are most likely not in the guild.
-        # Mentions are supported, but most likely won't ever be in cache.
-
-        if match := _id_regex.match(argument) or _mention_regex.match(argument):
-            return int(match.group(1))
-
-        raise BadArgument(("{} doesn't look like a valid user ID.").format(argument))
-
-
 class RawMessageIds(Converter):
     async def convert(self, ctx: Context, argument: str) -> int:
         if argument.isnumeric() and len(argument) >= 17 and int(argument) < SNOWFLAKE_THRESHOLD:
             return int(argument)
 
         raise BadArgument(("{} doesn't look like a valid message ID.").format(argument))
-
-
-PositiveInt = NewType("PositiveInt", int)
-if TYPE_CHECKING:
-    positive_int = PositiveInt
-else:
-
-    def positive_int(arg: str) -> int:
-        try:
-            ret = int(arg)
-        except ValueError:
-            raise BadArgument(("{arg} is not an integer.").format(arg=inline(arg)))
-        if ret <= 0:
-            raise BadArgument(("{arg} is not a positive integer.").format(arg=inline(arg)))
-        return ret

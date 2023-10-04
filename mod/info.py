@@ -18,7 +18,7 @@ class Info(MixinMeta):
     """Information commands for moderators."""
 
     @commands.guild_only()
-    @checks.mod_or_permissions(manage_channels=True)
+    @commands.mod_or_permissions(manage_channels=True)
     @commands.group()
     async def access(self, ctx: commands.Context):
         """Check channel access"""
@@ -204,7 +204,7 @@ class Info(MixinMeta):
         await menu(ctx, theembed, {"\N{CROSS MARK}": close_menu})
 
     @commands.guild_only()
-    @checks.mod_or_permissions(manage_channels=True)
+    @commands.mod_or_permissions(manage_channels=True)
     @commands.group(name="user")
     async def _user(self, ctx: commands.Context):
         """Check user information."""
@@ -359,7 +359,7 @@ class Info(MixinMeta):
 
     @commands.group(aliases=["server"])
     @commands.guild_only()
-    @checks.mod_or_permissions(manage_channels=True)
+    @commands.mod_or_permissions(manage_channels=True)
     async def guild(self, ctx: commands.Context):
         """Check guild information."""
 
@@ -519,7 +519,7 @@ class Info(MixinMeta):
         """List out different things."""
 
     @list.command()
-    @checks.mod_or_permissions(ban_members=True)
+    @commands.mod_or_permissions(ban_members=True)
     async def bans(self, ctx: commands.Context):
         """Displays the server's banlist."""
         try:
