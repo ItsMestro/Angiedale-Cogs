@@ -99,7 +99,7 @@ class Reports:
         return [x["tun"] for x in self.tunnel_store.values()]
 
     async def internal_filter(self, m: discord.Member, mod=False, perms=None):
-        if perms and m.guild_permissions >= perms:
+        if perms is not None and m.guild_permissions >= perms:
             return True
         if mod and await self.bot.is_mod(m):
             return True
@@ -168,7 +168,6 @@ class Reports:
             return guild
 
     async def send_report(self, ctx: commands.Context, msg: discord.Message, guild: discord.Guild):
-
         author = guild.get_member(msg.author.id)
         report = msg.clean_content
 
@@ -182,13 +181,13 @@ class Reports:
         ticket_number = await self.reportsconfig.guild(guild).next_ticket()
         await self.reportsconfig.guild(guild).next_ticket.set(ticket_number + 1)
 
-        if await self.bot.embed_requested(channel, author):
+        if await self.bot.embed_requested(channel):
             em = discord.Embed(description=report, colour=await ctx.embed_colour())
             em.set_author(
                 name=("Report from {author}{maybe_nick}").format(
                     author=author, maybe_nick=(f" ({author.nick})" if author.nick else "")
                 ),
-                icon_url=author.avatar_url,
+                icon_url=author.display_avatar,
             )
             em.set_footer(text=("Report #{}").format(ticket_number))
             send_content = None
@@ -301,7 +300,7 @@ class Reports:
         if ctx.author.id in self.user_cache:
             self.user_cache.remove(ctx.author.id)
         if ctx.guild and ctx.invoked_subcommand is None:
-            if ctx.channel.permissions_for(ctx.guild.me).manage_messages:
+            if ctx.bot_permissions.manage_messages:
                 try:
                     await ctx.message.delete()
                 except discord.NotFound:
@@ -331,11 +330,9 @@ class Reports:
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-
         to_remove = []
 
         for k, v in self.tunnel_store.items():
-
             guild, ticket_number = k
             if await self.bot.cog_disabled_in_guild(self, guild):
                 to_remove.append(k)
@@ -361,12 +358,12 @@ class Reports:
                 )
 
     @commands.guild_only()
-    @checks.mod_or_permissions(manage_roles=True)
+    @commands.mod_or_permissions(manage_roles=True)
     @report.command(name="interact")
     async def response(self, ctx, ticket_number: int):
         """Open a message tunnel.
 
-        This tunnel will forward things you say in this channel
+        This tunnel will forward things you say in this channel or thread
         to the ticket opener's direct messages.
 
         Tunnels do not persist across bot restarts.

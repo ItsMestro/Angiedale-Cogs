@@ -5,12 +5,14 @@ import random
 import time
 import urllib.parse
 from contextvars import Context
-from typing import Final, Optional, Tuple, Union
+from typing import Final, Optional, Tuple, Union, Any, ClassVar
+from contextlib import suppress
 
 import discord
 from dateutil.relativedelta import relativedelta
 from redbot.core import Config, commands
 from redbot.core.bot import Red
+from redbot.core.config import Group
 from redbot.core.utils.angiedale import patreons_in_tier
 from redbot.core.utils.chat_formatting import (
     bold,
@@ -31,6 +33,7 @@ from redbot.core.utils.predicates import MessagePredicate, ReactionPredicate
 
 from .converters import ReminderTime, SelfRole
 from .reports import Reports
+from .reminders import reply, humanize_relativedelta, embed_splitter
 
 log = logging.getLogger("red.angiedale.general")
 
@@ -151,9 +154,18 @@ default_report = {
 class General(Reports, commands.Cog):
     """General commands."""
 
-    default_global_settings_reminders = {
+    default_global_settings_reminders: ClassVar[dict[str, int]] = {
         "total_sent": 0,
-        "reminders": [],
+        "max_user_reminders": 10,
+    }
+
+    default_reminder_settings: ClassVar[
+        dict[str, str | int | None]
+    ] = {
+        "text": "",  # str
+        "created": None,  # seconds from epoch int
+        "expires": None,  # seconds from epoch int
+        "jump_link": None,  # str
     }
 
     default_member_settings_m = {
@@ -166,11 +178,14 @@ class General(Reports, commands.Cog):
         "past_names": [],
     }
 
-    def __init__(self, bot: Red):
+    def __init__(self, bot: Red) -> None:
         super().__init__()
         self.stopwatches = {}
-        self.bot = bot
         self.channels = {}
+        self.search_for_next_reminder = True
+        self.next_reminder_to_send = {}
+        self.problematic_reminders = []
+        self.sent_retry_warning = False
 
         self.warnconfig = Config.get_conf(
             self, identifier=1387000, force_registration=True, cog_name="Warnings"
@@ -180,6 +195,8 @@ class General(Reports, commands.Cog):
             self, identifier=1387000, force_registration=True, cog_name="Reminders"
         )
         self.config.register_global(**self.default_global_settings_reminders)
+        self.config.init_custom("REMINDER", 2)
+        self.config.register_custom("REMINDER", **self.default_reminder_settings)
 
         self.modconfig = Config.get_conf(self, identifier=1387000, cog_name="Mod")
         self.modconfig.register_member(**self.default_member_settings_m)
@@ -189,7 +206,7 @@ class General(Reports, commands.Cog):
             self, identifier=1387000, force_registration=True, cog_name="OwnerAdmin"
         )
 
-        self.bg_loop_task = self.bot.loop.create_task(self.bg_loop())
+        self.bg_loop_task = asyncio.create_task(self.bg_loop())
 
     @staticmethod
     def pass_hierarchy_check(ctx: commands.Context, role: discord.Role) -> bool:
@@ -219,61 +236,91 @@ class General(Reports, commands.Cog):
     async def bg_loop(self):
         """Background loop."""
         await self.bot.wait_until_ready()
+        self.search_for_next_reminder = True
         while True:
-            await self.check_reminders()
-            await asyncio.sleep(10)
+            current_time_seconds = int(datetime.datetime.now(datetime.UTC).timestamp())
+            # Check if we need to send the current reminder
+            if (
+                not self.next_reminder_to_send
+                or current_time_seconds < self.next_reminder_to_send["expires"]
+            ):
+                await asyncio.sleep(1)
+            else:
+                await self._send_reminder(self.next_reminder_to_send)
+                self.search_for_next_reminder = True
 
-    async def check_reminders(self):
-        """Send reminders that have expired."""
-        to_remove = []
-        for reminder in await self.config.reminders():
-            current_time_seconds = int(time.time())
-            if reminder["FUTURE"] <= current_time_seconds:
-                user: discord.User = self.bot.get_user(reminder["USER_ID"])
-                if user is None:
-                    # Can't see the user (no shared servers): delete reminder
-                    to_remove.append(reminder)
-                    continue
-
-                delay = current_time_seconds - reminder["FUTURE"]
-                embed = discord.Embed(
-                    title=f":bell:{' (Delayed)' if delay > 30 else ''} Reminder! :bell:",
-                    color=await self.bot.get_embed_color(user),
+            # Check if we need to retry a failed reminder
+            if self.problematic_reminders and not current_time_seconds % 15:
+                retry_reminder = self.problematic_reminders.pop(0)
+                log.debug(
+                    "Retrying user=%d, id=%d...",
+                    retry_reminder["user_id"],
+                    retry_reminder["user_reminder_id"],
                 )
-                if delay > 30:
-                    embed.set_footer(
-                        text=f"This was supposed to send {humanize_timedelta(seconds=delay)} ago.\n"
-                        "I might be having network or server issues, or perhaps I just started up.\n"
-                        "Sorry about that!"
+                await self._send_reminder(retry_reminder)
+
+            # Find a new reminder
+            if self.search_for_next_reminder:
+                log.debug("Looking for next reminder...")
+                self.next_reminder_to_send = {}
+                self.search_for_next_reminder = False
+                all_reminders = await self.config.custom(
+                    "REMINDER"
+                ).all()  # Does NOT return default values
+                existing_problematic_reminders = []
+                for user_id, users_reminders in all_reminders.items():
+                    for user_reminder_id, partial_reminder in users_reminders.items():
+                        # If the reminder is expiring sooner than the one we have on deck to send...
+                        if (
+                            not self.next_reminder_to_send
+                            or partial_reminder["expires"]
+                            < self.next_reminder_to_send["expires"]
+                        ):
+                            full_reminder = self._get_full_reminder_from_partial(
+                                int(user_id),
+                                int(user_reminder_id),
+                                partial_reminder,
+                            )
+                            if full_reminder not in self.problematic_reminders:
+                                self.next_reminder_to_send = full_reminder.copy()
+                            else:
+                                existing_problematic_reminders.append(
+                                    full_reminder.copy()
+                                )
+
+                # Update retry list
+                self.problematic_reminders = existing_problematic_reminders
+                # Notify owners that there is a reminder that failed to send and is now retrying
+                if self.problematic_reminders and not self.sent_retry_warning:
+                    self.sent_retry_warning = True
+                    await self.bot.send_to_owners(
+                        "I am running into an issue sending out reminders currently.\n"
+                        "I will keep retrying every so often until it can be sent, in case this is just a network issue.\n"
+                        "Check your console or logs for details, and consider opening a bug report for this if it isn't a network issue."
                     )
-                embed_name = f"From {reminder['FUTURE_TEXT']} ago:"
-                reminder_text = reminder["REMINDER"]
-                if "JUMP_LINK" in reminder:
-                    reminder_text += f"\n\n[original message]({reminder['JUMP_LINK']})"
-                embed.add_field(
-                    name=embed_name,
-                    value=reminder_text,
-                )
+                elif self.sent_retry_warning and not self.problematic_reminders:
+                    self.sent_retry_warning = False
+                    await self.bot.send_to_owners(
+                        "Seems like I was able to send all of the backlogged reminders!"
+                    )
 
-                try:
-                    await user.send(embed=embed)
-                except (discord.Forbidden, discord.NotFound):
-                    # Can't send DM's to user: delete reminder
-                    to_remove.append(reminder)
-                except discord.HTTPException:
-                    # Something weird happened: retry next time
-                    pass
+                if self.next_reminder_to_send:
+                    log.debug(
+                        "Next reminder is for user=%d, id=%d. It will be sent in %s.",
+                        self.next_reminder_to_send["user_id"],
+                        self.next_reminder_to_send["user_reminder_id"],
+                        humanize_relativedelta(
+                            relativedelta(
+                                datetime.datetime.fromtimestamp(
+                                    self.next_reminder_to_send["expires"],
+                                    datetime.UTC,
+                                ),
+                                datetime.datetime.now(datetime.UTC),
+                            )
+                        ),
+                    )
                 else:
-                    total_sent = await self.config.total_sent()
-                    await self.config.total_sent.set(total_sent + 1)
-                    to_remove.append(reminder)
-        if to_remove:
-            async with self.config.reminders() as current_reminders:
-                for reminder in to_remove:
-                    try:
-                        current_reminders.remove(reminder)
-                    except ValueError:
-                        pass
+                    log.debug("There are no more reminders left to send.")
 
     @commands.command(aliases=["sw"])
     async def stopwatch(self, ctx):
@@ -307,18 +354,23 @@ class General(Reports, commands.Cog):
         Default to False.
         """
         guild = ctx.guild
-        created_at = ("Created on <t:{0}>. That's <t:{0}:R>!").format(
-            int(guild.created_at.replace(tzinfo=datetime.timezone.utc).timestamp()),
+        created_at = ("Created on {date_and_time}. That's {relative_time}!").format(
+            date_and_time=discord.utils.format_dt(guild.created_at),
+            relative_time=discord.utils.format_dt(guild.created_at, "R"),
         )
         online = humanize_number(
             len([m.status for m in guild.members if m.status != discord.Status.offline])
         )
-        total_users = humanize_number(guild.member_count)
+        total_users = guild.member_count and humanize_number(guild.member_count)
         text_channels = humanize_number(len(guild.text_channels))
         voice_channels = humanize_number(len(guild.voice_channels))
+        stage_channels = humanize_number(len(guild.stage_channels))
         if not details:
             data = discord.Embed(description=created_at, colour=await ctx.embed_colour())
-            data.add_field(name=("Users online"), value=f"{online}/{total_users}")
+            data.add_field(
+                name=("Users online"),
+                value=f"{online}/{total_users}" if total_users else ("Not available"),
+            )
             data.add_field(name=("Text Channels"), value=text_channels)
             data.add_field(name=("Voice Channels"), value=voice_channels)
             data.add_field(name=("Roles"), value=humanize_number(len(guild.roles)))
@@ -330,9 +382,9 @@ class General(Reports, commands.Cog):
                     command=f"{ctx.clean_prefix}serverinfo 1"
                 )
             )
-            if guild.icon_url:
-                data.set_author(name=guild.name, url=guild.icon_url)
-                data.set_thumbnail(url=guild.icon_url)
+            if guild.icon:
+                data.set_author(name=guild.name, url=guild.icon)
+                data.set_thumbnail(url=guild.icon)
             else:
                 data.set_author(name=guild.name)
         else:
@@ -395,7 +447,7 @@ class General(Reports, commands.Cog):
                 "low": ("1 - Low"),
                 "medium": ("2 - Medium"),
                 "high": ("3 - High"),
-                "extreme": ("4 - Extreme"),
+                "highest": ("4 - Highest"),
             }
 
             features = {
@@ -427,7 +479,7 @@ class General(Reports, commands.Cog):
             joined_on = (
                 "{bot_name} joined this server on {bot_join}. That's over {since_join} days ago!"
             ).format(
-                bot_name=ctx.bot.user.name,
+                bot_name=ctx.bot.user.display_name,
                 bot_join=guild.me.joined_at.strftime("%d %b %Y %H:%M:%S"),
                 since_join=humanize_number((ctx.message.created_at - guild.me.joined_at).days),
             )
@@ -442,17 +494,22 @@ class General(Reports, commands.Cog):
                 if "VERIFIED" in guild.features
                 else "https://cdn.discordapp.com/emojis/508929941610430464.png"
                 if "PARTNERED" in guild.features
-                else discord.Embed.Empty,
+                else None,
             )
-            if guild.icon_url:
-                data.set_thumbnail(url=guild.icon_url)
+            if guild.icon:
+                data.set_thumbnail(url=guild.icon)
             data.add_field(name=("Members:"), value=member_msg)
             data.add_field(
                 name=("Channels:"),
                 value=(
                     "\N{SPEECH BALLOON} Text: {text}\n"
-                    "\N{SPEAKER WITH THREE SOUND WAVES} Voice: {voice}"
-                ).format(text=bold(text_channels), voice=bold(voice_channels)),
+                    "\N{SPEAKER WITH THREE SOUND WAVES} Voice: {voice}\n"
+                    "\N{STUDIO MICROPHONE} Stage: {stage}"
+                ).format(
+                    text=bold(text_channels),
+                    voice=bold(voice_channels),
+                    stage=bold(stage_channels),
+                ),
             )
             data.add_field(
                 name=("Utility:"),
@@ -497,7 +554,7 @@ class General(Reports, commands.Cog):
                 )
                 data.add_field(name=("Nitro Boost:"), value=nitro_boost)
             if guild.splash:
-                data.set_image(url=guild.splash_url_as(format="png"))
+                data.set_image(url=guild.splash.replace(format="png"))
             data.set_footer(text=joined_on)
 
         await ctx.send(embed=data)
@@ -584,10 +641,12 @@ class General(Reports, commands.Cog):
         """Fuwwyize the pwevious message, ow youw own text."""
         if not text:
             if hasattr(ctx.message, "reference") and ctx.message.reference:
-                try:
-                    text = (await ctx.fetch_message(ctx.message.reference.message_id)).content
-                except (discord.Forbidden, discord.NotFound, discord.HTTPException):
-                    pass
+                with suppress(
+                    discord.Forbidden, discord.NotFound, discord.HTTPException
+                ):
+                    message_id = ctx.message.reference.message_id
+                    if message_id:
+                        text = (await ctx.fetch_message(message_id)).content
             if not text:
                 text = (await ctx.channel.history(limit=2).flatten())[
                     1
@@ -595,7 +654,7 @@ class General(Reports, commands.Cog):
         fuwwytext = self.fuwwyize_string(text)
         await ctx.send(
             fuwwytext[:2000] if len(fuwwytext) > 2000 else fuwwytext,
-            allowed_mentions=discord.AllowedMentions(users=False),
+            allowed_mentions=discord.AllowedMentions(everyone=False, users=False, roles=False),
         )
 
     def fuwwyize_string(self, string: str):
@@ -936,16 +995,14 @@ class General(Reports, commands.Cog):
             member = author
 
         roles = member.roles[-1:0:-1]
-        names = await self.modconfig.user(member).past_names()
+        user_data = await self.modconfig.user(member).all()
+        usernames, display_names = user_data["past_names"], user_data["past_display_names"]
         nicks = await self.modconfig.member(member).past_nicks()
-        if names:
-            names = [escape_spoilers_and_mass_mentions(name) for name in names if name]
-        if nicks:
-            nicks = [escape_spoilers_and_mass_mentions(nick) for nick in nicks if nick]
+        usernames = list(map(escape_spoilers_and_mass_mentions, filter(None, usernames)))
+        display_names = list(map(escape_spoilers_and_mass_mentions, filter(None, display_names)))
+        nicks = list(map(escape_spoilers_and_mass_mentions, filter(None, nicks)))
 
-        if joined_at := member.joined_at:
-            joined_at = joined_at.replace(tzinfo=datetime.timezone.utc)
-        user_created = int(member.created_at.replace(tzinfo=datetime.timezone.utc).timestamp())
+        joined_at = member.joined_at
         voice_state = member.voice
         member_number = (
             sorted(guild.members, key=lambda m: m.joined_at or ctx.message.created_at).index(
@@ -954,9 +1011,15 @@ class General(Reports, commands.Cog):
             + 1
         )
 
-        created_on = "<t:{0}>\n(<t:{0}:R>)".format(user_created)
+        created_on = (
+            f"{discord.utils.format_dt(member.created_at)}\n"
+            f"{discord.utils.format_dt(member.created_at, 'R')}"
+        )
         if joined_at is not None:
-            joined_on = "<t:{0}>\n(<t:{0}:R>)".format(int(joined_at.timestamp()))
+            joined_on = (
+                f"{discord.utils.format_dt(joined_at)}\n"
+                f"{discord.utils.format_dt(joined_at, 'R')}"
+            )
         else:
             joined_on = "Unknown"
 
@@ -978,7 +1041,6 @@ class General(Reports, commands.Cog):
             status_string += "\nCreated me!  - Angiedale OwO"
 
         if roles:
-
             role_str = ", ".join([x.mention for x in roles])
             # 400 BAD REQUEST (error code: 50035): Invalid Form Body
             # In embed.fields.2.value: Must be 1024 or fewer in length.
@@ -1021,22 +1083,17 @@ class General(Reports, commands.Cog):
             data.add_field(
                 name=("Roles") if len(roles) > 1 else ("Role"), value=role_str, inline=False
             )
-        if names:
-            # May need sanitizing later, but mentions do not ping in embeds currently
-            val = filter_invites(", ".join(names))
-            data.add_field(
-                name=("Previous Names") if len(names) > 1 else ("Previous Name"),
-                value=val,
-                inline=False,
-            )
-        if nicks:
-            # May need sanitizing later, but mentions do not ping in embeds currently
-            val = filter_invites(", ".join(nicks))
-            data.add_field(
-                name=("Previous Nicknames") if len(nicks) > 1 else ("Previous Nickname"),
-                value=val,
-                inline=False,
-            )
+        for single_form, plural_form, names in (
+            (("Previous Username"), ("Previous Usernames"), usernames),
+            (("Previous Global Display Name"), ("Previous Global Display Names"), display_names),
+            (("Previous Server Nickname"), ("Previous Server Nicknames"), nicks),
+        ):
+            if names:
+                data.add_field(
+                    name=plural_form if len(names) > 1 else single_form,
+                    value=filter_invites(", ".join(names)),
+                    inline=False,
+                )
         if voice_state and voice_state.channel:
             data.add_field(
                 name=("Current voice channel"),
@@ -1049,7 +1106,7 @@ class General(Reports, commands.Cog):
         name = " ◈ ".join((name, member.nick)) if member.nick else name
         name = filter_invites(name)
 
-        avatar = member.avatar_url_as(static_format="png")
+        avatar = member.display_avatar.replace(static_format="png")
         data.set_author(name=f"{statusemoji} {name}", url=avatar)
         data.set_thumbnail(url=avatar)
 
@@ -1279,7 +1336,7 @@ class General(Reports, commands.Cog):
         Server admins must have configured the role as user settable.
         NOTE: The role is case sensitive!
         """
-        if selfrole in ctx.author.roles:
+        if ctx.author.get_role(selfrole.id) is not None:
             return await self._removerole(ctx, ctx.author, selfrole, check_user=False)
         else:
             return await self._addrole(ctx, ctx.author, selfrole, check_user=False)
@@ -1569,49 +1626,60 @@ class General(Reports, commands.Cog):
         await self._delete_reminder(ctx, "all")
 
     @reminders.command(aliases=["get"], usage="<sorting_order>")
-    async def list(self, ctx: commands.Context, sort: str = "time"):
+    async def list(self, ctx: commands.Context, sort: str = "time") -> None:
         """Show a list of all of your reminders.
 
-        `<sorting_order>` can be either of:
-        `time` (default) for soonest expiring reminder first.
-        `added` for ordering by when the reminder was added.
-        `id` for ordering by ID.
+        Sort can either be:
+        `time` (default) for soonest expiring reminder first,
+        `added` for ordering by when the reminder was added,
+        `id` for ordering by ID
         """
+        # Grab users reminders and format them so that we can see the user_reminder_id
         author = ctx.message.author
-        to_send = await self.get_user_reminders(author.id)
+        user_reminders = []
+        user_reminders_dict = await self.config.custom(
+            "REMINDER", str(author.id)
+        ).all()  # Does NOT return default values
+        for user_reminder_id, reminder in user_reminders_dict.items():
+            reminder.update({"user_reminder_id": int(user_reminder_id)})
+            user_reminders.append(reminder)
+
+        # Check if they actually have any reminders
+        if not user_reminders:
+            await reply(ctx, "You don't have any upcoming reminders.")
+            return
+
+        # Sort the reminders
         if sort == "time":
-            to_send.sort(key=lambda reminder_info: reminder_info["FUTURE"])
+            user_reminders.sort(key=lambda reminder_info: reminder_info["expires"])
         elif sort == "added":
             pass
         elif sort == "id":
-            to_send.sort(key=lambda reminder_info: reminder_info["USER_REMINDER_ID"])
+            user_reminders.sort(
+                key=lambda reminder_info: reminder_info["user_reminder_id"]
+            )
         else:
-            await ctx.send(
-                "That is not a valid sorting option. Choose from `time`, `added`, or `id`."
+            await reply(
+                ctx,
+                "That is not a valid sorting option. Choose from `time` (default), `added`, or `id`.",
             )
             return
 
-        if not to_send:
-            await ctx.send("You don't have any upcoming reminders.")
-            return
-
+        # Make a pretty embed listing the reminders
         embed = discord.Embed(
             title=f"Reminders for {author.display_name}",
             color=await ctx.embed_color(),
         )
-        embed.set_thumbnail(url=author.avatar_url)
-        current_time_seconds = int(time.time())
-        for reminder in to_send:
-            delta = reminder["FUTURE"] - current_time_seconds
-            reminder_title = "ID# {} — {}".format(
-                reminder["USER_REMINDER_ID"],
-                "In {}".format(humanize_timedelta(seconds=delta)) if delta > 0 else "Now!",
+        embed.set_thumbnail(url=author.display_avatar.url)
+        for reminder in user_reminders:
+            reminder_title = (
+                f"ID# {reminder['user_reminder_id']} — <t:{reminder['expires']}:f>"
             )
-            reminder_text = reminder["REMINDER"]
-            if len(reminder_text) > 500:
-                reminder_text = reminder_text[:500] + "..."
-            if "JUMP_LINK" in reminder:
-                reminder_text += f"\n([original message]({reminder['JUMP_LINK']}))"
+            if "repeat" in reminder and reminder["repeat"]:
+                reminder_title += f", repeating every {humanize_relativedelta(reminder['repeat'])}"
+            reminder_text = reminder["text"]
+            if reminder.get("jump_link"):
+                reminder_text += f"\n([original message]({reminder['jump_link']}))"
             reminder_text = reminder_text or "(no reminder text or jump link)"
             embed.add_field(
                 name=reminder_title,
@@ -1619,11 +1687,11 @@ class General(Reports, commands.Cog):
                 inline=False,
             )
         try:
-            await ctx.author.send(embed=embed)
+            await embed_splitter(embed, author)
             if ctx.guild:
                 await ctx.tick()
         except discord.Forbidden:
-            await ctx.send("I'm unable to DM you...")
+            await reply(ctx, "I can't DM you...")
 
     @reminders.command(aliases=["delete", "del"])
     async def remove(self, ctx: commands.Context, index: str):
@@ -1655,83 +1723,164 @@ class General(Reports, commands.Cog):
     async def _create_reminder(self, ctx: commands.Context, time_and_optional_text):
         """Reminder creation function."""
         author = ctx.message.author
-        users_reminders = await self.get_user_reminders(author.id)
-        if len(users_reminders) >= 10:
-            await ctx.send(
-                "You have too many reminders! " "You can have a maximum of 10 reminders at a time."
-            )
-            return
+        maximum = await self.config.max_user_reminders()
+        users_reminders = await self.config.custom(
+            "REMINDER", str(author.id)
+        ).all()  # Does NOT return default values
+        if len(users_reminders) > maximum - 1:
+            return await self.send_too_many_message(ctx, maximum)
 
         reminder_time = time_and_optional_text.get("duration", None)
         reminder_text = time_and_optional_text.get("reminder", None)
         if not reminder_time:
-            await ctx.send_help()
-            return
+            return await ctx.send_help()
         if len(reminder_text) > 700:
-            await ctx.send("Your reminder text is too long.")
+            return await ctx.send("Your reminder text is too long.")
+
+        created_datetime = datetime.datetime.now(datetime.UTC)
+        expires_datetime = created_datetime + reminder_time.total_seconds()
+        created_timestamp_int = int(created_datetime.timestamp())
+        expires_timestamp_int = int(expires_datetime.timestamp())
+
+        new_reminder = {
+            "text": reminder_text,
+            "created": created_timestamp_int,
+            "expires": expires_timestamp_int,
+            "jump_link": ctx.message.jump_url,
+        }
+
+        if not await self.insert_reminder(author.id, new_reminder):
+            await self.send_too_many_message(ctx, maximum)
             return
 
-        next_reminder_id = self.get_next_user_reminder_id(users_reminders)
-        future = int(time.time() + reminder_time.total_seconds())
-        future_text = humanize_timedelta(timedelta=reminder_time)
+        message = f"I will remind you of {'that' if len(reminder_text) > 0 else 'this'} "
+        message += f"in {humanize_relativedelta(reminder_time)} (<t:{expires_timestamp_int}:f>)."
 
-        reminder = {
-            "USER_REMINDER_ID": next_reminder_id,
-            "USER_ID": author.id,
-            "REMINDER": reminder_text,
-            "FUTURE": future,
-            "FUTURE_TEXT": future_text,
-            "JUMP_LINK": ctx.message.jump_url,
-        }
-        async with self.config.reminders() as current_reminders:
-            current_reminders.append(reminder)
-        await ctx.send(
-            f"I will remind you of {'that' if reminder_text else 'this'} in {future_text}."
+        await reply(ctx, message)
+    
+    async def _send_reminder(self, full_reminder: dict) -> None:
+        """Send reminders that have expired."""
+        delete = False
+        user = self.bot.get_user(full_reminder["user_id"])
+        if user is None:
+            log.debug(
+                "User=%d is not visible to the bot. Deleting reminder.",
+                full_reminder["user_id"],
+            )
+            delete = True
+        else:
+            embed = await self._generate_reminder_embed(user, full_reminder)
+            try:
+                log.debug("Sending reminder to user=%d...", full_reminder["user_id"])
+                await user.send(embed=embed)
+            except (discord.Forbidden, discord.NotFound):
+                # Can't send DM's to user: delete reminder
+                log.debug(
+                    "User=%d doesn't allow DMs. Deleting reminder.",
+                    full_reminder["user_id"],
+                )
+                delete = True
+            except discord.HTTPException as http_exception:
+                # Something weird happened: retry next time
+                log.warning(
+                    "HTTP exception when trying to send reminder for user=%d, id=%d:\n%s",
+                    full_reminder["user_id"],
+                    full_reminder["user_reminder_id"],
+                    str(http_exception),
+                )
+                self.problematic_reminders.append(full_reminder)
+                return
+            else:
+                total_sent = await self.config.total_sent()
+                await self.config.total_sent.set(total_sent + 1)
+
+        # Get the config for editing
+        config_reminder = self.config.custom(
+            "REMINDER",
+            str(full_reminder["user_id"]),
+            str(full_reminder["user_reminder_id"]),
         )
 
-    async def _delete_reminder(self, ctx: commands.Context, index: str):
+        await config_reminder.clear()
+        # Search for next reminder, in case this was a successful retry reminder
+        self.search_for_next_reminder = True
+
+    async def insert_reminder(self, user_id: int, reminder: dict) -> bool:
+        """Insert a new reminder into the config.
+
+        Will handle generating a user_reminder_id and reminder limits.
+        Returns True for success, False for user having too many reminders.
+        """
+        # Check that the user has room for another reminder
+        maximum = await self.config.max_user_reminders()
+        users_partial_reminders = await self.config.custom(
+            "REMINDER", str(user_id)
+        ).all()  # Does NOT return default values
+        if len(users_partial_reminders) > maximum - 1:
+            return False
+
+        # Get next user_reminder_id
+        next_reminder_id = 1
+        while str(next_reminder_id) in users_partial_reminders:  # Keys are strings
+            next_reminder_id += 1
+
+        # Save new reminder
+        await self.config.custom("REMINDER", str(user_id), str(next_reminder_id)).set(
+            reminder
+        )
+
+        # Update background task
+        await self.update_bg_task(user_id, next_reminder_id, reminder)
+        return True
+    
+    async def _delete_reminder(self, ctx: commands.Context, index: str) -> None:
         """Logic to delete reminders."""
         if not index:
             return
         author = ctx.message.author
-        users_reminders = await self.get_user_reminders(author.id)
-
-        if not users_reminders:
-            await ctx.send("You don't have any upcoming reminders.")
-            return
 
         if index == "all":
-            can_react = ctx.channel.permissions_for(ctx.me).add_reactions
-            # Ask if the user really wants to do this
-            msg: discord.Message = await ctx.send(
-                "Are you **sure** you want to remove all of your reminders? (yes/no)"
-            )
-            if can_react:
-                start_adding_reactions(msg, ReactionPredicate.YES_OR_NO_EMOJIS)
-                pred = ReactionPredicate.yes_or_no(msg, ctx.author)
-                event = "reaction_add"
-            else:
-                pred = MessagePredicate.yes_or_no(ctx)
-                event = "message"
-            try:
-                await ctx.bot.wait_for(event, check=pred, timeout=30)
-            except asyncio.TimeoutError:
-                await msg.delete()
-            if pred.result:
-                await self._do_reminder_delete(users_reminders)
-                await ctx.send("All of your reminders have been removed.")
-                return
-            else:
-                await ctx.send("I have left your reminders alone.")
+            all_users_reminders = self.config.custom("REMINDER", str(author.id))
+            if not await all_users_reminders.all():
+                await reply(ctx, "You don't have any upcoming reminders.")
                 return
 
+            # Ask if the user really wants to do this
+            pred = MessagePredicate.yes_or_no(ctx)
+            await reply(
+                ctx,
+                "Are you **sure** you want to remove all of your reminders? (yes/no)",
+            )
+            with suppress(asyncio.TimeoutError):
+                await ctx.bot.wait_for("message", check=pred, timeout=30)
+            if pred.result:
+                pass
+            else:
+                await reply(ctx, "I have left your reminders alone.")
+                return
+            await all_users_reminders.clear()
+            # Notify background task
+            await self.update_bg_task(author.id)
+            await reply(ctx, "All of your reminders have been removed.")
+            return
+
         if index == "last":
-            reminder_to_delete = users_reminders[len(users_reminders) - 1]
-            await self._do_reminder_delete(reminder_to_delete)
-            await ctx.send(
-                "Your most recently created reminder (ID# **{}**) has been removed.".format(
-                    reminder_to_delete["USER_REMINDER_ID"]
-                ),
+            all_users_reminders_dict = await self.config.custom(
+                "REMINDER", str(author.id)
+            ).all()
+            if not all_users_reminders_dict:
+                await reply(ctx, "You don't have any upcoming reminders.")
+                return
+
+            reminder_id_to_delete = int(list(all_users_reminders_dict)[-1])
+            await self.config.custom(
+                "REMINDER", str(author.id), str(reminder_id_to_delete)
+            ).clear()
+            # Notify background task
+            await self.update_bg_task(author.id, reminder_id_to_delete)
+            await reply(
+                ctx,
+                f"Your most recently created reminder (ID# **{reminder_id_to_delete}**) has been removed.",
             )
             return
 
@@ -1741,50 +1890,192 @@ class General(Reports, commands.Cog):
             await ctx.send_help()
             return
 
-        reminder_to_delete = self._get_reminder(users_reminders, int_index)
-        if reminder_to_delete:
-            await self._do_reminder_delete(reminder_to_delete)
-            await ctx.send(f"Reminder with ID# **{int_index}** has been removed.")
-        else:
-            await ctx.send(
-                f"Reminder with ID# **{int_index}** does not exist! "
-                "Check the reminder list and verify you typed the correct ID#."
-            )
-
-    async def get_user_reminders(self, user_id: int):
-        """Return all of a users reminders."""
-        result = []
-        async with self.config.reminders() as current_reminders:
-            for reminder in current_reminders:
-                if reminder["USER_ID"] == user_id:
-                    result.append(reminder)
-        return result
-
-    async def _do_reminder_delete(self, reminders):
-        """Actually delete a reminder."""
-        if not reminders:
+        config_reminder = await self._get_reminder_config_group(
+            ctx, author.id, int_index
+        )
+        if not config_reminder:
             return
-        if not isinstance(reminders, list):
-            reminders = [reminders]
-        async with self.config.reminders() as current_reminders:
-            for reminder in reminders:
-                current_reminders.remove(reminder)
+        await config_reminder.clear()
+        # Notify background task
+        await self.update_bg_task(author.id, int_index)
+        await reply(ctx, f"Reminder with ID# **{int_index}** has been removed.")
 
-    @staticmethod
-    def get_next_user_reminder_id(reminder_list):
-        """Get the next reminder ID for a user."""
-        next_reminder_id = 1
-        used_reminder_ids = set()
-        for reminder in reminder_list:
-            used_reminder_ids.add(reminder["USER_REMINDER_ID"])
-        while next_reminder_id in used_reminder_ids:
-            next_reminder_id += 1
-        return next_reminder_id
+    async def _get_reminder_config_group(
+        self, ctx: commands.Context, user_id: int, user_reminder_id: int
+    ) -> Group | None:
+        config_reminder = self.config.custom(
+            "REMINDER", str(user_id), str(user_reminder_id)
+        )
+        if not await config_reminder.expires():
+            await reply(
+                ctx,
+                f"Reminder with ID# **{user_reminder_id}** does not exist! "
+                "Check the reminder list and verify you typed the correct ID#.",
+            )
+            return None
+        return config_reminder
 
-    @staticmethod
-    def _get_reminder(reminder_list, reminder_id: int):
-        """Get the reminder from reminder_list with the specified reminder_id."""
-        for reminder in reminder_list:
-            if reminder["USER_REMINDER_ID"] == reminder_id:
-                return reminder
-        return None
+    async def _generate_reminder_embed(
+        self, user: discord.User, full_reminder: dict
+    ) -> discord.Embed:
+        """Generate the reminder embed."""
+        # Determine any delay
+        current_time = datetime.datetime.now(datetime.UTC)
+        current_time_seconds = int(current_time.timestamp())
+        delay = current_time_seconds - full_reminder["expires"]
+        if delay < 30:
+            delay = 0
+        # Title
+        embed = discord.Embed(
+            # title=f":bell:{' (Delayed)' if delay else ''} Reminder! :bell:",
+            color=await self.bot.get_embed_color(user),
+        )
+        # Footer if delay
+        if delay:
+            embed.set_footer(
+                text=f"This was supposed to send {humanize_relativedelta(relativedelta(seconds=delay))} ago.\n"
+                "I might be having network or server issues, or perhaps I just started up.\n"
+                "Sorry about that!"
+            )
+        # Field name
+        field_name = f":bell:{' (Delayed)' if delay else ''} Reminder! :bell:"
+        # Field value - time ago
+        time_ago = (
+            humanize_relativedelta(
+                relativedelta(
+                    current_time,
+                    datetime.datetime.fromtimestamp(
+                        full_reminder["created"], datetime.UTC
+                    ),
+                )
+            )
+            if delay
+            else humanize_relativedelta(
+                relativedelta(
+                    datetime.datetime.fromtimestamp(
+                        full_reminder["expires"], datetime.UTC
+                    ),
+                    datetime.datetime.fromtimestamp(
+                        full_reminder["created"], datetime.UTC
+                    ),
+                )
+            )
+        )
+        field_value = f"From {time_ago} ago:"
+        # Field value - reminder text
+        max_reminder_length = 800
+        field_value += f"\n\n{full_reminder['text']}"
+        if len(field_value) > max_reminder_length:
+            field_value = field_value[: max_reminder_length - 3] + "..."
+        # Field value - jump link and timestamp
+        footer_part = ""
+        if full_reminder["jump_link"]:
+            footer_part = f"[original message]({full_reminder['jump_link']})"
+        if footer_part:
+            footer_part += " • "
+        footer_part += f"<t:{full_reminder['created']}:f>"
+        if footer_part:
+            field_value += f"\n\n{footer_part}"
+
+        embed.add_field(name=field_name, value=field_value)
+        return embed
+    
+    def _get_full_reminder_from_partial(
+        self,
+        user_id: int,
+        user_reminder_id: int,
+        partial_reminder: dict,
+    ) -> dict[str, Any]:
+        """Construct a full reminder from a partial reminder.
+
+        This reminder object will be the same as the partial_reminder passed in,
+        except that it will include the user_id, the user_reminder_id, as well as
+        any missing defaults (such as repeat).
+
+        DO NOT SAVE THIS BACK TO THE CONFIG! Doing so would be a waste of disk space.
+        Only save back specific modified values (and never user_id nor user_reminder_id).
+        """
+        result = self.config.custom(
+            "REMINDER",
+            str(user_id),
+            str(user_reminder_id),
+        ).nested_update(partial_reminder)
+        result.update(
+            {
+                "user_id": user_id,
+                "user_reminder_id": user_reminder_id,
+            }
+        )
+        return result
+    
+    async def send_too_many_message(
+        self,
+        ctx_or_user: commands.Context | discord.Member | discord.User,
+        maximum: int = -1,
+    ) -> None:
+        """Send a message to the user telling them they have too many reminders."""
+        if maximum < 0:
+            maximum = await self.config.max_user_reminders()
+        plural = "reminder" if maximum == 1 else "reminders"
+        message = (
+            "You have too many reminders! "
+            f"I can only keep track of {maximum} {plural} for you at a time."
+        )
+        if isinstance(ctx_or_user, commands.Context):
+            await reply(ctx_or_user, message)
+        else:
+            await ctx_or_user.send(message)
+
+    async def update_bg_task(
+        self,
+        user_id: int,
+        user_reminder_id: int | None = None,
+        partial_reminder: dict | None = None,
+    ) -> None:
+        """Request the background task to consider a new (or updated) reminder.
+
+        user_id is always required, user_reminder_id and partial_reminder are usually required,
+        unless we are doing reminder deletions (and forgetme/red_delete_data_for_user)
+        """
+        user_id = int(user_id)
+        if user_reminder_id:
+            user_reminder_id = int(user_reminder_id)
+        if self.search_for_next_reminder:
+            # If the bg task is already going to perform a search soon
+            log.debug("Background task will be searching for new reminders soon")
+        elif not self.next_reminder_to_send:
+            # If the bg task isn't waiting on any reminders currently
+            self.search_for_next_reminder = True
+            log.debug("Background task has no reminders, forcing search")
+        elif not user_reminder_id and self.next_reminder_to_send["user_id"] == user_id:
+            # If there isn't a user_reminder_id, the user must have deleted all of their reminders
+            self.search_for_next_reminder = True
+            log.debug(
+                "Background task reminder user deleted all their reminders, forcing search"
+            )
+        elif (
+            self.next_reminder_to_send["user_id"] == user_id
+            and self.next_reminder_to_send["user_reminder_id"] == user_reminder_id
+        ):
+            # If the modified reminder is the one the bg task is going to send next
+            self.search_for_next_reminder = True
+            log.debug("Modified background task reminder, forcing search")
+        elif (
+            partial_reminder
+            and self.next_reminder_to_send["expires"] > partial_reminder["expires"]
+        ):
+            # If the new reminder expires sooner than the current next reminder
+            self.search_for_next_reminder = True
+            log.debug(
+                "New reminder expires before background task reminder, forcing search"
+            )
+        elif user_reminder_id and self.problematic_reminders:
+            # Check if the new reminder is currently being retried
+            for reminder in self.problematic_reminders:
+                if (
+                    reminder["user_id"] == user_id
+                    and reminder["user_reminder_id"] == user_reminder_id
+                ):
+                    self.search_for_next_reminder = True
+                    log.debug("Modified reminder is in the retry queue, forcing search")
+                    break
