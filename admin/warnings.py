@@ -1,5 +1,6 @@
 import discord
 from redbot.core import checks, commands
+from typing import Union
 
 from .helpers import get_command_for_dropping_points, get_command_for_exceeded_points
 
@@ -9,7 +10,7 @@ class Warnings:
 
     @commands.group()
     @commands.guild_only()
-    @checks.admin_or_permissions(administrator=True)
+    @commands.admin_or_permissions(administrator=True)
     async def warnset(self, ctx: commands.Context):
         """Manage warnings."""
         pass
@@ -55,7 +56,11 @@ class Warnings:
 
     @warnset.command()
     @commands.guild_only()
-    async def warnchannel(self, ctx: commands.Context, channel: discord.TextChannel = None):
+    async def warnchannel(
+        self,
+        ctx: commands.Context,
+        channel: Union[discord.TextChannel, discord.VoiceChannel, discord.StageChannel] = None,
+    ):
         """Set the channel where warnings should be sent to.
 
         Leave empty to use the channel `[p]warn` command was called in.
@@ -90,7 +95,7 @@ class Warnings:
 
     @commands.group()
     @commands.guild_only()
-    @checks.guildowner_or_permissions(administrator=True)
+    @commands.guildowner_or_permissions(administrator=True)
     async def warnaction(self, ctx: commands.Context):
         """Manage automated actions for Warnings.
 
@@ -156,7 +161,7 @@ class Warnings:
 
     @commands.group()
     @commands.guild_only()
-    @checks.guildowner_or_permissions(administrator=True)
+    @commands.guildowner_or_permissions(administrator=True)
     async def warnreason(self, ctx: commands.Context):
         """Manage warning reasons.
 

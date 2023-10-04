@@ -162,7 +162,6 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
         self.cleanupconfig.register_guild(notify=True)
         self.warnconfig.register_guild(**self.default_guild_warnings)
         self.warnconfig.register_member(**self.default_member_warnings)
-        self.registration_task = self.bot.loop.create_task(self.register_warningtype())
 
         self.adminconfig = Config.get_conf(
             self, identifier=1387000, force_registration=True, cog_name="OwnerAdmin"
@@ -191,8 +190,6 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
         default_rrole_settings = {"rroles": {}}
         self.rroleconfig.init_custom("RRole", 2)
         self.rroleconfig.register_custom("RRole", **default_rrole_settings)
-
-        self.initialize_task: asyncio.Task = self.bot.loop.create_task(self.initialize())
 
     async def red_delete_data_for_user(
         self,
@@ -235,8 +232,8 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
                         grp = self.warnconfig.member_from_ids(guild_id, remaining_user)
                         await grp.set_raw("warnings", warn_id, "mod", value=0xDE1)
 
-    async def initialize(self):
-        await self.bot.wait_until_ready()
+    async def cog_load(self) -> None:
+        await self.register_warningtype()
         await self._update_cache()
 
     # We're not utilising modlog yet - no need to register a casetype
@@ -283,7 +280,7 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
 
     @commands.group()
     @commands.guild_only()
-    @checks.admin_or_permissions(manage_guild=True)
+    @commands.admin_or_permissions(manage_guild=True)
     async def filterset(self, ctx: commands.Context):
         """Change filter settings."""
         pass
@@ -298,7 +295,7 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
         The default name used is *John Doe*.
 
         Example:
-            - `[p]filterset defaultname Missingno`
+        - `[p]filterset defaultname Missingno`
 
         **Arguments:**
 
@@ -318,8 +315,8 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
         Set both to zero to disable autoban.
 
         Examples:
-            - `[p]filterset ban 5 5` - Ban users who say 5 filtered words in 5 seconds.
-            - `[p]filterset ban 2 20` - Ban users who say 2 filtered words in 20 seconds.
+        - `[p]filterset ban 5 5` - Ban users who say 5 filtered words in 5 seconds.
+        - `[p]filterset ban 2 20` - Ban users who say 2 filtered words in 20 seconds.
 
         **Arguments:**
 
@@ -347,9 +344,9 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
 
     @commands.command()
     @commands.guild_only()
-    @checks.admin_or_permissions(manage_roles=True)
+    @commands.admin_or_permissions(manage_roles=True)
     async def addrole(
-        self, ctx: commands.Context, rolename: discord.Role, *, user: discord.Member = None
+        self, ctx: commands.Context, rolename: discord.Role, *, user: discord.Member = commands.Author,
     ):
         """
         Add a role to a user.
@@ -357,15 +354,13 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
         Use double quotes if the role contains spaces.
         If user is left blank it defaults to the author of the command.
         """
-        if user is None:
-            user = ctx.author
         await self._addrole(ctx, user, rolename)
 
     @commands.command()
     @commands.guild_only()
-    @checks.admin_or_permissions(manage_roles=True)
+    @commands.admin_or_permissions(manage_roles=True)
     async def removerole(
-        self, ctx: commands.Context, rolename: discord.Role, *, user: discord.Member = None
+        self, ctx: commands.Context, rolename: discord.Role, *, user: discord.Member = commands.Author,
     ):
         """
         Remove a role from a user.
@@ -373,13 +368,11 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
         Use double quotes if the role contains spaces.
         If user is left blank it defaults to the author of the command.
         """
-        if user is None:
-            user = ctx.author
         await self._removerole(ctx, user, rolename)
 
     @commands.group()
     @commands.guild_only()
-    @checks.admin_or_permissions(manage_roles=True)
+    @commands.admin_or_permissions(manage_roles=True)
     async def editrole(self, ctx: commands.Context):
         """Edit roles."""
         pass
@@ -396,11 +389,13 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
         [Online colour picker](http://www.w3schools.com/colors/colors_picker.asp)
 
         Examples:
-            `[p]editrole colour "The Transistor" #ff0000`
-            `[p]editrole colour Test #ff9900`
+        - `[p]editrole colour "The Transistor" #ff0000`
+        - `[p]editrole colour Test #ff9900`
         """
         author = ctx.author
-        reason = "{}({}) changed the colour of role '{}'".format(author.name, author.id, role.name)
+        reason = ("{author} ({author.id}) changed the colour of role '{role.name}'").format(
+            author=author, role=role.name
+        )
 
         if not self.pass_user_hierarchy_check(ctx, role):
             await ctx.send((ROLE_USER_HIERARCHY_ISSUE).format(role=role))
@@ -427,13 +422,13 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
         Use double quotes if the role or the name contain spaces.
 
         Example:
-            `[p]editrole name \"The Transistor\" Test`
+        - `[p]editrole name \"The Transistor\" Test`
         """
         author = ctx.message.author
         old_name = role.name
-        reason = "{}({}) changed the name of role '{}' to '{}'".format(
-            author.name, author.id, old_name, name
-        )
+        reason = (
+            "{author} ({author.id}) changed the name of role '{old_name}' to '{name}'"
+        ).format(author=author, old_name=old_name, name=name)
 
         if not self.pass_user_hierarchy_check(ctx, role):
             await ctx.send((ROLE_USER_HIERARCHY_ISSUE).format(role=role))
@@ -455,7 +450,7 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
     async def _addrole(
         self, ctx: commands.Context, member: discord.Member, role: discord.Role, *, check_user=True
     ):
-        if role in member.roles:
+        if member.get_role(role.id) is not None:
             await ctx.send(
                 ("{member.display_name} already has the role {role.name}.").format(
                     role=role, member=member
@@ -486,7 +481,7 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
     async def _removerole(
         self, ctx: commands.Context, member: discord.Member, role: discord.Role, *, check_user=True
     ):
-        if role not in member.roles:
+        if member.get_role(role.id) is None:
             await ctx.send(
                 ("{member.display_name} does not have the role {role.name}.").format(
                     role=role, member=member
@@ -516,20 +511,19 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
 
     @commands.group()
     @commands.guild_only()
-    @checks.guildowner_or_permissions(administrator=True)
+    @commands.guildowner_or_permissions(administrator=True)
     async def announceset(self, ctx):
         """Set a channel for bot update/maintenance announcements."""
         pass
 
     @announceset.command(name="channel")
-    async def announceset_channel(self, ctx, *, channel: discord.TextChannel = None):
-        """
-        Change the channel where the bot will send announcements.
-
-        If channel is left blank it defaults to the current channel.
-        """
-        if channel is None:
-            channel = ctx.channel
+    async def announceset_channel(
+        self,
+        ctx,
+        *,
+        channel: Union[discord.TextChannel, discord.VoiceChannel, discord.StageChannel],
+    ):
+        """Change the channel where the bot will send announcements."""
         await self.adminconfig.guild(ctx.guild).announce_channel.set(channel.id)
         await ctx.send(
             ("The announcement channel has been set to {channel.mention}").format(channel=channel)
@@ -542,7 +536,7 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
         await ctx.tick()
 
     @commands.group()
-    @checks.admin_or_permissions(manage_roles=True)
+    @commands.admin_or_permissions(manage_roles=True)
     async def selfroleset(self, ctx: commands.Context):
         """Manage selfroles."""
         pass
@@ -639,7 +633,7 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
         else:
             await ctx.send(("No changes have been made."))
 
-    @checks.admin_or_permissions(manage_guild=True)
+    @commands.admin_or_permissions(manage_guild=True)
     @commands.guild_only()
     @commands.group(name="reportset")
     async def reportset(self, ctx: commands.Context):
@@ -647,7 +641,11 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
         pass
 
     @reportset.command(name="output")
-    async def reportset_output(self, ctx: commands.Context, channel: discord.TextChannel):
+    async def reportset_output(
+        self,
+        ctx: commands.Context,
+        channel: Union[discord.TextChannel, discord.VoiceChannel, discord.StageChannel],
+    ):
         """Set the channel where reports will be sent."""
         await self.reportsconfig.guild(ctx.guild).output_channel.set(channel.id)
         await ctx.send(("The report channel has been set."))
@@ -691,9 +689,9 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
             )
 
     @commands.command()
-    @checks.admin_or_permissions(administrator=True)
+    @commands.admin_or_permissions(administrator=True)
     @commands.guild_only()
-    async def leavers(self, ctx: commands.Context, channel: discord.TextChannel = None):
+    async def leavers(self, ctx: commands.Context, channel: Union[discord.TextChannel, discord.Thread] = None):
         """Sets a channel that logs when users leave.
         Leave blank to stop logging."""
         if channel:
@@ -715,7 +713,7 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
         if channel:
             channel = guild.get_channel(channel)
             out = "{} {}".format(member, member.nick if member.nick is not None else "")
-            if await self.bot.embed_requested(channel, member):
+            if await self.bot.embed_requested(channel):
                 embed = discord.Embed(
                     description=out, color=(await self.bot.get_embed_color(channel))
                 )

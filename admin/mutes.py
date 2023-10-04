@@ -1,6 +1,6 @@
 import logging
 from datetime import timedelta
-from typing import Optional
+from typing import Optional, Union
 
 import discord
 from redbot.core import checks, commands
@@ -19,7 +19,7 @@ class Mutes:
 
     @commands.group()
     @commands.guild_only()
-    @checks.admin_or_permissions(manage_channels=True)
+    @commands.admin_or_permissions(manage_channels=True)
     async def muteset(self, ctx: commands.Context):
         """Mute settings."""
         pass
@@ -53,7 +53,7 @@ class Mutes:
             )
 
     @muteset.command(name="role")
-    @checks.admin_or_permissions(manage_channels=True, manage_roles=True)
+    @commands.admin_or_permissions(manage_channels=True, manage_roles=True)
     @commands.bot_has_guild_permissions(manage_roles=True)
     async def mute_role(self, ctx: commands.Context, *, role: discord.Role = None):
         """Sets the role to be applied when muting a user.
@@ -97,7 +97,11 @@ class Mutes:
 
     @muteset.command(name="errornotification")
     async def notification_channel_set(
-        self, ctx: commands.Context, channel: Optional[discord.TextChannel] = None
+        self,
+        ctx: commands.Context,
+        channel: Optional[
+            Union[discord.TextChannel, discord.VoiceChannel, discord.StageChannel]
+        ] = None,
     ):
         """
         Set the notification channel for automatic unmute issues.
@@ -115,7 +119,7 @@ class Mutes:
             )
 
     @muteset.command(name="makerole")
-    @checks.has_permissions(manage_roles=True)
+    @commands.has_permissions(manage_roles=True)
     @commands.bot_has_guild_permissions(manage_roles=True)
     @commands.max_concurrency(1, commands.BucketType.guild)
     async def make_mute_role(self, ctx: commands.Context, *, name: str):
@@ -138,7 +142,15 @@ class Mutes:
             )
         async with ctx.typing():
             perms = discord.Permissions()
-            perms.update(send_messages=False, speak=False, add_reactions=False)
+            perms.update(
+                send_messages=False,
+                send_messages_in_threads=False,
+                create_public_threads=False,
+                create_private_threads=False,
+                use_application_commands=False,
+                speak=False,
+                add_reactions=False,
+            )
             try:
                 role = await ctx.guild.create_role(
                     name=name, permissions=perms, reason=("Mute role setup")
@@ -180,6 +192,10 @@ class Mutes:
             return channel.mention
         overs = discord.PermissionOverwrite()
         overs.send_messages = False
+        overs.send_messages_in_threads = False
+        overs.create_public_threads = False
+        overs.create_private_threads = False
+        overs.use_application_commands = False
         overs.add_reactions = False
         overs.speak = False
         try:
