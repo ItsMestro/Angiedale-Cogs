@@ -46,7 +46,7 @@ class Utility(commands.Cog):
             self, identifier=1387000, cog_name="UtilityRaffle", force_registration=True
         )
         self.raffleconfig.register_guild(**self.raffle_defaults)
-        self.load_check = self.bot.loop.create_task(self.raffle_worker())
+        self.load_check = asyncio.create_task(self.raffle_worker())
 
         self.conf = Config.get_conf(
             self, identifier=1387000, cog_name="UtilityReactPoll", force_registration=True
@@ -58,9 +58,9 @@ class Utility(commands.Cog):
         self.conf.register_guild(**default_guild_settings)
         self.conf.register_global(polls=[])
         self.polls: Dict[int, Dict[int, Poll]] = {}
-        self.migrate = self.bot.loop.create_task(self.migrate_old_polls())
-        self.loop = self.bot.loop.create_task(self.load_polls())
-        self.poll_task = self.bot.loop.create_task(self.poll_closer())
+        self.migrate = asyncio.create_task(self.migrate_old_polls())
+        self.loop = asyncio.create_task(self.load_polls())
+        self.poll_task = asyncio.create_task(self.poll_closer())
         self.close_loop = True
 
     async def red_delete_data_for_user(self, **kwargs):
@@ -288,14 +288,21 @@ class Utility(commands.Cog):
         """Starts a raffle.
 
         Timer accepts a integer input that represents seconds or it will
-        take the format of HH:MM:SS. For example:
+        take the format of HH:MM:SS.
 
-        80       - 1 minute and 20 seconds or 80 seconds
-        30:10    - 30 minutes and 10 seconds
-        24:00:00 - 1 day or 24 hours
+        Example timer inputs:
+        `80`       = 1 minute and 20 seconds or 80 seconds
+        `30:10`    = 30 minutes and 10 seconds
+        `24:00:00` = 1 day or 24 hours
 
         Only one raffle can be active per server.
         """
+        if not ctx.channel.permissions_for(ctx.guild.me).embed_links:
+            await ctx.send("I need the Embed Links permission to be able to start raffles.")
+            return
+        if not ctx.channel.permissions_for(ctx.guild.me).add_reactions:
+            await ctx.send("I need the Add Reactions permission to be able to start raffles.")
+            return
         timer = await self.start_checks(ctx, timer)
         if timer is None:
             return
@@ -309,8 +316,7 @@ class Utility(commands.Cog):
 
         channel = await self._get_channel(ctx)
         mention = await self.raffleconfig.guild(ctx.guild).Mention()
-        end = calendar.timegm(ctx.message.created_at.utctimetuple()) + timer
-        fmt_end = time.strftime("%a %d %b %Y %H:%M:%S", time.gmtime(end))
+        fmt_end = calendar.timegm(ctx.message.created_at.utctimetuple()) + timer
 
         if mention:
             mention = ctx.guild.get_role(mention)
@@ -318,15 +324,8 @@ class Utility(commands.Cog):
         if not mention.is_default():
             mention = mention.mention
 
-        try:
-            embed = discord.Embed(
-                description=description, url=url, title=title, color=self.bot.color
-            )  ### old compat, i think ?
-        except:
-            color = await self.bot.get_embed_color(ctx)
-            embed = discord.Embed(
-                description=description, url=url, title=title, color=color
-            )  ### new code
+        color = await self.bot.get_embed_color(ctx)
+        embed = discord.Embed(description=description, title=title, color=color)
         embed.add_field(name="Days on Server", value=f"{dos}")
         role_info = f'{", ".join(str_roles) if roles else "@everyone"}'
         embed.add_field(name="Allowed Roles", value=role_info)
@@ -350,7 +349,7 @@ class Utility(commands.Cog):
         async with self.raffleconfig.guild(ctx.guild).Raffles() as r:
             new_raffle = {
                 "Channel": channel.id,
-                "Timestamp": end,
+                "Timestamp": fmt_end,
                 "DOS": dos,
                 "Roles": roles,
                 "ID": msg.id,
@@ -409,12 +408,8 @@ class Utility(commands.Cog):
             if not r:
                 raise ValueError
             raffles = list(r.items())
-        try:
-            # pre-3.2 compatibility layer
-            embed = self.embed_builder(raffles, ctx.bot.color, title)
-        except AttributeError:
-            color = await self.bot.get_embed_color(ctx)
-            embed = self.embed_builder(raffles, color, title)
+        color = await self.bot.get_embed_color(ctx)
+        embed = self.embed_builder(raffles, color, title)
         msg = await ctx.send(embed=embed)
 
         def predicate(m):
@@ -448,21 +443,23 @@ class Utility(commands.Cog):
         for raffle, number_emoji in zip(truncate, emojis):
             description += f"{number_emoji} - {raffle[1]['Title']}\n"
             e.description = description
+            e.set_footer(text="Type the number of the raffle you wish to end.")
             embeds.append(e)
         return e
 
     @raffle.command()
     async def reroll(self, ctx, channel: discord.TextChannel, messageid: int):
         """Reroll the winner for a raffle. Requires the channel and message id."""
+        if not channel.permissions_for(channel.guild.me).read_messages:
+            return await ctx.send("I can't read messages in that channel.")
+        if not channel.permissions_for(channel.guild.me).send_messages:
+            return await ctx.send("I can't send messages in that channel.")
         try:
-            msg = await channel.get_message(messageid)
-        except AttributeError:
-            try:
-                msg = await channel.fetch_message(messageid)
-            except discord.HTTPException:
-                return await ctx.send("Invalid message id.")
+            msg = await channel.fetch_message(messageid)
+        except discord.Forbidden:
+            return await ctx.send("Invalid message id or I can't view that channel or message.")
         except discord.HTTPException:
-            return await ctx.send("Invalid message id.")
+            return await ctx.send("Invalid message id or the message doesn't exist.")
         try:
             await self.pick_winner(ctx.guild, channel, msg)
         except AttributeError:
@@ -474,7 +471,7 @@ class Utility(commands.Cog):
             )
 
     @raffle.group(autohelp=True)
-    @checks.guildowner()
+    @commands.guildowner()
     async def set(self, ctx):
         """Change raffle settings"""
         pass
@@ -579,6 +576,8 @@ class Utility(commands.Cog):
 
         def predicate4(m):
             try:
+                if int(m.content) > 9:
+                    return False
                 if int(m.content) >= 0:
                     return True
                 return False
@@ -590,7 +589,7 @@ class Utility(commands.Cog):
         q1 = "Please set a brief description (1000 chars max)"
         q2 = "Would you like to link this raffle somewhere?"
         q3 = (
-            "Please set how many winners are pulled.\n**Note**: If there are "
+            "Please set how many winners are pulled, __*Maximum of up to and including 9*__.\n**Note**: If there are "
             "more winners than entries, I will make everyone a winner."
         )
         q4 = "Would you like to set a 'days on server' requirement?"
@@ -606,12 +605,14 @@ class Utility(commands.Cog):
         dos = 0
         roles = []
 
-        if await self._get_response(ctx, q4, predicate3) == "yes":
+        resp = await self._get_response(ctx, q3, predicate3)
+        if resp.lower() == "yes":
             dos = await self._get_response(
                 ctx, "How many days on the server are required?", predicate4
             )
 
-        if await self._get_response(ctx, q5, predicate3) == "yes":
+        resp = await self._get_response(ctx, q4, predicate3)
+        if resp.lower() == "yes":
             roles = await self._get_roles(ctx)
 
         return description, url, int(winners), int(dos), roles
@@ -623,8 +624,15 @@ class Utility(commands.Cog):
         is loaded, and is destroyed when it has finished.
         """
         try:
-            await self.bot.wait_until_ready()
-            guilds = [self.bot.get_guild(guild) for guild in await self.raffleconfig.all_guilds()]
+            await self.bot.wait_until_red_ready()
+            guilds = []
+            guilds_in_config = await self.raffleconfig.all_guilds()
+            for guild in guilds_in_config:
+                guild_obj = self.bot.get_guild(guild)
+                if guild_obj is not None:
+                    guilds.append(guild_obj)
+                else:
+                    continue
             coros = []
             for guild in guilds:
                 raffles = await self.raffleconfig.guild(guild).Raffles.all()
@@ -637,8 +645,8 @@ class Utility(commands.Cog):
                         else:
                             coros.append(self.raffle_timer(guild, raffles[key], remaining))
             await asyncio.gather(*coros)
-        except Exception as e:
-            print(e)
+        except Exception:
+            log.error("Error in raffle_worker task.", exc_info=True)
 
     async def raffle_timer(self, guild, raffle: dict, remaining: int):
         """Helper function for starting the raffle countdown.
@@ -664,19 +672,24 @@ class Utility(commands.Cog):
             await self.raffle_teardown(guild, raffle["ID"])
 
     async def raffle_teardown(self, guild, message_id):
+        errored = False
         raffles = await self.raffleconfig.guild(guild).Raffles.all()
         channel = self.bot.get_channel(raffles[str(message_id)]["Channel"])
-
-        errored = False
-        try:
-            msg = await channel.get_message(raffles[str(message_id)]["ID"])
-        except AttributeError:
-            try:
-                msg = await channel.fetch_message(raffles[str(message_id)]["ID"])
-            except discord.NotFound:
-                errored = True
-        except discord.errors.NotFound:
+        if not channel:
             errored = True
+        else:
+            if (
+                not channel.permissions_for(guild.me).read_messages
+                or not channel.permissions_for(guild.me).send_messages
+            ):
+                errored = True
+            if not errored:
+                try:
+                    msg = await channel.fetch_message(raffles[str(message_id)]["ID"])
+                except discord.NotFound:
+                    # they deleted the raffle message
+                    errored = True
+
         if not errored:
             await self.pick_winner(guild, channel, msg)
 
@@ -716,7 +729,10 @@ class Utility(commands.Cog):
             )
 
     async def validate_entries(self, users, msg):
-        dos, roles, host = msg.embeds[0].fields
+        try:
+            dos, roles, timestamp = msg.embeds[0].fields
+        except ValueError:
+            dos, roles = msg.embeds[0].fieldss
         dos = int(dos.value)
         roles = roles.value.split(", ")
 
@@ -885,7 +901,7 @@ class Utility(commands.Cog):
 
     @commands.group()
     @commands.guild_only()
-    @checks.admin_or_permissions(administrator=True)
+    @commands.admin_or_permissions(administrator=True)
     async def pollset(self, ctx: commands.Context):
         """
         Settings for reaction polls
@@ -904,7 +920,7 @@ class Utility(commands.Cog):
             verb = "on"
         await ctx.send(f"Reaction poll embeds turned {verb}.")
 
-    @checks.mod_or_permissions(manage_messages=True)
+    @commands.mod_or_permissions(manage_messages=True)
     @commands.group()
     @commands.guild_only()
     async def poll(self, ctx: commands.Context):
