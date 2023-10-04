@@ -513,7 +513,6 @@ class API(commands.Cog):
                     await menu(
                         ctx,
                         pages=embeds,
-                        controls=DEFAULT_CONTROLS,
                         message=None,
                         page=0,
                         timeout=30,
@@ -525,7 +524,11 @@ class API(commands.Cog):
                     message = (
                         "<{permalink}>\n {word} by {author}\n\n{description}\n\n"
                         "{thumbs_down} Down / {thumbs_up} Up, Powered by Urban Dictionary."
-                    ).format(word=ud.pop("word").capitalize(), description="{description}", **ud)
+                    ).format(
+                        word=ud.pop("word").capitalize(),
+                        description="{description}",
+                        **ud,
+                    )
                     max_desc_len = 2000 - len(message)
 
                     description = ("{definition}\n\n**Example:** {example}").format(**ud)
@@ -539,7 +542,6 @@ class API(commands.Cog):
                     await menu(
                         ctx,
                         pages=messages,
-                        controls=DEFAULT_CONTROLS,
                         message=None,
                         page=0,
                         timeout=30,
