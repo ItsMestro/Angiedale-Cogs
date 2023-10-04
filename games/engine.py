@@ -19,6 +19,11 @@ def game_engine(name=None, choice=None, choices=None):
     def wrapper(coro):
         @wraps(coro)
         async def wrapped(*args, **kwargs):
+            try:
+                user_choice = args[3]
+            except IndexError:
+                user_choice = None
+            engine = GameEngine(name, user_choice, choice, args[1], args[2])
             engine = GameEngine(name, choice, choices, args[1], args[2])
             if await engine.check_conditions():
                 result = await coro(*args, **kwargs)
@@ -232,7 +237,8 @@ class GameEngine(Database):
         multiplier = settings["Games"][self.game]["Multiplier"]
         if self.game == "Allin" or self.game == "Double":
             try:
-                return await bank.deposit_credits(self.player, amount), "(+0)"
+                await bank.deposit_credits(self.player, amount)
+                return amount, "(+0)"
             except BalanceTooHigh as e:
                 return await bank.set_balance(self.player, e.max_balance), "(+0)"
 
@@ -293,7 +299,7 @@ class GameEngine(Database):
     async def calculate_bonus(amount, player_instance, settings):
         membership = await player_instance.Membership.Name()
         try:
-            bonus_multiplier = settings[membership]["Bonus"]
+            bonus_multiplier = settings["Memberships"][membership]["Bonus"]
         except KeyError:
             bonus_multiplier = 1
         total = round(amount * bonus_multiplier)
