@@ -1,19 +1,19 @@
 import calendar
 import logging
-from datetime import timezone, timedelta, datetime
 from collections import defaultdict, namedtuple
+from datetime import datetime, timedelta, timezone
 from math import ceil
 from random import randint
-from typing import Literal, Union
+from typing import Literal
 
 import discord
-from redbot.core import Config, bank, checks, commands, errors
+from redbot.core import Config, bank, commands, errors
 from redbot.core.bot import Red
 from redbot.core.commands.converter import TimedeltaConverter, positive_int
 from redbot.core.utils import AsyncIter
 from redbot.core.utils.angiedale import patreon_tier
 from redbot.core.utils.chat_formatting import box, humanize_number
-from redbot.core.utils.menus import DEFAULT_CONTROLS, close_menu, menu
+from redbot.core.utils.menus import menu
 
 log = logging.getLogger("red.angiedale.economy")
 
