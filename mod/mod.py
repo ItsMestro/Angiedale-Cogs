@@ -530,7 +530,7 @@ class Mod(
         self,
         ctx: commands.Context,
         member: discord.Member,
-        points: UserInputOptional[int] = 1,
+        points: UserInputOptional[int] = 1,  # type: ignore
         *,
         reason: str,
     ):
