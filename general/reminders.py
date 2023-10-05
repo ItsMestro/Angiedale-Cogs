@@ -1,13 +1,15 @@
-import discord
-from typing import Any
-from redbot.core import commands
-from dateutil.relativedelta import relativedelta
 from contextlib import suppress
+from typing import Any
+
+import discord
+from dateutil.relativedelta import relativedelta
+from redbot.core import commands
 from redbot.core.utils.chat_formatting import humanize_list
 
 MAX_EMBED_SIZE = 5900
 MAX_EMBED_FIELDS = 20
 MAX_EMBED_FIELD_SIZE = 1024
+
 
 async def reply(
     ctx: commands.Context, content: str | None = None, **kwargs: Any  # noqa: ANN401
@@ -35,6 +37,7 @@ async def reply(
         await ctx.send(content=f"{ctx.message.author.mention} {content}", **kwargs)
     else:
         await ctx.send(content=content, **kwargs)
+
 
 async def embed_splitter(
     embed: discord.Embed, destination: discord.abc.Messageable | None = None
@@ -73,10 +76,7 @@ async def embed_splitter(
     for field in fields:
         embed_dict["fields"].append(field)
         current_embed = discord.Embed.from_dict(embed_dict)
-        if (
-            len(current_embed) > MAX_EMBED_SIZE
-            or len(embed_dict["fields"]) > MAX_EMBED_FIELDS
-        ):
+        if len(current_embed) > MAX_EMBED_SIZE or len(embed_dict["fields"]) > MAX_EMBED_FIELDS:
             embed_dict["fields"].pop()
             current_embed = discord.Embed.from_dict(embed_dict)
             split_embeds.append(current_embed.copy())
@@ -89,6 +89,7 @@ async def embed_splitter(
         for split_embed in split_embeds:
             await destination.send(embed=split_embed)
     return split_embeds
+
 
 @staticmethod
 def humanize_relativedelta(relative_delta: relativedelta | dict) -> str:

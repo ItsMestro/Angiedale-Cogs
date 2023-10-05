@@ -4,9 +4,8 @@ import logging
 import random
 import time
 import urllib.parse
-from contextvars import Context
-from typing import Final, Optional, Tuple, Union, Any, ClassVar
 from contextlib import suppress
+from typing import Any, ClassVar, Final, Optional, Tuple, Union
 
 import discord
 from dateutil.relativedelta import relativedelta
@@ -28,12 +27,12 @@ from redbot.core.utils.common_filters import (
     filter_invites,
     filter_mass_mentions,
 )
-from redbot.core.utils.menus import close_menu, menu, start_adding_reactions
-from redbot.core.utils.predicates import MessagePredicate, ReactionPredicate
+from redbot.core.utils.menus import close_menu, menu
+from redbot.core.utils.predicates import MessagePredicate
 
 from .converters import ReminderTime, SelfRole
+from .reminders import embed_splitter, humanize_relativedelta, reply
 from .reports import Reports
-from .reminders import reply, humanize_relativedelta, embed_splitter
 
 log = logging.getLogger("red.angiedale.general")
 
@@ -159,9 +158,7 @@ class General(Reports, commands.Cog):
         "max_user_reminders": 10,
     }
 
-    default_reminder_settings: ClassVar[
-        dict[str, str | int | None]
-    ] = {
+    default_reminder_settings: ClassVar[dict[str, str | int | None]] = {
         "text": "",  # str
         "created": None,  # seconds from epoch int
         "expires": None,  # seconds from epoch int
@@ -273,8 +270,7 @@ class General(Reports, commands.Cog):
                         # If the reminder is expiring sooner than the one we have on deck to send...
                         if (
                             not self.next_reminder_to_send
-                            or partial_reminder["expires"]
-                            < self.next_reminder_to_send["expires"]
+                            or partial_reminder["expires"] < self.next_reminder_to_send["expires"]
                         ):
                             full_reminder = self._get_full_reminder_from_partial(
                                 int(user_id),
@@ -284,9 +280,7 @@ class General(Reports, commands.Cog):
                             if full_reminder not in self.problematic_reminders:
                                 self.next_reminder_to_send = full_reminder.copy()
                             else:
-                                existing_problematic_reminders.append(
-                                    full_reminder.copy()
-                                )
+                                existing_problematic_reminders.append(full_reminder.copy())
 
                 # Update retry list
                 self.problematic_reminders = existing_problematic_reminders
@@ -641,9 +635,7 @@ class General(Reports, commands.Cog):
         """Fuwwyize the pwevious message, ow youw own text."""
         if not text:
             if hasattr(ctx.message, "reference") and ctx.message.reference:
-                with suppress(
-                    discord.Forbidden, discord.NotFound, discord.HTTPException
-                ):
+                with suppress(discord.Forbidden, discord.NotFound, discord.HTTPException):
                     message_id = ctx.message.reference.message_id
                     if message_id:
                         text = (await ctx.fetch_message(message_id)).content
@@ -1655,9 +1647,7 @@ class General(Reports, commands.Cog):
         elif sort == "added":
             pass
         elif sort == "id":
-            user_reminders.sort(
-                key=lambda reminder_info: reminder_info["user_reminder_id"]
-            )
+            user_reminders.sort(key=lambda reminder_info: reminder_info["user_reminder_id"])
         else:
             await reply(
                 ctx,
@@ -1672,9 +1662,7 @@ class General(Reports, commands.Cog):
         )
         embed.set_thumbnail(url=author.display_avatar.url)
         for reminder in user_reminders:
-            reminder_title = (
-                f"ID# {reminder['user_reminder_id']} — <t:{reminder['expires']}:f>"
-            )
+            reminder_title = f"ID# {reminder['user_reminder_id']} — <t:{reminder['expires']}:f>"
             if "repeat" in reminder and reminder["repeat"]:
                 reminder_title += f", repeating every {humanize_relativedelta(reminder['repeat'])}"
             reminder_text = reminder["text"]
@@ -1757,7 +1745,7 @@ class General(Reports, commands.Cog):
         message += f"in {humanize_relativedelta(reminder_time)} (<t:{expires_timestamp_int}:f>)."
 
         await reply(ctx, message)
-    
+
     async def _send_reminder(self, full_reminder: dict) -> None:
         """Send reminders that have expired."""
         delete = False
@@ -1825,14 +1813,12 @@ class General(Reports, commands.Cog):
             next_reminder_id += 1
 
         # Save new reminder
-        await self.config.custom("REMINDER", str(user_id), str(next_reminder_id)).set(
-            reminder
-        )
+        await self.config.custom("REMINDER", str(user_id), str(next_reminder_id)).set(reminder)
 
         # Update background task
         await self.update_bg_task(user_id, next_reminder_id, reminder)
         return True
-    
+
     async def _delete_reminder(self, ctx: commands.Context, index: str) -> None:
         """Logic to delete reminders."""
         if not index:
@@ -1865,9 +1851,7 @@ class General(Reports, commands.Cog):
             return
 
         if index == "last":
-            all_users_reminders_dict = await self.config.custom(
-                "REMINDER", str(author.id)
-            ).all()
+            all_users_reminders_dict = await self.config.custom("REMINDER", str(author.id)).all()
             if not all_users_reminders_dict:
                 await reply(ctx, "You don't have any upcoming reminders.")
                 return
@@ -1890,9 +1874,7 @@ class General(Reports, commands.Cog):
             await ctx.send_help()
             return
 
-        config_reminder = await self._get_reminder_config_group(
-            ctx, author.id, int_index
-        )
+        config_reminder = await self._get_reminder_config_group(ctx, author.id, int_index)
         if not config_reminder:
             return
         await config_reminder.clear()
@@ -1903,9 +1885,7 @@ class General(Reports, commands.Cog):
     async def _get_reminder_config_group(
         self, ctx: commands.Context, user_id: int, user_reminder_id: int
     ) -> Group | None:
-        config_reminder = self.config.custom(
-            "REMINDER", str(user_id), str(user_reminder_id)
-        )
+        config_reminder = self.config.custom("REMINDER", str(user_id), str(user_reminder_id))
         if not await config_reminder.expires():
             await reply(
                 ctx,
@@ -1944,20 +1924,14 @@ class General(Reports, commands.Cog):
             humanize_relativedelta(
                 relativedelta(
                     current_time,
-                    datetime.datetime.fromtimestamp(
-                        full_reminder["created"], datetime.UTC
-                    ),
+                    datetime.datetime.fromtimestamp(full_reminder["created"], datetime.UTC),
                 )
             )
             if delay
             else humanize_relativedelta(
                 relativedelta(
-                    datetime.datetime.fromtimestamp(
-                        full_reminder["expires"], datetime.UTC
-                    ),
-                    datetime.datetime.fromtimestamp(
-                        full_reminder["created"], datetime.UTC
-                    ),
+                    datetime.datetime.fromtimestamp(full_reminder["expires"], datetime.UTC),
+                    datetime.datetime.fromtimestamp(full_reminder["created"], datetime.UTC),
                 )
             )
         )
@@ -1979,7 +1953,7 @@ class General(Reports, commands.Cog):
 
         embed.add_field(name=field_name, value=field_value)
         return embed
-    
+
     def _get_full_reminder_from_partial(
         self,
         user_id: int,
@@ -2007,7 +1981,7 @@ class General(Reports, commands.Cog):
             }
         )
         return result
-    
+
     async def send_too_many_message(
         self,
         ctx_or_user: commands.Context | discord.Member | discord.User,
@@ -2050,9 +2024,7 @@ class General(Reports, commands.Cog):
         elif not user_reminder_id and self.next_reminder_to_send["user_id"] == user_id:
             # If there isn't a user_reminder_id, the user must have deleted all of their reminders
             self.search_for_next_reminder = True
-            log.debug(
-                "Background task reminder user deleted all their reminders, forcing search"
-            )
+            log.debug("Background task reminder user deleted all their reminders, forcing search")
         elif (
             self.next_reminder_to_send["user_id"] == user_id
             and self.next_reminder_to_send["user_reminder_id"] == user_reminder_id
@@ -2066,9 +2038,7 @@ class General(Reports, commands.Cog):
         ):
             # If the new reminder expires sooner than the current next reminder
             self.search_for_next_reminder = True
-            log.debug(
-                "New reminder expires before background task reminder, forcing search"
-            )
+            log.debug("New reminder expires before background task reminder, forcing search")
         elif user_reminder_id and self.problematic_reminders:
             # Check if the new reminder is currently being retried
             for reminder in self.problematic_reminders:

@@ -6,8 +6,7 @@ from datetime import timedelta
 from typing import List, Literal, Union
 
 import discord
-from redbot.core import Config, checks, commands
-from redbot.core.bot import Red
+from redbot.core import Config, commands
 from redbot.core.utils import AsyncIter
 from redbot.core.utils.antispam import AntiSpam
 from redbot.core.utils.chat_formatting import box, pagify
