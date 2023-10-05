@@ -1,16 +1,19 @@
 from redbot.core import commands
 from redbot.core.utils.chat_formatting import inline
 
+
 class BeatMode:
     NORMAL = 1
     TUNNELVISION = 2
     SECRET = 3
 
+
 class BeatModeConverter(commands.Converter):
     """
     Tries to convert given string to a osubeat mode.
     """
-    async def convert(self, ctx:commands.Context, arg: str) -> BeatMode:
+
+    async def convert(self, ctx: commands.Context, arg: str) -> BeatMode:
         if arg.upper() == "NORMAL" or arg == "1" or arg == 1:
             return BeatMode.NORMAL
         elif arg.upper() == "TUNNELVISION" or arg == "2" or arg == 2:

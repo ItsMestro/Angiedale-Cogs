@@ -6,10 +6,10 @@ from datetime import datetime, timedelta, timezone
 from math import ceil
 
 import discord
-from .converters import BeatMode
 from redbot.core import commands
 from redbot.core.utils.chat_formatting import humanize_number, humanize_timedelta, inline
 
+from .converters import BeatMode
 from .tools import MODS_PRETTY
 
 log = logging.getLogger("red.angiedale.osu.embeds")

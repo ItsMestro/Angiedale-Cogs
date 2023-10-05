@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Literal
 
 import discord
-from redbot.core import Config, checks, commands
+from redbot.core import Config, commands
 from redbot.core.bot import Red
 from redbot.core.data_manager import cog_data_path
 from redbot.core.utils.chat_formatting import humanize_timedelta
@@ -115,7 +115,6 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
         requester: Literal["discord_deleted_user", "owner", "user", "user_strict"],
         user_id: int,
     ):
-
         await self.osuconfig.user_from_id(user_id)
 
     async def cog_load(self) -> None:
@@ -686,12 +685,16 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
             )
 
         time = (
-            datetime.now(timezone.utc)
-            + timedelta(seconds=beat_data["default_beat_time"])
+            datetime.now(timezone.utc) + timedelta(seconds=beat_data["default_beat_time"])
         ).replace(second=0)
 
         embed = await self.osubeatannounceembed(
-            ctx, clean_mapdata, self.mode_prettify(clean_mode), clean_mods, time, beat_data["beatmode"]
+            ctx,
+            clean_mapdata,
+            self.mode_prettify(clean_mode),
+            clean_mods,
+            time,
+            beat_data["beatmode"],
         )
 
         can_react = ctx.channel.permissions_for(ctx.me).add_reactions
@@ -748,7 +751,7 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
     @osubeat.command(name="mode")
     async def _mode_beat(self, ctx: commands.Context, beatmode: BeatModeConverter):
         """Set the beat mode to be used for competitions.
-        
+
         The mode can be one of:
         `Normal` - Standings are fully shown like normal.
         `TUNNELVISION` - Other players scores will be hidden but standings will still show.
@@ -756,7 +759,9 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
         """
 
         if await self.osuconfig.guild(ctx.guild).running_beat():
-            return await del_message(ctx, "The beat mode can't be changed while a beat is running.")
+            return await del_message(
+                ctx, "The beat mode can't be changed while a beat is running."
+            )
 
         await self.osuconfig.guild(ctx.guild).beatmode.set(beatmode)
 
@@ -880,12 +885,21 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
 
                 members = await self.osuconfig.all_members(guild)
 
-                participating_beats.append({"guild": guild, "beat_data": data["beat_current"], "members": members, "beat_mode": data["beat_mode"]})
+                participating_beats.append(
+                    {
+                        "guild": guild,
+                        "beat_data": data["beat_current"],
+                        "members": members,
+                        "beat_mode": data["beat_mode"],
+                    }
+                )
 
             if len(participating_beats) == 0:
                 return await ctx.send("There's no active beats in any of the servers you're in.")
             elif len(participating_beats) == 1:
-                return await menu(ctx, await self.osubeatstandingsembed(ctx, participating_beats[0]))
+                return await menu(
+                    ctx, await self.osubeatstandingsembed(ctx, participating_beats[0])
+                )
             else:
                 return await custom_menu(
                     ctx,
@@ -899,7 +913,9 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
         beat_data = await self.osuconfig.guild(ctx.guild).all()
         members = await self.osuconfig.all_members(ctx.guild)
         if beat_data["running_beat"]:
-            embeds = await self.osubeatstandingsembed(ctx, beat_data["beat_current"], members, beatmode=beat_data["beatmode"])
+            embeds = await self.osubeatstandingsembed(
+                ctx, beat_data["beat_current"], members, beatmode=beat_data["beatmode"]
+            )
         elif beat_data["beat_last"]["beatmap"]:
             embeds = await self.osubeatstandingsembed(
                 ctx, beat_data["beat_last"], members, last=True
