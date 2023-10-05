@@ -192,7 +192,6 @@ class Poll:
         start_adding_reactions(message, self.emojis.keys())
 
     async def close_poll(self):
-
         msg = "**POLL ENDED!**\n\n"
         try:
             old_msg = await self.get_message()

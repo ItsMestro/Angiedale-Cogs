@@ -4,20 +4,13 @@ import itertools
 import logging
 import random
 import re
-import time
 from datetime import datetime, timedelta
 from typing import Dict, Optional
 
 import discord
-from redbot.core import Config, checks, commands
+from redbot.core import Config, commands
 from redbot.core.bot import Red
-from redbot.core.utils.chat_formatting import (
-    error,
-    escape,
-    humanize_timedelta,
-    info,
-    pagify,
-)
+from redbot.core.utils.chat_formatting import error, escape, humanize_timedelta, info, pagify
 from redbot.core.utils.menus import start_adding_reactions
 from redbot.core.utils.predicates import MessagePredicate, ReactionPredicate
 
@@ -142,7 +135,8 @@ class Utility(commands.Cog):
         A single number X: rolls an X-sided die (example: ".roll 17").
         Two numbers X and Y: rolls a strange die with a minimum X and maximum Y (example: ".roll 3 8").
         The text NdX: rolls N dice with X sides (example: ".roll 3d20".
-        The NdX "dice specification" can be repeated to roll a variety of dice at once. If multiple dice are used, statistics will be shown."""
+        The NdX "dice specification" can be repeated to roll a variety of dice at once. If multiple dice are used, statistics will be shown.
+        """
         sbounds = " ".join(bounds).lower()
         if "d" in sbounds:
             # dice specifiers: remove the spaces around "d" (so "1 d6" -> "1d6"
@@ -762,7 +756,7 @@ class Utility(commands.Cog):
     @staticmethod
     def time_converter(units):
         try:
-            return sum(int(x) * 60 ** i for i, x in enumerate(reversed(units.split(":"))))
+            return sum(int(x) * 60**i for i, x in enumerate(reversed(units.split(":"))))
         except ValueError:
             return None
 
@@ -1043,7 +1037,6 @@ class Utility(commands.Cog):
                 continue
             else:
                 try:
-
                     maybe_emoji = msg.content.split(" ")[0]
                     if maybe_emoji in poll_options["emojis"]:
                         await ctx.send("That emoji option is already being used.")
