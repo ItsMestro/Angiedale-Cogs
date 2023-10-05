@@ -230,92 +230,94 @@ class AdventureSetCommands(AdventureMixin):
             ),
         )
 
-    # @commands.is_owner()
-    # @commands_adventureset_economy.command(name="rate")
-    # async def commands_adventureset_economy_conversion_rate(self, ctx: commands.Context, rate_in: int, rate_out: int):
-    #     """[Owner] Set how much 1 bank credit is worth in adventure.
+    @commands.is_owner()
+    @commands_adventureset_economy.command(name="rate", hidden=True)
+    async def commands_adventureset_economy_conversion_rate(self, ctx: commands.Context, rate_in: int, rate_out: int):
+        """[Owner] Set how much 1 bank credit is worth in adventure.
 
-    #     **rate_in**: Is how much bits you will get for 1 bank credit. Default is 10
-    #     **rate_out**: Is how much bits is needed to convert to 1 bank credit. Default is 11
-    #     """
-    #     if rate_in < 0 or rate_out < 0:
-    #         return await smart_embed(ctx, _("You are evil ... please DM me your phone number we need to hangout."))
-    #     await self.config.to_conversion_rate.set(rate_in)
-    #     await self.config.from_conversion_rate.set(rate_out)
-    #     await smart_embed(
-    #         ctx,
-    #         _("1 {name} will be worth {rate_in} {a_name}.\n{rate_out} {a_name} will convert into 1 {name}").format(
-    #             name=await bank.get_currency_name(ctx.guild, _forced=True),
-    #             rate_in=humanize_number(rate_in),
-    #             rate_out=humanize_number(rate_out),
-    #             a_name=await bank.get_currency_name(ctx.guild),
-    #         ),
-    #     )
+        **rate_in**: Is how much bits you will get for 1 bank credit. Default is 10
+        **rate_out**: Is how much bits is needed to convert to 1 bank credit. Default is 11
+        """
+        if rate_in < 0 or rate_out < 0:
+            return await smart_embed(ctx, _("You are evil ... please DM me your phone number we need to hangout."))
+        await self.config.to_conversion_rate.set(rate_in)
+        await self.config.from_conversion_rate.set(rate_out)
+        await smart_embed(
+            ctx,
+            _("1 {name} will be worth {rate_in} {a_name}.\n{rate_out} {a_name} will convert into 1 {name}").format(
+                name=await bank.get_currency_name(ctx.guild, _forced=True),
+                rate_in=humanize_number(rate_in),
+                rate_out=humanize_number(rate_out),
+                a_name=await bank.get_currency_name(ctx.guild),
+            ),
+        )
 
-    # @commands_adventureset_economy.command(name="maxwithdraw")
-    # async def commands_adventureset_economy_maxwithdraw(self, ctx: commands.Context, *, amount: int):
-    #     """[Admin] Set how much players are allowed to withdraw."""
-    #     if amount < 0:
-    #         return await smart_embed(ctx, _("You are evil ... please DM me your phone number we need to hangout."))
-    #     if await bank.is_global(_forced=True):
-    #         await self.config.max_allowed_withdraw.set(amount)
-    #     else:
-    #         await self.config.guild(ctx.guild).max_allowed_withdraw.set(amount)
-    #     await smart_embed(
-    #         ctx,
-    #         _(
-    #             "Adventurers will be able to withdraw up to {amount} {name} from their adventure bank and deposit into their bot economy."
-    #         ).format(
-    #             name=await bank.get_currency_name(ctx.guild, _forced=True),
-    #             amount=humanize_number(amount),
-    #         ),
-    #     )
+    @commands_adventureset_economy.command(name="maxwithdraw", hidden=True)
+    @commands.is_owner()
+    async def commands_adventureset_economy_maxwithdraw(self, ctx: commands.Context, *, amount: int):
+        """[Admin] Set how much players are allowed to withdraw."""
+        if amount < 0:
+            return await smart_embed(ctx, _("You are evil ... please DM me your phone number we need to hangout."))
+        if await bank.is_global(_forced=True):
+            await self.config.max_allowed_withdraw.set(amount)
+        else:
+            await self.config.guild(ctx.guild).max_allowed_withdraw.set(amount)
+        await smart_embed(
+            ctx,
+            _(
+                "Adventurers will be able to withdraw up to {amount} {name} from their adventure bank and deposit into their bot economy."
+            ).format(
+                name=await bank.get_currency_name(ctx.guild, _forced=True),
+                amount=humanize_number(amount),
+            ),
+        )
 
-    # @commands_adventureset_economy.command(name="withdraw")
-    # async def commands_adventureset_economy_withdraw(self, ctx: commands.Context):
-    #     """[Admin] Toggle whether users are allowed to withdraw from adventure currency to main currency."""
+    @commands_adventureset_economy.command(name="withdraw", hidden=True)
+    @commands.is_owner()
+    async def commands_adventureset_economy_withdraw(self, ctx: commands.Context):
+        """[Admin] Toggle whether users are allowed to withdraw from adventure currency to main currency."""
 
-    #     if await bank.is_global(_forced=True):
-    #         state = await self.config.disallow_withdraw()
-    #         await self.config.disallow_withdraw.set(not state)
-    #     else:
-    #         state = await self.config.guild(ctx.guild).disallow_withdraw()
-    #         await self.config.guild(ctx.guild).disallow_withdraw.set(not state)
+        if await bank.is_global(_forced=True):
+            state = await self.config.disallow_withdraw()
+            await self.config.disallow_withdraw.set(not state)
+        else:
+            state = await self.config.guild(ctx.guild).disallow_withdraw()
+            await self.config.guild(ctx.guild).disallow_withdraw.set(not state)
 
-    #     await smart_embed(
-    #         ctx,
-    #         _("Adventurers are now {state} to withdraw money from adventure currency.").format(
-    #             state=_("allowed") if not state else _("disallowed")
-    #         ),
-    #     )
+        await smart_embed(
+            ctx,
+            _("Adventurers are now {state} to withdraw money from adventure currency.").format(
+                state=_("allowed") if not state else _("disallowed")
+            ),
+        )
 
-    # @adventureset.command(name="advcooldown", hidden=True)
-    # @commands.admin_or_permissions(administrator=True)
-    # @commands.guild_only()
-    # async def advcooldown(self, ctx: commands.Context, *, time_in_seconds: int):
-    #     """[Admin] Changes the cooldown/gather time after an adventure.
+    @adventureset.command(name="advcooldown", hidden=True)
+    @commands.is_owner()
+    @commands.guild_only()
+    async def advcooldown(self, ctx: commands.Context, *, time_in_seconds: int):
+        """[Admin] Changes the cooldown/gather time after an adventure.
 
-    #     Default is 120 seconds.
-    #     """
-    #     if time_in_seconds < 30:
-    #         return await smart_embed(ctx, _("Cooldown cannot be set to less than 30 seconds."))
+        Default is 120 seconds.
+        """
+        if time_in_seconds < 30:
+            return await smart_embed(ctx, _("Cooldown cannot be set to less than 30 seconds."))
 
-    #     await self.config.guild(ctx.guild).cooldown_timer_manual.set(time_in_seconds)
-    #     await smart_embed(
-    #         ctx,
-    #         _("Adventure cooldown set to {cooldown} seconds.").format(cooldown=time_in_seconds),
-    #     )
+        await self.config.guild(ctx.guild).cooldown_timer_manual.set(time_in_seconds)
+        await smart_embed(
+            ctx,
+            _("Adventure cooldown set to {cooldown} seconds.").format(cooldown=time_in_seconds),
+        )
 
-    # @adventureset.command()
-    # async def version(self, ctx: commands.Context):
-    #     """Display the version of adventure being used."""
-    #     await ctx.send(
-    #         box(
-    #             _("Adventure version: {version}\nRepo: {repo}\nCommit: {commit}").format(
-    #                 version=self.__version__, repo=self._repo, commit=self._commit
-    #             )
-    #         )
-    #     )
+    @adventureset.command()
+    async def version(self, ctx: commands.Context):
+        """Display the version of adventure being used."""
+        await ctx.send(
+            box(
+                _("Adventure version: {version}\nRepo: {repo}\nCommit: {commit}").format(
+                    version=self.__version__, repo=self._repo, commit=self._commit
+                )
+            )
+        )
 
     @adventureset.command()
     @commands.admin_or_permissions(administrator=True)
@@ -324,35 +326,35 @@ class AdventureSetCommands(AdventureMixin):
         await self.config.guild(ctx.guild).god_name.set(name)
         await ctx.tick()
 
-    # @adventureset.command()
-    # @commands.is_owner()
-    # async def globalgod(self, ctx: commands.Context, *, name):
-    #     """[Owner] Set the default name of the god."""
-    #     await self.config.god_name.set(name)
-    #     await ctx.tick()
+    @adventureset.command(hidden=True)
+    @commands.is_owner()
+    async def globalgod(self, ctx: commands.Context, *, name):
+        """[Owner] Set the default name of the god."""
+        await self.config.god_name.set(name)
+        await ctx.tick()
 
-    # @adventureset.command(aliases=["embed"])
-    # @commands.admin_or_permissions(administrator=True)
-    # async def embeds(self, ctx: commands.Context):
-    #     """[Admin] Set whether or not to use embeds for the adventure game."""
-    #     toggle = await self.config.guild(ctx.guild).embed()
-    #     await self.config.guild(ctx.guild).embed.set(not toggle)
-    #     await smart_embed(ctx, _("Embeds: {}").format(not toggle))
+    @adventureset.command(aliases=["embed"], hidden=True)
+    @commands.is_owner()
+    async def embeds(self, ctx: commands.Context):
+        """[Admin] Set whether or not to use embeds for the adventure game."""
+        toggle = await self.config.guild(ctx.guild).embed()
+        await self.config.guild(ctx.guild).embed.set(not toggle)
+        await smart_embed(ctx, _("Embeds: {}").format(not toggle))
 
-    # @adventureset.command(aliases=["chests"], enabled=False, hidden=True)
-    # @commands.is_owner()
-    # async def cartchests(self, ctx: commands.Context):
-    #     """[Admin] Set whether or not to sell chests in the cart."""
-    #     toggle = await self.config.enable_chests()
-    #     await self.config.enable_chests.set(not toggle)
-    #     await smart_embed(ctx, _("Carts can sell chests: {}").format(not toggle))
+    @adventureset.command(aliases=["chests"], enabled=False, hidden=True)
+    @commands.is_owner()
+    async def cartchests(self, ctx: commands.Context):
+        """[Admin] Set whether or not to sell chests in the cart."""
+        toggle = await self.config.enable_chests()
+        await self.config.enable_chests.set(not toggle)
+        await smart_embed(ctx, _("Carts can sell chests: {}").format(not toggle))
 
-    # @adventureset.command()
-    # @commands.admin_or_permissions(administrator=True)
-    # async def cartname(self, ctx: commands.Context, *, name):
-    #     """[Admin] Set the server's name of the cart."""
-    #     await self.config.guild(ctx.guild).cart_name.set(name)
-    #     await ctx.tick()
+    @adventureset.command()
+    @commands.is_owner()
+    async def cartname(self, ctx: commands.Context, *, name):
+        """[Admin] Set the server's name of the cart."""
+        await self.config.guild(ctx.guild).cart_name.set(name)
+        await ctx.tick()
 
     @adventureset.command()
     @commands.admin_or_permissions(administrator=True)
@@ -438,56 +440,56 @@ class AdventureSetCommands(AdventureMixin):
             )
         )
 
-    # @adventureset.command()
-    # @commands.is_owner()
-    # async def globalcartname(self, ctx: commands.Context, *, name):
-    #     """[Owner] Set the default name of the cart."""
-    #     await self.config.cart_name.set(name)
-    #     await ctx.tick()
+    @adventureset.command(hidden=True)
+    @commands.is_owner()
+    async def globalcartname(self, ctx: commands.Context, *, name):
+        """[Owner] Set the default name of the cart."""
+        await self.config.cart_name.set(name)
+        await ctx.tick()
 
-    # @adventureset.command()
-    # @commands.is_owner()
-    # async def theme(self, ctx: commands.Context, *, theme):
-    #     """[Owner] Change the theme for adventure.
+    @adventureset.command(hidden=True)
+    @commands.is_owner()
+    async def theme(self, ctx: commands.Context, *, theme):
+        """[Owner] Change the theme for adventure.
 
-    #     The default theme is `default`.
-    #     More info can be found at: <https://github.com/aikaterna/gobcog#make-your-own-adventure-theme>
-    #     """
-    #     if theme == "default":
-    #         await self.config.theme.set("default")
-    #         await smart_embed(ctx, _("Going back to the default theme."))
-    #         await self.initialize()
-    #         return
-    #     if theme not in os.listdir(cog_data_path(self)):
-    #         await smart_embed(ctx, _("That theme pack does not exist!"))
-    #         return
-    #     good_files = [
-    #         "as_monsters.json",
-    #         "attribs.json",
-    #         "locations.json",
-    #         "monsters.json",
-    #         "pets.json",
-    #         "raisins.json",
-    #         "threatee.json",
-    #         "tr_set.json",
-    #         "prefixes.json",
-    #         "materials.json",
-    #         "equipment.json",
-    #         "suffixes.json",
-    #         "set_bonuses.json",
-    #     ]
-    #     missing_files = list(set(good_files).difference(os.listdir(cog_data_path(self) / theme)))
+        The default theme is `default`.
+        More info can be found at: <https://github.com/aikaterna/gobcog#make-your-own-adventure-theme>
+        """
+        if theme == "default":
+            await self.config.theme.set("default")
+            await smart_embed(ctx, _("Going back to the default theme."))
+            await self.initialize()
+            return
+        if theme not in os.listdir(cog_data_path(self)):
+            await smart_embed(ctx, _("That theme pack does not exist!"))
+            return
+        good_files = [
+            "as_monsters.json",
+            "attribs.json",
+            "locations.json",
+            "monsters.json",
+            "pets.json",
+            "raisins.json",
+            "threatee.json",
+            "tr_set.json",
+            "prefixes.json",
+            "materials.json",
+            "equipment.json",
+            "suffixes.json",
+            "set_bonuses.json",
+        ]
+        missing_files = list(set(good_files).difference(os.listdir(cog_data_path(self) / theme)))
 
-    #     if missing_files:
-    #         await smart_embed(
-    #             ctx,
-    #             _("That theme pack is missing the following files: {}.").format(humanize_list(missing_files)),
-    #         )
-    #         return
-    #     else:
-    #         await self.config.theme.set(theme)
-    #         await ctx.tick()
-    #     await self.initialize()
+        if missing_files:
+            await smart_embed(
+                ctx,
+                _("That theme pack is missing the following files: {}.").format(humanize_list(missing_files)),
+            )
+            return
+        else:
+            await self.config.theme.set(theme)
+            await ctx.tick()
+        await self.initialize()
 
     @adventureset.command()
     @commands.admin_or_permissions(administrator=True)

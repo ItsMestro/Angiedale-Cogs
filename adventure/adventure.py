@@ -162,7 +162,7 @@ class Adventure(
         self.locks: MutableMapping[int, asyncio.Lock] = {}
         self.gb_task = None
 
-        self.config = Config.get_conf(self, 2_710_801_001, force_registration=True)
+        self.config = Config.get_conf(self, identifier=1387000, cog_name="Adventure", force_registration=True)
         self._daily_bonus = {}
         self._separate_economy = None
 
