@@ -11,12 +11,11 @@ from zipfile import ZipFile
 import discord
 import requests
 from dateutil.easter import easter
-from redbot.core import Config, bank, commands
+from redbot.core import Config, commands
 from redbot.core.bot import Red
 from redbot.core.data_manager import cog_data_path
 from redbot.core.utils import AsyncIter
 from redbot.core.utils.chat_formatting import (
-    box,
     humanize_list,
     humanize_number,
     humanize_timedelta,
@@ -34,28 +33,6 @@ RUNNING_ANNOUNCEMENT = (
     " different announcement please use `{prefix}announce cancel`"
     " first."
 )
-
-
-def is_owner_if_bank_global():
-    """
-    Command decorator. If the bank is global, it checks if the author is
-    bot owner, otherwise it only checks
-    if command was used in guild - it DOES NOT check any permissions.
-
-    When used on the command, this should be combined
-    with permissions check like `guildowner_or_permissions()`.
-    """
-
-    async def pred(ctx):
-        author = ctx.author
-        if not await bank.is_global():
-            if not ctx.guild:
-                return False
-            return True
-        else:
-            return await ctx.bot.is_owner(author)
-
-    return commands.check(pred)
 
 
 class Owner(commands.Cog):
@@ -659,98 +636,6 @@ class Owner(commands.Cog):
         elif len(new_statuses) == 1:
             return new_statuses[0]
         return current
-
-    @is_owner_if_bank_global()
-    @commands.guildowner_or_permissions(administrator=True)
-    @commands.group()
-    async def bankset(self, ctx):
-        """Base command for bank settings."""
-
-    @bankset.command(name="showsettings")
-    async def bankset_showsettings(self, ctx):
-        """Show the current bank settings."""
-        cur_setting = await bank.is_global()
-        if cur_setting:
-            group = bank._config
-        else:
-            if not ctx.guild:
-                return
-            group = bank._config.guild(ctx.guild)
-        group_data = await group.all()
-        bank_name = group_data["bank_name"]
-        bank_scope = ("Global") if cur_setting else ("Server")
-        currency_name = group_data["currency"]
-        default_balance = group_data["default_balance"]
-        max_balance = group_data["max_balance"]
-
-        settings = (
-            "Bank settings:\n\nBank name: {bank_name}\nBank scope: {bank_scope}\n"
-            "Currency: {currency_name}\nDefault balance: {default_balance}\n"
-            "Maximum allowed balance: {maximum_bal}\n"
-        ).format(
-            bank_name=bank_name,
-            bank_scope=bank_scope,
-            currency_name=currency_name,
-            default_balance=humanize_number(default_balance),
-            maximum_bal=humanize_number(max_balance),
-        )
-        await ctx.send(box(settings))
-
-    @bankset.command(name="toggleglobal")
-    @commands.is_owner()
-    async def bankset_toggleglobal(self, ctx, confirm: bool = False):
-        """Toggle whether the bank is global or not.
-
-        If the bank is global, it will become per-server.
-        If the bank is per-server, it will become global.
-        """
-        cur_setting = await bank.is_global()
-
-        word = ("per-server") if cur_setting else ("global")
-        if confirm is False:
-            await ctx.send(
-                (
-                    "This will toggle the bank to be {banktype}, deleting all accounts "
-                    "in the process! If you're sure, type `{command}`"
-                ).format(banktype=word, command=f"{ctx.clean_prefix}bankset toggleglobal yes")
-            )
-        else:
-            await bank.set_global(not cur_setting)
-            await ctx.send(("The bank is now {banktype}.").format(banktype=word))
-
-    @is_owner_if_bank_global()
-    @commands.guildowner_or_permissions(administrator=True)
-    @bankset.command(name="bankname")
-    async def bankset_bankname(self, ctx, *, name: str):
-        """Set the bank's name."""
-        await bank.set_bank_name(name, ctx.guild)
-        await ctx.send(("Bank name has been set to: {name}").format(name=name))
-
-    @is_owner_if_bank_global()
-    @commands.guildowner_or_permissions(administrator=True)
-    @bankset.command(name="creditsname")
-    async def bankset_creditsname(self, ctx, *, name: str):
-        """Set the name for the bank's currency."""
-        await bank.set_currency_name(name, ctx.guild)
-        await ctx.send(("Currency name has been set to: {name}").format(name=name))
-
-    @is_owner_if_bank_global()
-    @commands.guildowner_or_permissions(administrator=True)
-    @bankset.command(name="maxbal")
-    async def bankset_maxbal(self, ctx, *, amount: int):
-        """Set the maximum balance a user can get."""
-        try:
-            await bank.set_max_balance(amount, ctx.guild)
-        except ValueError:
-            # noinspection PyProtectedMember
-            return await ctx.send(
-                ("Amount must be greater than zero and less than {max}.").format(
-                    max=humanize_number(bank._MAX_BALANCE)
-                )
-            )
-        await ctx.send(
-            ("Maximum balance has been set to: {amount}").format(amount=humanize_number(amount))
-        )
 
     @commands.command(name="forcerolemutes")
     @commands.is_owner()
