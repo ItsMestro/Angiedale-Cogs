@@ -11,7 +11,7 @@ from zipfile import ZipFile
 import discord
 import requests
 from dateutil.easter import easter
-from redbot.core import Config, bank, checks, commands
+from redbot.core import Config, bank, commands
 from redbot.core.bot import Red
 from redbot.core.data_manager import cog_data_path
 from redbot.core.utils import AsyncIter
@@ -275,8 +275,15 @@ class Owner(commands.Cog):
         else:
             await ctx.send(("The bot is now serverlocked."))
 
-    async def say(self, ctx, channel: Optional[discord.TextChannel], text: str, files: list,mentions: discord.AllowedMentions = None,
-        delete: int = None,):
+    async def say(
+        self,
+        ctx,
+        channel: Optional[discord.TextChannel],
+        text: str,
+        files: list,
+        mentions: discord.AllowedMentions = None,
+        delete: int = None,
+    ):
         if not channel:
             channel = ctx.channel
         if not text and not files:
@@ -400,7 +407,6 @@ class Owner(commands.Cog):
         self.interaction.append(u)
 
         while True:
-
             if u not in self.interaction:
                 return
 
