@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from redbot.core import checks, commands
+from redbot.core import commands
 from redbot.core.utils.chat_formatting import humanize_timedelta
 
 from .abc import MixinMeta

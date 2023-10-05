@@ -5,15 +5,15 @@ from abc import ABC
 from collections import defaultdict, namedtuple
 from copy import copy
 from datetime import datetime, timezone
-from typing import Dict, Literal, Union, cast, Optional
+from typing import Dict, Literal, Optional, Union, cast
 
 import discord
-from redbot.core import Config, checks, commands, modlog
+from redbot.core import Config, commands, modlog
 from redbot.core.bot import Red
 from redbot.core.commands import UserInputOptional
 from redbot.core.utils import AsyncIter
 from redbot.core.utils._internal_utils import send_to_owners_with_prefix_replaced
-from redbot.core.utils.chat_formatting import pagify, inline
+from redbot.core.utils.chat_formatting import inline, pagify
 from redbot.core.utils.menus import DEFAULT_CONTROLS, menu
 from redbot.core.utils.mod import get_audit_reason
 
@@ -83,7 +83,10 @@ class Mod(
         "banned_until": False,
     }
 
-    default_user_settings = {"past_names": [], "past_display_names": [],}
+    default_user_settings = {
+        "past_names": [],
+        "past_display_names": [],
+    }
 
     def __init__(self, bot: Red):
         super().__init__()

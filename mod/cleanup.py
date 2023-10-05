@@ -4,15 +4,14 @@ from datetime import datetime, timedelta, timezone
 from typing import Callable, List, Optional, Set, Union
 
 import discord
-from redbot.cogs.mod.converters import RawUserIds
-from redbot.core import checks, commands
-from redbot.core.commands import Context, permissions_check, RawUserIdConverter
+from redbot.core import commands
+from redbot.core.commands import Context, RawUserIdConverter, permissions_check
 from redbot.core.utils.chat_formatting import humanize_number
 from redbot.core.utils.mod import check_permissions, is_mod_or_superior, mass_purge, slow_deletion
 from redbot.core.utils.predicates import MessagePredicate
 
 from .abc import MixinMeta
-from .converters import PositiveInt, RawMessageIds, positive_int
+from .converters import RawMessageIds, positive_int
 
 log = logging.getLogger("red.angiedale.mod.cleanup")
 

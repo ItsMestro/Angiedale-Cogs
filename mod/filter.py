@@ -1,11 +1,10 @@
 import asyncio
 import logging
 import re
-from datetime import timezone
-from typing import Set, Union, Optional
+from typing import Optional, Set, Union
 
 import discord
-from redbot.core import checks, commands, modlog
+from redbot.core import commands, modlog
 from redbot.core.utils.chat_formatting import humanize_list, pagify
 from redbot.core.utils.predicates import MessagePredicate
 
@@ -349,7 +348,6 @@ class Filter(MixinMeta):
             discord.Thread,
         ],
     ) -> Set[str]:
-
         if isinstance(server_or_channel, discord.Guild):
             guild = server_or_channel
             channel = None

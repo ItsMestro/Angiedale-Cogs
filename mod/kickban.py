@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Tuple, Union
 
 import discord
-from redbot.core import checks, commands, modlog
+from redbot.core import commands, modlog
 from redbot.core.commands import RawUserIdConverter
 from redbot.core.utils import AsyncIter
 from redbot.core.utils.chat_formatting import (
@@ -18,7 +18,6 @@ from redbot.core.utils.chat_formatting import (
 from redbot.core.utils.mod import get_audit_reason
 
 from .abc import MixinMeta
-from .converters import RawUserIds
 from .utils import is_allowed_by_hierarchy
 
 log = logging.getLogger("red.angiedale.mod.kickban")

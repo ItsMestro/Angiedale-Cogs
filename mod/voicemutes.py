@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
 
 import discord
-from redbot.core import checks, commands, modlog
+from redbot.core import commands, modlog
 from redbot.core.utils.chat_formatting import (
     format_perms_list,
     humanize_list,

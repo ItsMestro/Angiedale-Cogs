@@ -1,9 +1,8 @@
 import logging
 from collections import defaultdict, deque
-from datetime import timezone
+from typing import List, Optional
 
 import discord
-from typing import List, Optional
 from redbot.core import commands, modlog
 from redbot.core.utils.mod import is_mod_or_superior
 
@@ -14,7 +13,7 @@ log = logging.getLogger("red.angiedale.mod.events")
 
 class Events(MixinMeta):
     """
-    This is a mixin for the core mod cog
+    This is a mixin for the core mod cogs
     Has a bunch of things split off to here.
     """
 

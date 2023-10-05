@@ -5,7 +5,7 @@ from math import ceil
 from typing import Optional, Union
 
 import discord
-from redbot.core import checks, commands
+from redbot.core import commands
 from redbot.core.utils.chat_formatting import bold, humanize_timedelta, pagify
 from redbot.core.utils.menus import DEFAULT_CONTROLS, close_menu, menu
 

@@ -5,9 +5,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Tuple, Union, cast
 
 import discord
-from redbot.core import checks, commands, modlog
-from redbot.core.utils import bounded_gather
-from redbot.core.utils import can_user_react_in
+from redbot.core import commands, modlog
+from redbot.core.utils import bounded_gather, can_user_react_in
 from redbot.core.utils.chat_formatting import (
     bold,
     humanize_list,
@@ -1245,7 +1244,7 @@ class Mutes(MixinMeta):
         if not await self.is_allowed_by_hierarchy(guild, author, user):
             ret["reason"] = MUTE_UNMUTE_ISSUES["hierarchy_problem"]
             return ret
-        
+
         if mute_role:
             role = guild.get_role(mute_role)
             if not role:
