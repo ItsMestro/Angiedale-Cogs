@@ -1,5 +1,5 @@
 import discord
-from redbot.core import checks, commands
+from redbot.core import commands
 from typing import Union
 
 from .helpers import get_command_for_dropping_points, get_command_for_exceeded_points

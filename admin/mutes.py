@@ -3,7 +3,7 @@ from datetime import timedelta
 from typing import Optional, Union
 
 import discord
-from redbot.core import checks, commands
+from redbot.core import commands
 from redbot.core.utils import bounded_gather
 from redbot.core.utils.chat_formatting import humanize_list, humanize_timedelta, pagify
 

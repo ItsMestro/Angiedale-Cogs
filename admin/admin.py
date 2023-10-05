@@ -5,12 +5,12 @@ from datetime import datetime
 from typing import List, Literal, Union
 
 import discord
-from redbot.core import Config, checks, commands, modlog
+from redbot.core import Config, commands, modlog
 from redbot.core.bot import Red
 from redbot.core.utils import AsyncIter
-from redbot.core.utils.mod import get_audit_reason
 from redbot.core.utils.chat_formatting import inline
 from redbot.core.utils.menus import start_adding_reactions
+from redbot.core.utils.mod import get_audit_reason
 from redbot.core.utils.predicates import MessagePredicate, ReactionPredicate
 
 from .converters import (
@@ -122,11 +122,7 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
         "toggle_channel": False,
     }
 
-    default_member_warnings = {
-        "total_points": 0,
-        "status": "",
-        "warnings": {}
-    }
+    default_member_warnings = {"total_points": 0, "status": "", "warnings": {}}
 
     def __init__(self, bot: Red):
         self.bot = bot
@@ -346,7 +342,11 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
     @commands.guild_only()
     @commands.admin_or_permissions(manage_roles=True)
     async def addrole(
-        self, ctx: commands.Context, rolename: discord.Role, *, user: discord.Member = commands.Author,
+        self,
+        ctx: commands.Context,
+        rolename: discord.Role,
+        *,
+        user: discord.Member = commands.Author,
     ):
         """
         Add a role to a user.
@@ -360,7 +360,11 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
     @commands.guild_only()
     @commands.admin_or_permissions(manage_roles=True)
     async def removerole(
-        self, ctx: commands.Context, rolename: discord.Role, *, user: discord.Member = commands.Author,
+        self,
+        ctx: commands.Context,
+        rolename: discord.Role,
+        *,
+        user: discord.Member = commands.Author,
     ):
         """
         Remove a role from a user.
@@ -691,7 +695,9 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
     @commands.command()
     @commands.admin_or_permissions(administrator=True)
     @commands.guild_only()
-    async def leavers(self, ctx: commands.Context, channel: Union[discord.TextChannel, discord.Thread] = None):
+    async def leavers(
+        self, ctx: commands.Context, channel: Union[discord.TextChannel, discord.Thread] = None
+    ):
         """Sets a channel that logs when users leave.
         Leave blank to stop logging."""
         if channel:

@@ -2,7 +2,7 @@ import asyncio
 from collections import defaultdict, deque
 from datetime import timedelta
 
-from redbot.core import checks, commands
+from redbot.core import commands
 from redbot.core.utils import AsyncIter
 from redbot.core.utils.chat_formatting import box, humanize_timedelta, inline
 
