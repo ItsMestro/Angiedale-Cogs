@@ -1,21 +1,22 @@
 import asyncio
 import logging
 import os
-from osu.tools import del_message
 import re
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from random import choice
 from typing import Optional, Union
 
 import discord
 import gspread
 from PIL import Image, ImageDraw, ImageFont
-from redbot.core import Config, checks, commands
+from redbot.core import Config, commands
 from redbot.core.bot import Red
 from redbot.core.data_manager import bundled_data_path, cog_data_path
 from redbot.core.utils.chat_formatting import humanize_number, humanize_timedelta
 from redbot.core.utils.menus import start_adding_reactions
-from redbot.core.utils.predicates import ReactionPredicate, MessagePredicate
+from redbot.core.utils.predicates import MessagePredicate, ReactionPredicate
+
+from osu.tools import del_message
 
 log = logging.getLogger("red.angiedale.ttools")
 
@@ -583,7 +584,7 @@ class TTools(commands.Cog):
         permusers[ctx.guild.me] = perms
         permusers[ctx.guild.default_role] = defaultperms
         for ar in await self.bot.get_admin_roles(ctx.guild):
-           permusers[ar] = perms
+            permusers[ar] = perms
 
         regchannel = await regcategory.create_text_channel(
             name=f"{ctx.author.name}",
@@ -829,15 +830,11 @@ class TTools(commands.Cog):
                         )
                         return embed
                     elif embed_field.name.startswith(f"P{player}"):
-                        embed.insert_field_at(
-                            i, name=f"Player {player} ID", value=id, inline=True
-                        )
-                        embed.insert_field_at(
-                            i, name=f"Player {player}", value=name, inline=True
-                        )
+                        embed.insert_field_at(i, name=f"Player {player} ID", value=id, inline=True)
+                        embed.insert_field_at(i, name=f"Player {player}", value=name, inline=True)
                         return embed
                     i += 1
-                
+
                 if embed.fields[-1].name.startswith("Player"):
                     new_player = int(embed.fields[-1].name[-4]) + 1
                 else:
@@ -943,9 +940,7 @@ class TTools(commands.Cog):
 
             channel_settings["players"][0]["id"] = player_id
             channel_settings["players"][0]["name"] = player_name
-            new_embed = await self.set_registration(
-                embed_msg, 1, name=player_name, id=player_id
-            )
+            new_embed = await self.set_registration(embed_msg, 1, name=player_name, id=player_id)
             await embed_msg.edit(embed=new_embed)
 
             reg_status = 0
@@ -1168,7 +1163,7 @@ class TTools(commands.Cog):
             return await ctx.send(
                 f"Your team doesn't have a team name yet. Set one using `{ctx.clean_prefix}teamname <name>`"
             )
-        
+
         processing_msg = await ctx.send("Processing...")
 
         serverkey = await self.serverkey(ctx)
