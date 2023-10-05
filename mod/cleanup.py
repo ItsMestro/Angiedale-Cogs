@@ -5,13 +5,13 @@ from typing import Callable, List, Optional, Set, Union
 
 import discord
 from redbot.core import commands
-from redbot.core.commands import Context, RawUserIdConverter, permissions_check
+from redbot.core.commands import Context, RawUserIdConverter, permissions_check, positive_int
 from redbot.core.utils.chat_formatting import humanize_number
 from redbot.core.utils.mod import check_permissions, is_mod_or_superior, mass_purge, slow_deletion
 from redbot.core.utils.predicates import MessagePredicate
 
 from .abc import MixinMeta
-from .converters import RawMessageIds, positive_int
+from .converters import RawMessageIds
 
 log = logging.getLogger("red.angiedale.mod.cleanup")
 
