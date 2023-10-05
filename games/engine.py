@@ -1,11 +1,13 @@
 # Standard Library
 import calendar
 from functools import wraps
+
 # Casino
 from typing import Optional
 
 # Discord
 import discord
+
 # Red
 from redbot.core import bank
 from redbot.core.errors import BalanceTooHigh
@@ -37,33 +39,33 @@ def game_engine(name=None, choice=None, choices=None):
 class GameEngine(Database):
     """A class that handles setup and teardown for games.
 
-        This is a helper class to make games easier to create games and to
-        provide a level of consistency. This class is only to be used
-        in conjunction with the game_engine decorator.
+    This is a helper class to make games easier to create games and to
+    provide a level of consistency. This class is only to be used
+    in conjunction with the game_engine decorator.
 
-        You only need to specify the name, and depending on the game, a choice or
-        a list of choices to choose from. The decorater will obtain the rest of the
-        attributes.
+    You only need to specify the name, and depending on the game, a choice or
+    a list of choices to choose from. The decorater will obtain the rest of the
+    attributes.
 
-        Attributes
-        -----------
-        game: str
-            The name of the game.
-        choice: str
-            The decision the player chose for the game. When a decision is not
-            required, leave it None.
-        choices: list
-            A list of choices the player must pick from. If a list of choices is not
-            required, leave it None.
-        ctx: object
-            The Red context object necessary for sending/waiting for messages.
-        player: object
-            User or member object necessary for interacting with the player.
-        guild: object
-            The guild object from the Red Context object. This is used to pull data
-            from config.
-        bet: int
-            The amount the player has wagered.
+    Attributes
+    -----------
+    game: str
+        The name of the game.
+    choice: str
+        The decision the player chose for the game. When a decision is not
+        required, leave it None.
+    choices: list
+        A list of choices the player must pick from. If a list of choices is not
+        required, leave it None.
+    ctx: object
+        The Red context object necessary for sending/waiting for messages.
+    player: object
+        User or member object necessary for interacting with the player.
+    guild: object
+        The guild object from the Red Context object. This is used to pull data
+        from config.
+    bet: int
+        The amount the player has wagered.
 
     """
 
@@ -102,10 +104,10 @@ class GameEngine(Database):
         access = self.access_calculator(settings["Memberships"], player_data["Membership"]["Name"])
 
         if not settings["Settings"]["Casino_Open"]:
-            error = ("The Casino is closed.")
+            error = "The Casino is closed."
 
         elif not settings["Games"][self.game]["Open"]:
-            error = ("{} is closed.".format(self.game))
+            error = "{} is closed.".format(self.game)
 
         elif settings["Games"][self.game]["Access"] > access:
             error = (
@@ -114,20 +116,19 @@ class GameEngine(Database):
             ).format(self.game, settings["Games"][self.game]["Access"], access)
 
         elif self.choices is not None and self.choice not in self.choices:
-            error = ("Incorrect response. Accepted responses are:\n{}.").format(utils.fmt_join(self.choices))
+            error = ("Incorrect response. Accepted responses are:\n{}.").format(
+                utils.fmt_join(self.choices)
+            )
 
         elif not self.bet_in_range(
             settings["Games"][self.game]["Min"], settings["Games"][self.game]["Max"]
         ):
-            error = (
-                "Your bet must be between "
-                "{} and {}.".format(
-                    settings["Games"][self.game]["Min"], settings["Games"][self.game]["Max"]
-                )
+            error = "Your bet must be between " "{} and {}.".format(
+                settings["Games"][self.game]["Min"], settings["Games"][self.game]["Max"]
             )
 
         elif not await bank.can_spend(self.player, self.bet):
-            error = ("You do not have enough credits to cover the bet.")
+            error = "You do not have enough credits to cover the bet."
 
         else:
             error = await self.check_cooldown(settings["Games"][self.game], player_data)
@@ -179,7 +180,9 @@ class GameEngine(Database):
         else:
             seconds = int((user_time + reduction - now))
             remaining = utils.time_formatter(seconds)
-            msg = ("{} is still on a cooldown. You still have: {} remaining.").format(self.game, remaining)
+            msg = ("{} is still on a cooldown. You still have: {} remaining.").format(
+                self.game, remaining
+            )
             return msg
 
     async def game_teardown(self, result):

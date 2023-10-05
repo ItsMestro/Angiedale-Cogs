@@ -12,17 +12,16 @@ from random import choice
 from typing import Any, Dict, Final, Iterable, List, Literal, Union, cast
 
 import discord
+import schema
 import yaml
-from redbot.core import Config, bank, checks, commands, errors
-from redbot.core.utils import can_user_react_in
+from redbot.core import Config, bank, commands, errors
 from redbot.core.bot import Red
 from redbot.core.data_manager import cog_data_path
 from redbot.core.errors import BalanceTooHigh
-from redbot.core.utils import AsyncIter
+from redbot.core.utils import AsyncIter, can_user_react_in
 from redbot.core.utils.chat_formatting import bold, box, humanize_number, pagify
 from redbot.core.utils.menus import start_adding_reactions
 from redbot.core.utils.predicates import MessagePredicate, ReactionPredicate
-import schema
 from tabulate import tabulate
 
 from . import utils
@@ -31,8 +30,8 @@ from .checks import trivia_stop_check
 from .converters import finite_float
 from .data import Database
 from .session import TriviaSession
-from .utils import is_input_unsupported
 from .triviaschema import TRIVIA_LIST_SCHEMA, format_schema_error
+from .utils import is_input_unsupported
 
 __all__ = ["get_core_lists"]
 
@@ -941,7 +940,7 @@ class Games(Database, commands.Cog):
                 )
             )
             return
-        
+
         await ctx.send(("Saved Trivia list as {filename}.").format(filename=filename))
 
     def _get_trivia_session(
@@ -2077,7 +2076,6 @@ class Membership(Database):
             await self.ctx.send(("Deletion canceled."))
 
     async def creator(self):
-
         await self.ctx.send(
             _(
                 "You are about to create a new membership. You may exit this "
