@@ -185,7 +185,6 @@ class API(commands.Cog):
             return items
 
     async def _request(self, query, variables=None):
-
         if variables is None:
             variables = {}
 
@@ -200,7 +199,6 @@ class API(commands.Cog):
                 return await response.json()
 
     async def _search_anime_manga(self, ctx, cmd, entered_title):
-
         # Outputs MediaStatuses to strings
         MediaStatusToString = {
             # Has completed and is no longer being released
@@ -218,7 +216,6 @@ class API(commands.Cog):
         data = (await self._request(SEARCH_ANIME_MANGA_QUERY, variables))["data"]["Page"]["media"]
 
         if data is not None and len(data) > 0:
-
             # a list of embeds
             embeds = []
 
@@ -278,7 +275,6 @@ class API(commands.Cog):
             return None
 
     async def _search_character(self, ctx, entered_title):
-
         variables = {"search": entered_title, "page": 1}
 
         data = (await self._request(SEARCH_CHARACTER_QUERY, variables))["data"]["Page"][
@@ -286,7 +282,6 @@ class API(commands.Cog):
         ]
 
         if data is not None and len(data) > 0:
-
             # a list of embeds
             embeds = []
 
@@ -327,13 +322,11 @@ class API(commands.Cog):
             return None
 
     async def _search_user(self, ctx, entered_title):
-
         variables = {"search": entered_title, "page": 1}
 
         data = (await self._request(SEARCH_USER_QUERY, variables))["data"]["Page"]["users"]
 
         if data is not None and len(data) > 0:
-
             # a list of embeds
             embeds = []
 
