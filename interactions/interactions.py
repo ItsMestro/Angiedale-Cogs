@@ -7,7 +7,7 @@ from typing import Optional
 import aiohttp
 import discord
 from bs4 import BeautifulSoup
-from redbot.core import Config, checks, commands
+from redbot.core import Config, commands
 from redbot.core.bot import Red
 from redbot.core.data_manager import bundled_data_path
 
@@ -292,7 +292,6 @@ class Interactions(commands.Cog):
         self.bonks += 1
 
     async def fetch_nekos_life(self, ctx, rp_action):
-
         async with aiohttp.ClientSession() as session:
             async with session.get(
                 f"https://api.nekos.dev/api/v3/images/sfw/gif/{rp_action}/?count=20"
