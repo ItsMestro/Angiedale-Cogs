@@ -314,16 +314,16 @@ class Mod(
                         guild_data["mention_spam"]["ban"] = current_state
             await self.config.version.set("1.3.0")
 
-        schema_version = await self.config.schema_version()
+        schema_version = await self.mutesconfig.schema_version()
 
         if schema_version == 0:
             await self._schema_0_to_1()
             schema_version += 1
-            await self.config.schema_version.set(schema_version)
+            await self.mutesconfig.schema_version.set(schema_version)
 
     async def _schema_0_to_1(self):
         """This contains conversion that adds guild ID to channel mutes data."""
-        all_channels = await self.config.all_channels()
+        all_channels = await self.mutesconfig.all_channels()
         if not all_channels:
             return
 
@@ -335,11 +335,13 @@ class Mod(
             try:
                 if (channel := self.bot.get_channel(channel_id)) is None:
                     channel = await self.bot.fetch_channel(channel_id)
-                async with self.config.channel_from_id(channel_id).muted_users() as muted_users:
+                async with self.mutesconfig.channel_from_id(
+                    channel_id
+                ).muted_users() as muted_users:
                     for mute_id, mute_data in muted_users.items():
                         mute_data["guild"] = channel.guild.id
             except (discord.NotFound, discord.Forbidden):
-                await self.config.channel_from_id(channel_id).clear()
+                await self.mutesconfig.channel_from_id(channel_id).clear()
 
         log.info(
             "Config conversion to schema_version 1 done. It took %s to proceed.",
