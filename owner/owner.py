@@ -68,7 +68,6 @@ class Owner(commands.Cog):
         return
 
     async def cog_load(self) -> None:
-        await self.bot.wait_until_ready()
         lock = self.adminconfig.get_guilds_lock()
         async with lock:
             # This prevents the edge case of someone loading admin,
