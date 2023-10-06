@@ -177,6 +177,7 @@ class General(Reports, commands.Cog):
 
     def __init__(self, bot: Red) -> None:
         super().__init__()
+        self.bot = bot
         self.stopwatches = {}
         self.channels = {}
         self.search_for_next_reminder = True
@@ -235,7 +236,7 @@ class General(Reports, commands.Cog):
         await self.bot.wait_until_ready()
         self.search_for_next_reminder = True
         while True:
-            current_time_seconds = int(datetime.datetime.now(datetime.UTC).timestamp())
+            current_time_seconds = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
             # Check if we need to send the current reminder
             if (
                 not self.next_reminder_to_send
@@ -307,9 +308,9 @@ class General(Reports, commands.Cog):
                             relativedelta(
                                 datetime.datetime.fromtimestamp(
                                     self.next_reminder_to_send["expires"],
-                                    datetime.UTC,
+                                    datetime.timezone.utc,
                                 ),
-                                datetime.datetime.now(datetime.UTC),
+                                datetime.datetime.now(datetime.timezone.utc),
                             )
                         ),
                     )
@@ -1708,7 +1709,7 @@ class General(Reports, commands.Cog):
         """
         await self._create_reminder(ctx, time_and_optional_text)
 
-    async def _create_reminder(self, ctx: commands.Context, time_and_optional_text):
+    async def _create_reminder(self, ctx: commands.Context, time_and_optional_text: ReminderTime):
         """Reminder creation function."""
         author = ctx.message.author
         maximum = await self.config.max_user_reminders()
@@ -1725,9 +1726,21 @@ class General(Reports, commands.Cog):
         if len(reminder_text) > 700:
             return await ctx.send("Your reminder text is too long.")
 
-        created_datetime = datetime.datetime.now(datetime.UTC)
-        expires_datetime = created_datetime + reminder_time.total_seconds()
+        created_datetime = datetime.datetime.now(datetime.timezone.utc)
         created_timestamp_int = int(created_datetime.timestamp())
+
+        try:
+            if created_datetime + reminder_time < created_datetime + datetime.timedelta(minutes=1):
+                await reply(ctx, "Reminder time must be at least 1 minute.")
+                return None
+            if created_datetime + reminder_time > created_datetime + datetime.timedelta(days=356):
+                await reply(ctx, "Reminder time is too large.")
+                return None
+        except (OverflowError, ValueError):
+            await reply(ctx, "Reminder time is too large.")
+            return None
+
+        expires_datetime = created_datetime + reminder_time
         expires_timestamp_int = int(expires_datetime.timestamp())
 
         new_reminder = {
@@ -1742,7 +1755,9 @@ class General(Reports, commands.Cog):
             return
 
         message = f"I will remind you of {'that' if len(reminder_text) > 0 else 'this'} "
-        message += f"in {humanize_relativedelta(reminder_time)} (<t:{expires_timestamp_int}:f>)."
+        message += (
+            f"in {humanize_timedelta(timedelta=reminder_time)} (<t:{expires_timestamp_int}:f>)."
+        )
 
         await reply(ctx, message)
 
@@ -1900,7 +1915,7 @@ class General(Reports, commands.Cog):
     ) -> discord.Embed:
         """Generate the reminder embed."""
         # Determine any delay
-        current_time = datetime.datetime.now(datetime.UTC)
+        current_time = datetime.datetime.now(datetime.timezone.utc)
         current_time_seconds = int(current_time.timestamp())
         delay = current_time_seconds - full_reminder["expires"]
         if delay < 30:
@@ -1924,14 +1939,20 @@ class General(Reports, commands.Cog):
             humanize_relativedelta(
                 relativedelta(
                     current_time,
-                    datetime.datetime.fromtimestamp(full_reminder["created"], datetime.UTC),
+                    datetime.datetime.fromtimestamp(
+                        full_reminder["created"], datetime.timezone.utc
+                    ),
                 )
             )
             if delay
             else humanize_relativedelta(
                 relativedelta(
-                    datetime.datetime.fromtimestamp(full_reminder["expires"], datetime.UTC),
-                    datetime.datetime.fromtimestamp(full_reminder["created"], datetime.UTC),
+                    datetime.datetime.fromtimestamp(
+                        full_reminder["expires"], datetime.timezone.utc
+                    ),
+                    datetime.datetime.fromtimestamp(
+                        full_reminder["created"], datetime.timezone.utc
+                    ),
                 )
             )
         )
