@@ -25,9 +25,7 @@ class Info(MixinMeta):
 
     @access.command()
     async def compare(self, ctx: commands.Context, user: discord.Member, guild: int = None):
-        """Compare channel access with [user]."""
-        if user is None:
-            return
+        """Compare channel access with another user."""
         if guild is None:
             guild = ctx.guild
         else:
@@ -49,28 +47,22 @@ class Info(MixinMeta):
         user_text_channels = [c for c in tcs if c.permissions_for(user).read_messages is True]
         user_voice_channels = [c for c in vcs if c.permissions_for(user).connect is True]
 
-        author_only_t = set(author_text_channels) - set(
-            user_text_channels
-        )  # text channels only the author has access to
-        author_only_v = set(author_voice_channels) - set(
-            user_voice_channels
-        )  # voice channels only the author has access to
+        # text channels only the author has access to
+        author_only_t = set(author_text_channels) - set(user_text_channels)
+        # voice channels only the author has access to
+        author_only_v = set(author_voice_channels) - set(user_voice_channels)
 
-        user_only_t = set(user_text_channels) - set(
-            author_text_channels
-        )  # text channels only the user has access to
-        user_only_v = set(user_voice_channels) - set(
-            author_voice_channels
-        )  # voice channels only the user has access to
+        # text channels only the user has access to
+        user_only_t = set(user_text_channels) - set(author_text_channels)
+        # voice channels only the user has access to
+        user_only_v = set(user_voice_channels) - set(author_voice_channels)
 
-        common_t = list(
-            set([c for c in tcs]) - author_only_t - user_only_t
-        )  # text channels that author and user have in common
-        common_v = list(
-            set([c for c in vcs]) - author_only_v - user_only_v
-        )  # voice channels that author and user have in common
+        # text channels that author and user have in common
+        common_t = list(set([c for c in tcs]) - author_only_t - user_only_t)
+        # voice channels that author and user have in common
+        common_v = list(set([c for c in vcs]) - author_only_v - user_only_v)
 
-        theembed = []
+        embeds = []
 
         embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
         embed.set_author(name=f"Comparing {ctx.author} with {user}", icon_url=user.avatar_url)
@@ -105,9 +97,9 @@ class Info(MixinMeta):
             inline=False,
         )
 
-        theembed.append(embed)
+        embeds.append(embed)
 
-        await menu(ctx, theembed, {"\N{CROSS MARK}": close_menu})
+        await menu(ctx, embeds, {"\N{CROSS MARK}": close_menu})
 
     @access.command(name="text")
     async def _text(self, ctx: commands.Context, user: discord.Member = None, guild: int = None):
@@ -131,7 +123,7 @@ class Info(MixinMeta):
                 "User is not in that guild or I do not have access to that guild."
             )
 
-        theembed = []
+        embeds = []
 
         embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
         embed.set_author(
@@ -153,9 +145,9 @@ class Info(MixinMeta):
             inline=False,
         )
 
-        theembed.append(embed)
+        embeds.append(embed)
 
-        await menu(ctx, theembed, {"\N{CROSS MARK}": close_menu})
+        await menu(ctx, embeds, {"\N{CROSS MARK}": close_menu})
 
     @access.command()
     async def voice(self, ctx: commands.Context, user: discord.Member = None, guild: int = None):
@@ -177,7 +169,7 @@ class Info(MixinMeta):
                 "User is not in that guild or I do not have access to that guild."
             )
 
-        theembed = []
+        embeds = []
 
         embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
         embed.set_author(
@@ -199,9 +191,9 @@ class Info(MixinMeta):
             inline=False,
         )
 
-        theembed.append(embed)
+        embeds.append(embed)
 
-        await menu(ctx, theembed, {"\N{CROSS MARK}": close_menu})
+        await menu(ctx, embeds, {"\N{CROSS MARK}": close_menu})
 
     @commands.guild_only()
     @commands.mod_or_permissions(manage_channels=True)
@@ -261,7 +253,7 @@ class Info(MixinMeta):
             )
             await ctx.send(embed=embed)
         else:
-            await ctx.send(f"{user.display_name} joined this guild on {joined_on}.")
+            await ctx.send(f"**{user.display_name}** joined this guild on **{joined_on}**.")
 
     @_user.command()
     async def perms(
@@ -523,7 +515,7 @@ class Info(MixinMeta):
     async def bans(self, ctx: commands.Context):
         """Displays the server's banlist."""
         try:
-            banlist = await ctx.guild.bans()
+            banlist = [bans async for bans in ctx.guild.bans()]
         except discord.errors.Forbidden:
             await ctx.send("I do not have the `Ban Members` permission.")
             return
