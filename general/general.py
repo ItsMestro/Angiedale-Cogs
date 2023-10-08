@@ -562,7 +562,6 @@ class General(Reports, commands.Cog):
             return await ctx.send(
                 "Oops! I'm still paying respects in this channel, you'll have to wait until I'm done."
             )
-        self.channels[str(ctx.channel.id)] = {}
 
         if user:
             answer = user.display_name
@@ -575,7 +574,6 @@ class General(Reports, commands.Cog):
             try:
                 respecc = await ctx.bot.wait_for("message", timeout=120.0, check=check)
             except asyncio.TimeoutError:
-                del self.channels[str(ctx.channel.id)]
                 return await ctx.send("You took too long to reply.")
 
             answer = respecc.content[:1900]
