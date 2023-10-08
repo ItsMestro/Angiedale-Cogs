@@ -1199,7 +1199,13 @@ class General(Reports, commands.Cog):
     async def channelinfo(
         self,
         ctx,
-        channel: Union[discord.TextChannel, discord.VoiceChannel, discord.CategoryChannel] = None,
+        channel: Union[
+            discord.TextChannel,
+            discord.VoiceChannel,
+            discord.CategoryChannel,
+            discord.StageChannel,
+            discord.Thread,
+        ] = None,
     ):
         """Shows channel information. Defaults to current text channel."""
         if channel is None:
@@ -1211,29 +1217,35 @@ class General(Reports, commands.Cog):
         cembed = []
 
         embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
-        embed.set_author(name=channel.name, icon_url=channel.guild.icon_url)
+        embed.set_author(name=channel.name, icon_url=channel.guild.icon)
 
         embed.set_footer(text=f"Channel ID: {channel.id} ◈ Created at")
 
         embed.add_field(name="Type", value=str(channel.type).capitalize(), inline=True)
         embed.add_field(name="Position", value=channel.position, inline=True)
 
-        if isinstance(channel, discord.VoiceChannel):
+        if isinstance(channel, discord.VoiceChannel) or isinstance(channel, discord.StageChannel):
             embed.add_field(
                 name="Bitrate", value=f"{int(channel.bitrate / 1000)}kbps", inline=True
             )
             embed.add_field(name="Category", value=channel.category, inline=False)
             embed.add_field(name="Users In Channel", value=len(channel.members), inline=True)
+            if isinstance(channel, discord.StageChannel):
+                embed.add_field(name="Moderators", value=len(channel.moderators), inline=True)
+                embed.add_field(name="Speakers", value=len(channel.speakers), inline=True)
             embed.add_field(name="User Limit", value=channel.user_limit, inline=True)
         else:
             embed.add_field(name="NSFW", value=channel.is_nsfw(), inline=True)
 
-        if isinstance(channel, discord.TextChannel):
+        if isinstance(channel, discord.TextChannel) or isinstance(channel, discord.Thread):
             if channel.topic:
                 embed.description = channel.topic
             embed.add_field(name="Category", value=channel.category, inline=False)
             embed.add_field(name="Users With Access", value=len(channel.members), inline=True)
             embed.add_field(name="Announcement Channel", value=channel.is_news(), inline=True)
+            if isinstance(channel, discord.Thread):
+                embed.add_field(name="Private", value=channel.is_private, inline=True)
+                embed.add_field(name="Parent Channel", value=channel.parent.name, inline=True)
         elif isinstance(channel, discord.CategoryChannel):
             embed.add_field(name="Text Channels", value=len(channel.text_channels), inline=True)
             embed.add_field(name="Voice Channels", value=len(channel.voice_channels), inline=True)
@@ -1253,7 +1265,7 @@ class General(Reports, commands.Cog):
         else:
             e = emoji
 
-            theembed = []
+            embeds = []
 
             embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
 
@@ -1271,9 +1283,39 @@ class General(Reports, commands.Cog):
 
             embed.timestamp = e.created_at
 
-            theembed.append(embed)
+            embeds.append(embed)
 
-            await menu(ctx, theembed, {"\N{CROSS MARK}": close_menu})
+            await menu(ctx, embeds, {"\N{CROSS MARK}": close_menu})
+
+    @commands.guild_only()
+    @commands.command(aliases=["sinfo"])
+    async def stickerinfo(self, ctx, sticker: Optional[discord.GuildSticker] = None):
+        """Sticker information. Only works for servers the bot is in"""
+        if not sticker:
+            await self.del_message(ctx, "Please use a custom sticker from a server that I'm in")
+        else:
+            s = sticker
+
+            embeds = []
+
+            embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
+
+            text = f"Fallback emoji: **{s.emoji}**\n"
+            text += f"From Server: **{s.guild}**\n"
+            text += f"Description: **{s.description}**\n"
+            text += f"**[Link To Image]({s.url})**"
+
+            embed.description = text
+            embed.title = s.name
+            embed.set_thumbnail(url=s.url)
+
+            embed.set_footer(text=f"Emote ID: {s.id} ◈ Created at")
+
+            embed.timestamp = s.created_at
+
+            embeds.append(embed)
+
+            await menu(ctx, embeds, {"\N{CROSS MARK}": close_menu})
 
     @commands.command(aliases=["re"], hidden=True)
     async def randomemote(self, ctx, all_servers: bool = False):
