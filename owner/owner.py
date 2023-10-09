@@ -11,12 +11,11 @@ from zipfile import ZipFile
 import discord
 import requests
 from dateutil.easter import easter
-from redbot.core import Config, bank, checks, commands
+from redbot.core import Config, commands
 from redbot.core.bot import Red
 from redbot.core.data_manager import cog_data_path
 from redbot.core.utils import AsyncIter
 from redbot.core.utils.chat_formatting import (
-    box,
     humanize_list,
     humanize_number,
     humanize_timedelta,
@@ -34,28 +33,6 @@ RUNNING_ANNOUNCEMENT = (
     " different announcement please use `{prefix}announce cancel`"
     " first."
 )
-
-
-def is_owner_if_bank_global():
-    """
-    Command decorator. If the bank is global, it checks if the author is
-    bot owner, otherwise it only checks
-    if command was used in guild - it DOES NOT check any permissions.
-
-    When used on the command, this should be combined
-    with permissions check like `guildowner_or_permissions()`.
-    """
-
-    async def pred(ctx):
-        author = ctx.author
-        if not await bank.is_global():
-            if not ctx.guild:
-                return False
-            return True
-        else:
-            return await ctx.bot.is_owner(author)
-
-    return commands.check(pred)
 
 
 class Owner(commands.Cog):
@@ -83,21 +60,14 @@ class Owner(commands.Cog):
         self.statschannel = None
         self.statsmessage = None
         self.statstask: Optional[asyncio.Task] = None
-        self._ready = asyncio.Event()
-        asyncio.create_task(self.initialize())
-        # As this is a data migration, don't store this for cancelation.
 
         self.presence_task = asyncio.create_task(self.maybe_update_presence())
-
-    async def cog_before_invoke(self, ctx: commands.Context):
-        await self._ready.wait()
 
     async def red_delete_data_for_user(self, **kwargs):
         """Nothing to delete"""
         return
 
-    async def initialize(self):
-
+    async def cog_load(self) -> None:
         lock = self.adminconfig.get_guilds_lock()
         async with lock:
             # This prevents the edge case of someone loading admin,
@@ -108,18 +78,13 @@ class Owner(commands.Cog):
                 await self.migrate_config_from_0_to_1()
                 await self.adminconfig.schema_version.set(1)
 
-        await self.bot.wait_until_ready()
-
         async with self.statsconfig.all() as sconfig:
             self.statschannel = sconfig["Channel"]
             self.statsmessage = sconfig["Message"]
         if self.statschannel:
             self.statstask = asyncio.create_task(self._update_stats())
 
-        self._ready.set()
-
-    async def migrate_config_from_0_to_1(self):
-
+    async def migrate_config_from_0_to_1(self) -> None:
         all_guilds = await self.adminconfig.all_guilds()
 
         for guild_id, guild_data in all_guilds.items():
@@ -139,7 +104,7 @@ class Owner(commands.Cog):
         except AttributeError:
             pass
         for user in self.interaction:
-            self.bot.loop.create_task(self.stop_interaction(user))
+            asyncio.create_task(self.stop_interaction(user))
 
     async def _update_stats(self):
         await asyncio.sleep(30 * 1)
@@ -185,7 +150,7 @@ class Owner(commands.Cog):
 
     @commands.command()
     @commands.guild_only()
-    @checks.is_owner()
+    @commands.is_owner()
     async def setstatschannel(self, ctx, channel: discord.TextChannel = None):
         """Set a channel for displaying bot stats."""
         if not self.statsmessage and not channel:
@@ -223,7 +188,7 @@ class Owner(commands.Cog):
 
             self.statschannel = channel.id
             self.statsmessage = message.id
-            self.statstask = self.bot.loop.create_task(self._update_stats())
+            self.statstask = asyncio.create_task(self._update_stats())
 
             response.append(f"started displaying stats for {self.bot.user.name} in {channel.name}")
 
@@ -251,7 +216,7 @@ class Owner(commands.Cog):
         return self.__current_announcer.active or False
 
     @commands.group(invoke_without_command=True)
-    @checks.is_owner()
+    @commands.is_owner()
     async def announce(self, ctx: commands.Context, *, message: str):
         """Announce a message to all servers the bot is in."""
         if not self.is_announcing():
@@ -275,7 +240,7 @@ class Owner(commands.Cog):
         await ctx.send(("The current announcement has been cancelled."))
 
     @commands.command()
-    @checks.is_owner()
+    @commands.is_owner()
     async def serverlock(self, ctx: commands.Context):
         """Lock a bot to its current servers only."""
         serverlocked = await self.adminconfig.serverlocked()
@@ -286,7 +251,15 @@ class Owner(commands.Cog):
         else:
             await ctx.send(("The bot is now serverlocked."))
 
-    async def say(self, ctx, channel: Optional[discord.TextChannel], text: str, files: list):
+    async def say(
+        self,
+        ctx,
+        channel: Optional[discord.TextChannel],
+        text: str,
+        files: list,
+        mentions: discord.AllowedMentions = None,
+        delete: int = None,
+    ):
         if not channel:
             channel = ctx.channel
         if not text and not files:
@@ -305,7 +278,7 @@ class Owner(commands.Cog):
 
         # sending the message
         try:
-            await channel.send(text, files=files)
+            await channel.send(text, files=files, allowed_mentions=mentions, delete_after=delete)
         except discord.errors.HTTPException as e:
             if not ctx.guild.me.permissions_in(channel).send_messages:
                 try:
@@ -336,7 +309,7 @@ class Owner(commands.Cog):
                 )
 
     @commands.command(name="say")
-    @checks.is_owner()
+    @commands.is_owner()
     async def _say(self, ctx, channel: Optional[discord.TextChannel], *, text: str = ""):
         """
         Make the bot say what you want in the desired channel.
@@ -353,7 +326,7 @@ class Owner(commands.Cog):
         await self.say(ctx, channel, text, files)
 
     @commands.command(name="sayd", aliases=["sd"])
-    @checks.is_owner()
+    @commands.is_owner()
     async def _saydelete(self, ctx, channel: Optional[discord.TextChannel], *, text: str = ""):
         """
         Same as say command, except it deletes your message.
@@ -376,7 +349,7 @@ class Owner(commands.Cog):
         await self.say(ctx, channel, text, files)
 
     @commands.command(name="interact")
-    @checks.is_owner()
+    @commands.is_owner()
     async def _interact(self, ctx, channel: discord.TextChannel = None):
         """Start receiving and sending messages as the bot through DM"""
 
@@ -410,7 +383,6 @@ class Owner(commands.Cog):
         self.interaction.append(u)
 
         while True:
-
             if u not in self.interaction:
                 return
 
@@ -449,7 +421,7 @@ class Owner(commands.Cog):
                 await u.send(embed=embed)
 
     @commands.command(name="listguilds", aliases=["listservers", "guildlist", "serverlist"])
-    @checks.is_owner()
+    @commands.is_owner()
     async def listguilds(self, ctx):
         """List the servers the bot is in."""
         guilds = sorted(self.bot.guilds, key=lambda g: -g.member_count)
@@ -504,18 +476,18 @@ class Owner(commands.Cog):
         while True:
             try:
                 await self.presence_updater()
-                await asyncio.sleep(int(delay))
-            except asyncio.CancelledError:
-                break
-            except:
-                pass
-            # except Exception as e:
-            #     log.exception(e, exc_info=e)
+            except Exception:
+                log.exception("Something went wrong in maybe_update_presence task:")
+
+            await asyncio.sleep(int(delay))
 
     async def presence_updater(self):
         pattern = re.compile(rf"<@!?{self.bot.user.id}>")
         guilds = self.bot.guilds
-        guild = next(g for g in guilds if not g.unavailable)
+        try:
+            guild = next(g for g in guilds if not g.unavailable)
+        except StopIteration:
+            return
         try:
             current_game = str(guild.me.activity.name)
         except AttributeError:
@@ -664,98 +636,6 @@ class Owner(commands.Cog):
             return new_statuses[0]
         return current
 
-    @is_owner_if_bank_global()
-    @checks.guildowner_or_permissions(administrator=True)
-    @commands.group()
-    async def bankset(self, ctx):
-        """Base command for bank settings."""
-
-    @bankset.command(name="showsettings")
-    async def bankset_showsettings(self, ctx):
-        """Show the current bank settings."""
-        cur_setting = await bank.is_global()
-        if cur_setting:
-            group = bank._config
-        else:
-            if not ctx.guild:
-                return
-            group = bank._config.guild(ctx.guild)
-        group_data = await group.all()
-        bank_name = group_data["bank_name"]
-        bank_scope = ("Global") if cur_setting else ("Server")
-        currency_name = group_data["currency"]
-        default_balance = group_data["default_balance"]
-        max_balance = group_data["max_balance"]
-
-        settings = (
-            "Bank settings:\n\nBank name: {bank_name}\nBank scope: {bank_scope}\n"
-            "Currency: {currency_name}\nDefault balance: {default_balance}\n"
-            "Maximum allowed balance: {maximum_bal}\n"
-        ).format(
-            bank_name=bank_name,
-            bank_scope=bank_scope,
-            currency_name=currency_name,
-            default_balance=humanize_number(default_balance),
-            maximum_bal=humanize_number(max_balance),
-        )
-        await ctx.send(box(settings))
-
-    @bankset.command(name="toggleglobal")
-    @checks.is_owner()
-    async def bankset_toggleglobal(self, ctx, confirm: bool = False):
-        """Toggle whether the bank is global or not.
-
-        If the bank is global, it will become per-server.
-        If the bank is per-server, it will become global.
-        """
-        cur_setting = await bank.is_global()
-
-        word = ("per-server") if cur_setting else ("global")
-        if confirm is False:
-            await ctx.send(
-                (
-                    "This will toggle the bank to be {banktype}, deleting all accounts "
-                    "in the process! If you're sure, type `{command}`"
-                ).format(banktype=word, command=f"{ctx.clean_prefix}bankset toggleglobal yes")
-            )
-        else:
-            await bank.set_global(not cur_setting)
-            await ctx.send(("The bank is now {banktype}.").format(banktype=word))
-
-    @is_owner_if_bank_global()
-    @checks.guildowner_or_permissions(administrator=True)
-    @bankset.command(name="bankname")
-    async def bankset_bankname(self, ctx, *, name: str):
-        """Set the bank's name."""
-        await bank.set_bank_name(name, ctx.guild)
-        await ctx.send(("Bank name has been set to: {name}").format(name=name))
-
-    @is_owner_if_bank_global()
-    @checks.guildowner_or_permissions(administrator=True)
-    @bankset.command(name="creditsname")
-    async def bankset_creditsname(self, ctx, *, name: str):
-        """Set the name for the bank's currency."""
-        await bank.set_currency_name(name, ctx.guild)
-        await ctx.send(("Currency name has been set to: {name}").format(name=name))
-
-    @is_owner_if_bank_global()
-    @checks.guildowner_or_permissions(administrator=True)
-    @bankset.command(name="maxbal")
-    async def bankset_maxbal(self, ctx, *, amount: int):
-        """Set the maximum balance a user can get."""
-        try:
-            await bank.set_max_balance(amount, ctx.guild)
-        except ValueError:
-            # noinspection PyProtectedMember
-            return await ctx.send(
-                ("Amount must be greater than zero and less than {max}.").format(
-                    max=humanize_number(bank._MAX_BALANCE)
-                )
-            )
-        await ctx.send(
-            ("Maximum balance has been set to: {amount}").format(amount=humanize_number(amount))
-        )
-
     @commands.command(name="forcerolemutes")
     @commands.is_owner()
     async def force_role_mutes(self, ctx: commands.Context, true_or_false: bool):
@@ -770,7 +650,7 @@ class Owner(commands.Cog):
 
     @commands.command()
     @commands.guild_only()
-    @checks.is_owner()
+    @commands.is_owner()
     async def dumpemotes(self, ctx, guild: int = None):
         """Dumps emotes from a server."""
         if guild:
@@ -829,7 +709,7 @@ class Announcer:
         """
         if self.active is None:
             self.active = True
-            self.ctx.bot.loop.create_task(self.announcer())
+            asyncio.create_task(self.announcer())
 
     def cancel(self):
         """
