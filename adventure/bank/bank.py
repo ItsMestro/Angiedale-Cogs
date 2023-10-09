@@ -53,7 +53,7 @@ __all__ = [
     "BankPruneError",
 ]
 
-_MAX_BALANCE = 2 ** 63 - 1
+_MAX_BALANCE = 2**63 - 1
 
 _DEFAULT_MEMBER = {"balance": 0, "next_payday": 0}
 
@@ -65,7 +65,9 @@ _bot: Red = None
 def _init(bot: Red):
     global _config, _bot
     if _config is None:
-        _config = Config.get_conf(None, identifier=1387000, cog_name="AdventureBank", force_registration=True)
+        _config = Config.get_conf(
+            None, identifier=1387000, cog_name="AdventureBank", force_registration=True
+        )
         _config.register_user(**_DEFAULT_MEMBER)
     _bot = bot
 
@@ -136,7 +138,7 @@ async def get_balance(member: discord.Member, _forced: bool = False) -> int:
         The member's balance
     """
     acc = await get_account(member, _forced=_forced)
-    return acc.balance
+    return int(acc.balance)
 
 
 async def get_next_payday(member: discord.Member) -> int:
@@ -154,7 +156,7 @@ async def get_next_payday(member: discord.Member) -> int:
         return 0
 
     acc = await get_account(member)
-    return acc.balance
+    return acc.next_payday
 
 
 async def set_next_payday(member: Union[discord.Member, discord.User], amount: int) -> int:
@@ -170,6 +172,7 @@ async def set_next_payday(member: Union[discord.Member, discord.User], amount: i
     int
         New account next payday.
     """
+    amount = int(amount)
     if (cog := _bot.get_cog("Adventure")) is None or not cog._separate_economy:
         return 0
 
@@ -192,10 +195,13 @@ async def can_spend(member: discord.Member, amount: int, _forced: bool = False) 
         :code:`True` if the member has a sufficient balance to spend the
         amount, else :code:`False`.
     """
+    amount = int(amount)
     return await get_balance(member, _forced=_forced) >= amount
 
 
-async def set_balance(member: Union[discord.Member, discord.User], amount: int, _forced: bool = False) -> int:
+async def set_balance(
+    member: Union[discord.Member, discord.User], amount: int, _forced: bool = False
+) -> int:
     """Set an account balance.
     Parameters
     ----------
@@ -217,6 +223,7 @@ async def set_balance(member: Union[discord.Member, discord.User], amount: int, 
         If attempting to set the balance to a value greater than
         ``bank._MAX_BALANCE``.
     """
+    amount = int(amount)
     if _forced or (cog := _bot.get_cog("Adventure")) is None or not cog._separate_economy:
         return await bank.set_balance(member=member, amount=amount)
 
@@ -224,8 +231,9 @@ async def set_balance(member: Union[discord.Member, discord.User], amount: int, 
     max_bal = await get_max_balance(guild)
     if amount > max_bal:
         currency = await get_currency_name(guild)
-        raise errors.BalanceTooHigh(user=member.display_name, max_balance=max_bal, currency_name=currency)
-    amount = int(amount)
+        raise errors.BalanceTooHigh(
+            user=member.display_name, max_balance=max_bal, currency_name=currency
+        )
     group = _config.user(member)
     await group.balance.set(amount)
     return amount
@@ -251,17 +259,18 @@ async def withdraw_credits(member: discord.Member, amount: int, _forced: bool = 
     TypeError
         If the withdrawal amount is not an `int`.
     """
+    amount = int(amount)
     if _forced or (cog := _bot.get_cog("Adventure")) is None or not cog._separate_economy:
         return await bank.withdraw_credits(member=member, amount=amount)
 
     if not isinstance(amount, (int, float)):
         raise TypeError("Withdrawal amount must be of type int, not {}.".format(type(amount)))
-    amount = int(amount)
     bal = await get_balance(member)
     if amount > bal:
         raise ValueError(
             "Insufficient funds {} > {}".format(
-                humanize_number(amount, override_locale="en_US"), humanize_number(bal, override_locale="en_US"),
+                humanize_number(amount, override_locale="en_US"),
+                humanize_number(bal, override_locale="en_US"),
             )
         )
 
@@ -287,17 +296,20 @@ async def deposit_credits(member: discord.Member, amount: int, _forced: bool = F
     TypeError
         If the deposit amount is not an `int`.
     """
+    amount = int(amount)
     if _forced or (cog := _bot.get_cog("Adventure")) is None or not cog._separate_economy:
         return await bank.deposit_credits(member=member, amount=amount)
     if not isinstance(amount, (int, float)):
         raise TypeError("Deposit amount must be of type int, not {}.".format(type(amount)))
-    amount = int(amount)
     bal = int(await get_balance(member))
     return await set_balance(member, amount + bal)
 
 
 async def transfer_credits(
-    from_: Union[discord.Member, discord.User], to: Union[discord.Member, discord.User], amount: int, tax: float = 0.0,
+    from_: Union[discord.Member, discord.User],
+    to: Union[discord.Member, discord.User],
+    amount: int,
+    tax: float = 0.0,
 ):
     """Transfer a given amount of credits from one account to another with a 50% tax.
     Parameters
@@ -324,6 +336,7 @@ async def transfer_credits(
         If the balance after the transfer would be greater than
         ``bank._MAX_BALANCE``.
     """
+    amount = int(amount)
     if (cog := _bot.get_cog("Adventure")) is None or not cog._separate_economy:
         return await bank.transfer_credits(from_=from_, to=to, amount=amount)
 
@@ -335,7 +348,9 @@ async def transfer_credits(
     new_amount = int(amount - (amount * tax))
     if await get_balance(to) + new_amount > max_bal:
         currency = await get_currency_name(guild)
-        raise errors.BalanceTooHigh(user=to.display_name, max_balance=max_bal, currency_name=currency)
+        raise errors.BalanceTooHigh(
+            user=to.display_name, max_balance=max_bal, currency_name=currency
+        )
 
     await withdraw_credits(from_, int(amount))
     await deposit_credits(to, int(new_amount))
@@ -404,7 +419,9 @@ async def bank_prune(bot: Red, guild: discord.Guild = None, user_id: int = None)
                 del bank_data[user_id]
 
 
-async def get_leaderboard(positions: int = None, guild: discord.Guild = None, _forced: bool = False) -> List[tuple]:
+async def get_leaderboard(
+    positions: int = None, guild: discord.Guild = None, _forced: bool = False
+) -> List[tuple]:
     """
     Gets the bank's leaderboard
     Parameters
@@ -652,7 +669,8 @@ async def set_max_balance(amount: int, guild: discord.Guild = None) -> int:
     ValueError
         If the amount is less than 0 or higher than 2 ** 63 - 1.
     """
-    return await bank.set_max_balance(amount=amount, guild=guild)
+
+    return await bank.set_max_balance(amount=int(amount), guild=guild)
 
 
 async def get_default_balance(guild: discord.Guild = None) -> int:
@@ -694,7 +712,7 @@ async def set_default_balance(amount: int, guild: discord.Guild = None) -> int:
     ValueError
         If the amount is less than 0 or higher than the max allowed balance.
     """
-    return await bank.set_default_balance(amount=amount, guild=guild)
+    return await bank.set_default_balance(amount=int(amount), guild=guild)
 
 
 class AbortPurchase(Exception):
@@ -729,7 +747,9 @@ def cost(amount: int):
                     break
 
             if not context.guild and not await is_global():
-                raise commands.UserFeedbackCheckFailure(_("Can't pay for this command in DM without a global bank."))
+                raise commands.UserFeedbackCheckFailure(
+                    _("Can't pay for this command in DM without a global bank.")
+                )
             try:
                 await withdraw_credits(context.author, amount)
             except Exception:
