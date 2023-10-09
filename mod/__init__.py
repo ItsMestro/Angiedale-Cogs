@@ -1,16 +1,9 @@
+from redbot.core.bot import Red
+
 from .mod import Mod
 
-__red_end_user_data_statement__ = (
-    "This cog stores data on user "
-    "that are meant to aid server staff "
-    "in moderating their servers. "
-    "It also keeps track of punishments "
-    "set by said staff on users. "
-    "To prevent punishment evasion data "
-    "can not be deleted per request."
-)
 
-
-async def setup(bot):
+async def setup(bot: Red) -> None:
     cog = Mod(bot)
-    bot.add_cog(cog)
+    await bot.add_cog(cog)
+    cog.create_init_task()

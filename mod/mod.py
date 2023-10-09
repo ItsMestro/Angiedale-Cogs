@@ -5,15 +5,15 @@ from abc import ABC
 from collections import defaultdict, namedtuple
 from copy import copy
 from datetime import datetime, timezone
-from typing import Dict, Literal, Union, cast
+from typing import Dict, Literal, Optional, Union, cast
 
 import discord
-from redbot.core import Config, checks, commands, modlog
+from redbot.core import Config, commands, modlog
 from redbot.core.bot import Red
 from redbot.core.commands import UserInputOptional
 from redbot.core.utils import AsyncIter
 from redbot.core.utils._internal_utils import send_to_owners_with_prefix_replaced
-from redbot.core.utils.chat_formatting import pagify
+from redbot.core.utils.chat_formatting import inline, pagify
 from redbot.core.utils.menus import DEFAULT_CONTROLS, menu
 from redbot.core.utils.mod import get_audit_reason
 
@@ -85,6 +85,7 @@ class Mod(
 
     default_user_settings = {
         "past_names": [],
+        "past_display_names": [],
     }
 
     def __init__(self, bot: Red):
@@ -129,30 +130,47 @@ class Mod(
             "dm": False,
             "show_mod": False,
         }
-        self.mutesconfig.register_global(force_role_mutes=True, schema_version=0)
         # Tbh I would rather force everyone to use role mutes.
         # I also honestly think everyone would agree they're the
         # way to go. If for whatever reason someone wants to
         # enable channel overwrite mutes for their bot they can.
         # Channel overwrite logic still needs to be in place
         # for channel mutes methods.
+        self.mutesconfig.register_global(force_role_mutes=True, schema_version=0)
         self.mutesconfig.register_guild(**default_guild_mutes)
         self.mutesconfig.register_member(perms_cache={})
         self.mutesconfig.register_channel(muted_users={})
         self._server_mutes: Dict[int, Dict[int, dict]] = {}
         self._channel_mutes: Dict[int, Dict[int, dict]] = {}
-        self._readymutes = asyncio.Event()
         self._unmute_tasks: Dict[str, asyncio.Task] = {}
-        self._unmute_task = None
+        self._unmute_task: Optional[asyncio.Task] = None
         self.mute_role_cache: Dict[int, int] = {}
-        self._channel_mute_events: Dict[int, asyncio.Event] = {}
         # this is a dict of guild ID's and asyncio.Events
         # to wait for a guild to finish channel unmutes before
         # checking for manual overwrites
+        self._channel_mute_events: Dict[int, asyncio.Event] = {}
+        self._readymutes = asyncio.Event()
+        self._init_task: Optional[asyncio.Task] = None
+        self._ready_raised = False
 
-        self._ready = asyncio.Event()
+    def create_init_task(self) -> None:
+        def _done_callback(task: asyncio.Task) -> None:
+            try:
+                exc = task.exception()
+            except asyncio.CancelledError:
+                pass
+            else:
+                if exc is None:
+                    return
+                log.error(
+                    "An unexpected error occurred during Mutes's initialization.",
+                    exc_info=exc,
+                )
+            self._ready_raised = True
+            self._readymutes.set()
 
-        self._init_task = self.bot.loop.create_task(self._initialize())
+        self._init_task = asyncio.create_task(self.initialize())
+        self._init_task.add_done_callback(_done_callback)
 
     async def red_delete_data_for_user(
         self,
@@ -169,6 +187,10 @@ class Mod(
             return
 
         await self._readymutes.wait()
+        if self._ready_raised:
+            raise RuntimeError(
+                "Mutes cog is in a bad state, can't proceed with data deletion request."
+            )
         all_members = await self.mutesconfig.all_members()
         for g_id, data in all_members.items():
             for m_id, mutes in data.items():
@@ -194,10 +216,11 @@ class Mod(
                         pass
                     # possible with a context switch between here and getting all guilds
 
-    async def _initialize(self):
+    async def initialize(self):
         await self.bot.wait_until_red_ready()
         await self._maybe_update_config()
 
+    async def cog_load(self) -> None:
         await self.register_casetypes()
 
         guild_data = await self.mutesconfig.all_guilds()
@@ -214,16 +237,26 @@ class Mod(
                 self._channel_mutes[c_id][int(user_id)] = mute
         self._unmute_task = asyncio.create_task(self._handle_automatic_unmute())
         self._readymutes.set()
-        self._ready.set()
 
     async def cog_before_invoke(self, ctx: commands.Context) -> None:
-        await self._ready.wait()
-        await self._readymutes.wait()
+        if not self._readymutes.is_set():
+            async with ctx.typing():
+                await self._readymutes.wait()
+        if self._ready_raised:
+            await ctx.send(
+                "There was an error during Mutes's initialization."
+                " Check logs for more information."
+            )
+            raise commands.CheckFailure()
 
     def cog_unload(self):
-        self._init_task.cancel()
+        if self._init_task is not None:
+            self._init_task.cancel()
+        if self._unmute_task is not None:
+            self._unmute_task.cancel()
+        if self.tban_expiry_task is not None:
+            self.tban_expiry_task.cancel()
         self.tban_expiry_task.cancel()
-        self._unmute_task.cancel()
         for task in self._unmute_tasks.values():
             task.cancel()
 
@@ -245,9 +278,9 @@ class Mod(
                 if e["ignored"] is not False:
                     msg = (
                         "Ignored guilds and channels have been moved. "
-                        "Please use `[p]moveignoredchannels` to migrate the old settings."
-                    )
-                    self.bot.loop.create_task(send_to_owners_with_prefix_replaced(self.bot, msg))
+                        "Please use {command} to migrate the old settings."
+                    ).format(command=inline("[p]moveignoredchannels"))
+                    asyncio.create_task(send_to_owners_with_prefix_replaced(self.bot, msg))
                     message_sent = True
                     break
             if message_sent is False:
@@ -255,11 +288,9 @@ class Mod(
                     if e["ignored"] is not False:
                         msg = (
                             "Ignored guilds and channels have been moved. "
-                            "Please use `[p]moveignoredchannels` to migrate the old settings."
-                        )
-                        self.bot.loop.create_task(
-                            send_to_owners_with_prefix_replaced(self.bot, msg)
-                        )
+                            "Please use {command} to migrate the old settings."
+                        ).format(command=inline("[p]moveignoredchannels"))
+                        asyncio.create_task(send_to_owners_with_prefix_replaced(self.bot, msg))
                         break
             await self.config.version.set("1.1.0")
         if await self.config.version() < "1.2.0":
@@ -267,9 +298,9 @@ class Mod(
                 if e["delete_delay"] != -1:
                     msg = (
                         "Delete delay settings have been moved. "
-                        "Please use `[p]movedeletedelay` to migrate the old settings."
-                    )
-                    self.bot.loop.create_task(send_to_owners_with_prefix_replaced(self.bot, msg))
+                        "Please use {command} to migrate the old settings."
+                    ).format(command=inline("[p]movedeletedelay"))
+                    asyncio.create_task(send_to_owners_with_prefix_replaced(self.bot, msg))
                     break
             await self.config.version.set("1.2.0")
         if await self.config.version() < "1.3.0":
@@ -283,16 +314,16 @@ class Mod(
                         guild_data["mention_spam"]["ban"] = current_state
             await self.config.version.set("1.3.0")
 
-        schema_version = await self.config.schema_version()
+        schema_version = await self.mutesconfig.schema_version()
 
         if schema_version == 0:
             await self._schema_0_to_1()
             schema_version += 1
-            await self.config.schema_version.set(schema_version)
+            await self.mutesconfig.schema_version.set(schema_version)
 
     async def _schema_0_to_1(self):
         """This contains conversion that adds guild ID to channel mutes data."""
-        all_channels = await self.config.all_channels()
+        all_channels = await self.mutesconfig.all_channels()
         if not all_channels:
             return
 
@@ -304,11 +335,13 @@ class Mod(
             try:
                 if (channel := self.bot.get_channel(channel_id)) is None:
                     channel = await self.bot.fetch_channel(channel_id)
-                async with self.config.channel_from_id(channel_id).muted_users() as muted_users:
+                async with self.mutesconfig.channel_from_id(
+                    channel_id
+                ).muted_users() as muted_users:
                     for mute_id, mute_data in muted_users.items():
                         mute_data["guild"] = channel.guild.id
             except (discord.NotFound, discord.Forbidden):
-                await self.config.channel_from_id(channel_id).clear()
+                await self.mutesconfig.channel_from_id(channel_id).clear()
 
         log.info(
             "Config conversion to schema_version 1 done. It took %s to proceed.",
@@ -375,11 +408,11 @@ class Mod(
     @commands.command()
     @commands.guild_only()
     @commands.bot_has_permissions(manage_nicknames=True)
-    @checks.mod_or_permissions(manage_nicknames=True)
+    @commands.mod_or_permissions(manage_nicknames=True)
     async def rename(self, ctx: commands.Context, member: discord.Member, *, nickname: str = ""):
-        """Change a member's nickname.
+        """Change a member's server nickname.
 
-        Leaving the nickname empty will remove it.
+        Leaving the nickname argument empty will remove it.
         """
         nickname = nickname.strip()
         me = cast(discord.Member, ctx.me)
@@ -425,7 +458,7 @@ class Mod(
 
     @commands.group()
     @commands.guild_only()
-    @checks.mod_or_permissions(ban_members=True)
+    @commands.mod_or_permissions(ban_members=True)
     async def warnlist(self, ctx: commands.Context):
         """Manage settings for Warnings."""
         pass
@@ -494,12 +527,12 @@ class Mod(
 
     @commands.command()
     @commands.guild_only()
-    @checks.mod_or_permissions(ban_members=True)
+    @commands.mod_or_permissions(ban_members=True)
     async def warn(
         self,
         ctx: commands.Context,
         member: discord.Member,
-        points: UserInputOptional[int] = 1,
+        points: UserInputOptional[int] = 1,  # type: ignore
         *,
         reason: str,
     ):
@@ -654,7 +687,7 @@ class Mod(
 
     @commands.command()
     @commands.guild_only()
-    @checks.mod()
+    @commands.mod()
     async def warnings(self, ctx: commands.Context, member: Union[discord.Member, int]):
         """List the warnings for the specified user."""
 
@@ -696,7 +729,7 @@ class Mod(
 
     @commands.command()
     @commands.guild_only()
-    @checks.mod_or_permissions(ban_members=True)
+    @commands.mod_or_permissions(ban_members=True)
     async def unwarn(
         self,
         ctx: commands.Context,
@@ -733,7 +766,7 @@ class Mod(
         await modlog.create_case(
             self.bot,
             ctx.guild,
-            ctx.message.created_at.replace(tzinfo=timezone.utc),
+            ctx.message.created_at,
             "unwarned",
             member,
             ctx.message.author,
