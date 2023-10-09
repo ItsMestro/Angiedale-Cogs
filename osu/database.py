@@ -31,9 +31,12 @@ class Database:
 
     async def get_last_cache_date(self):
         """Set the default cache date on init."""
-        with open(f'{cog_data_path(raw_name="Osu")}/cachedate') as f:
-            wascached = f.read()
-        self.last_caching = datetime.strptime(wascached, "%Y-%m-%dT%H:%M:%S%z")
+        try:
+            with open(f'{cog_data_path(raw_name="Osu")}/cachedate') as f:
+                wascached = f.read()
+            self.last_caching = datetime.strptime(wascached, "%Y-%m-%dT%H:%M:%S%z")
+        except FileNotFoundError:
+            log.error("No 'cachedate' file found. Database can't be used without it.")
 
     async def extra_beatmap_info(self, beatmap):
         """Gathers and returns extra beatmap info.
@@ -41,6 +44,9 @@ class Database:
         Uses database cache if possible."""
 
         if not self._db_connected:
+            return
+
+        if not self.last_caching:
             return
 
         mapdata = await self.db.beatmaps.find_one({"_id": int(beatmap["mapid"])})

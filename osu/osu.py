@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Literal
 
 import discord
-from redbot.core import Config, checks, commands
+from redbot.core import Config, commands
 from redbot.core.bot import Red
 from redbot.core.data_manager import cog_data_path
 from redbot.core.utils.chat_formatting import humanize_timedelta
@@ -105,9 +105,8 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
         self.osuconfig.init_custom("mongodb", -1)
         self.osuconfig.register_custom("mongodb", **self.default_mongodb)
 
-        self._init_task: asyncio.Task = self.bot.loop.create_task(self.initialize())
-        self.tracking_task: asyncio.Task = self.bot.loop.create_task(self.update_tracking())
-        self.cache_task: asyncio.Task = self.bot.loop.create_task(self.get_last_cache_date())
+        self.tracking_task: asyncio.Task = asyncio.create_task(self.update_tracking())
+        self.cache_task: asyncio.Task = asyncio.create_task(self.get_last_cache_date())
         self.osubeat_task: asyncio.Task = None
 
     async def red_delete_data_for_user(
@@ -116,13 +115,10 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
         requester: Literal["discord_deleted_user", "owner", "user", "user_strict"],
         user_id: int,
     ):
-
         await self.osuconfig.user_from_id(user_id)
 
-    async def initialize(self) -> None:
+    async def cog_load(self) -> None:
         """Should be called straight after cog instantiation."""
-
-        await self.bot.wait_until_ready()
 
         try:
             await self.get_osu_bearer_token()
@@ -140,7 +136,7 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
                     }
                 }
 
-        self.osubeat_task: asyncio.Task = self.bot.loop.create_task(self.checkosubeat())
+        self.osubeat_task: asyncio.Task = asyncio.create_task(self.checkosubeat())
 
         await self._connect_to_mongo()
 
@@ -164,9 +160,9 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
     def addguildtoosubeat(self, guildid, mapid, enddate, mods, mode):
         self.osubeat_maps[mapid] = {guildid: {"ends": enddate, "mods": mods, "mode": mode}}
         if self.osubeat_task.done():
-            self.osubeat_task: asyncio.Task = self.bot.loop.create_task(self.checkosubeat())
+            self.osubeat_task: asyncio.Task = asyncio.create_task(self.checkosubeat())
 
-    @checks.is_owner()
+    @commands.is_owner()
     @commands.group(hidden=True)
     async def osudev(self, ctx: commands.Context):
         """Osu cog configuration."""
@@ -200,7 +196,7 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
         await self.osuconfig.user(ctx.author).userid.set(userid)
         await ctx.send(f"{username} is successfully linked to your account!")
 
-    @checks.admin_or_permissions(administrator=True)
+    @commands.admin_or_permissions(administrator=True)
     @commands.guild_only()
     @commands.group()
     async def osutrack(self, ctx: commands.Context):
@@ -307,7 +303,7 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
         embeds.append(embed)
         await menu(ctx, embeds, singlepage())
 
-    @checks.is_owner()
+    @commands.is_owner()
     @osutrack.command()
     async def dev(
         self, ctx: commands.Context, channel: discord.TextChannel, mode: str, *, username: str
@@ -600,7 +596,7 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
     async def osubeat(self, ctx: commands.Context):
         """osu! competitions run per server."""
 
-    @checks.admin_or_permissions(administrator=True)
+    @commands.admin_or_permissions(administrator=True)
     @commands.guild_only()
     @osubeat.command(name="settime")
     async def _set_beat_time(self, ctx: commands.Context, *, time: TimeConverter = None):
@@ -618,7 +614,7 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
         await self.osuconfig.guild(ctx.guild).default_beat_time.clear()
         await ctx.send("Default time for beats reset to 1 day.")
 
-    @checks.admin_or_permissions(administrator=True)
+    @commands.admin_or_permissions(administrator=True)
     @commands.guild_only()
     @osubeat.command(name="new")
     async def _new_beat(
@@ -689,12 +685,16 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
             )
 
         time = (
-            datetime.now(timezone.utc)
-            + timedelta(seconds=beat_data["default_beat_time"])
+            datetime.now(timezone.utc) + timedelta(seconds=beat_data["default_beat_time"])
         ).replace(second=0)
 
         embed = await self.osubeatannounceembed(
-            ctx, clean_mapdata, self.mode_prettify(clean_mode), clean_mods, time, beat_data["beatmode"]
+            ctx,
+            clean_mapdata,
+            self.mode_prettify(clean_mode),
+            clean_mods,
+            time,
+            beat_data["beatmode"],
         )
 
         can_react = ctx.channel.permissions_for(ctx.me).add_reactions
@@ -746,12 +746,12 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
             clean_mode,
         )
 
-    @checks.admin_or_permissions(administrator=True)
+    @commands.admin_or_permissions(administrator=True)
     @commands.guild_only()
     @osubeat.command(name="mode")
     async def _mode_beat(self, ctx: commands.Context, beatmode: BeatModeConverter):
         """Set the beat mode to be used for competitions.
-        
+
         The mode can be one of:
         `Normal` - Standings are fully shown like normal.
         `TUNNELVISION` - Other players scores will be hidden but standings will still show.
@@ -759,7 +759,9 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
         """
 
         if await self.osuconfig.guild(ctx.guild).running_beat():
-            return await del_message(ctx, "The beat mode can't be changed while a beat is running.")
+            return await del_message(
+                ctx, "The beat mode can't be changed while a beat is running."
+            )
 
         await self.osuconfig.guild(ctx.guild).beatmode.set(beatmode)
 
@@ -770,7 +772,7 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
         if beatmode == BeatMode.SECRET:
             return await ctx.send("Set the mode for future osubeats to `Secret`")
 
-    @checks.admin_or_permissions(administrator=True)
+    @commands.admin_or_permissions(administrator=True)
     @commands.guild_only()
     @osubeat.command(name="mods", hidden=True)
     async def _mods_beat(self, ctx: commands.Context):
@@ -782,7 +784,7 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
         out = f"```apache\n{out}```"
         await ctx.send(out)
 
-    @checks.admin_or_permissions(administrator=True)
+    @commands.admin_or_permissions(administrator=True)
     @commands.guild_only()
     @osubeat.command(name="end")
     async def _end_beat(self, ctx: commands.Context):
@@ -795,7 +797,7 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
         mapid = await self.osuconfig.guild(ctx.guild).beat_current()
         await self.endosubeat(ctx.guild.id, mapid["beatmap"]["mapid"])
 
-    @checks.admin_or_permissions(administrator=True)
+    @commands.admin_or_permissions(administrator=True)
     @commands.guild_only()
     @osubeat.command(name="cancel")
     async def _cancel_beat(self, ctx: commands.Context):
@@ -883,12 +885,21 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
 
                 members = await self.osuconfig.all_members(guild)
 
-                participating_beats.append({"guild": guild, "beat_data": data["beat_current"], "members": members, "beat_mode": data["beat_mode"]})
+                participating_beats.append(
+                    {
+                        "guild": guild,
+                        "beat_data": data["beat_current"],
+                        "members": members,
+                        "beat_mode": data["beat_mode"],
+                    }
+                )
 
             if len(participating_beats) == 0:
                 return await ctx.send("There's no active beats in any of the servers you're in.")
             elif len(participating_beats) == 1:
-                return await menu(ctx, await self.osubeatstandingsembed(ctx, participating_beats[0]))
+                return await menu(
+                    ctx, await self.osubeatstandingsembed(ctx, participating_beats[0])
+                )
             else:
                 return await custom_menu(
                     ctx,
@@ -902,7 +913,9 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
         beat_data = await self.osuconfig.guild(ctx.guild).all()
         members = await self.osuconfig.all_members(ctx.guild)
         if beat_data["running_beat"]:
-            embeds = await self.osubeatstandingsembed(ctx, beat_data["beat_current"], members, beatmode=beat_data["beatmode"])
+            embeds = await self.osubeatstandingsembed(
+                ctx, beat_data["beat_current"], members, beatmode=beat_data["beatmode"]
+            )
         elif beat_data["beat_last"]["beatmap"]:
             embeds = await self.osubeatstandingsembed(
                 ctx, beat_data["beat_last"], members, last=True
@@ -1719,7 +1732,7 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
         await del_message(ctx, "Your top plays are surprisingly identical.")
 
     @commands.command()
-    @checks.is_owner()
+    @commands.is_owner()
     async def debugtracking(self, ctx: commands.Context):
         await self.update_tracking(False)
         log.error("Manually debugging tracking.")
@@ -1727,7 +1740,7 @@ class Osu(Database, Embed, Data, API, Helper, commands.Cog):
     async def update_tracking(self, a=True):
         """Checks for new top plays based on list of tracked users."""
 
-        await self.bot.wait_until_ready()
+        await self.bot.wait_until_red_ready()
 
         await self.refresh_tracking_cache()
 

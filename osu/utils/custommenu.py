@@ -24,8 +24,8 @@ async def custom_menu(
     chapter: int = 0,
     timeout: float = 30.0,
     data: list = None,
-    func = None,
-    has_chapters = False,
+    func=None,
+    has_chapters=False,
 ):
     if not isinstance(pages[0], (discord.Embed, str)):
         raise RuntimeError("Pages must be of type discord.Embed or str")
@@ -33,7 +33,7 @@ async def custom_menu(
         isinstance(x, str) for x in pages
     ):
         raise RuntimeError("All pages must be of the same type")
-    
+
     new_controls = check_controls(bot, pages, data, has_chapters)
     if new_controls != controls:
         if message:
@@ -95,7 +95,18 @@ async def custom_menu(
             return
     else:
         return await controls[react.emoji](
-            ctx, pages, bot, controls, message, page, chapter, timeout, react.emoji, data, func, has_chapters
+            ctx,
+            pages,
+            bot,
+            controls,
+            message,
+            page,
+            chapter,
+            timeout,
+            react.emoji,
+            data,
+            func,
+            has_chapters,
         )
 
 
@@ -111,7 +122,7 @@ async def custom_next_page(
     emoji: str,
     data: list,
     func,
-    has_chapters: bool
+    has_chapters: bool,
 ):
     perms = message.channel.permissions_for(ctx.me)
     if perms.manage_messages:  # Can manage messages, so remove react
@@ -126,7 +137,17 @@ async def custom_next_page(
     embed = await func(ctx, data, page)
 
     return await custom_menu(
-        ctx, embed, bot, controls, message=message, page=page, chapter=chapter, timeout=timeout, data=data, func=func, has_chapters=has_chapters
+        ctx,
+        embed,
+        bot,
+        controls,
+        message=message,
+        page=page,
+        chapter=chapter,
+        timeout=timeout,
+        data=data,
+        func=func,
+        has_chapters=has_chapters,
     )
 
 
@@ -157,8 +178,19 @@ async def custom_previous_page(
     embed = await func(ctx, data, page)
 
     return await custom_menu(
-        ctx, embed, bot, controls, message=message, page=page, chapter=chapter, timeout=timeout, data=data, func=func, has_chapters=has_chapters
+        ctx,
+        embed,
+        bot,
+        controls,
+        message=message,
+        page=page,
+        chapter=chapter,
+        timeout=timeout,
+        data=data,
+        func=func,
+        has_chapters=has_chapters,
     )
+
 
 async def custom_next_chapter(
     ctx: commands.Context,
@@ -172,7 +204,7 @@ async def custom_next_chapter(
     emoji: str,
     data: list,
     func,
-    has_chapters: bool
+    has_chapters: bool,
 ):
     perms = message.channel.permissions_for(ctx.me)
     if perms.manage_messages:  # Can manage messages, so remove react
@@ -187,8 +219,19 @@ async def custom_next_chapter(
     embed = await func(ctx, data, page)
 
     return await custom_menu(
-        ctx, embed, bot, controls, message=message, page=page, chapter=chapter, timeout=timeout, data=data, func=func, has_chapters=has_chapters
+        ctx,
+        embed,
+        bot,
+        controls,
+        message=message,
+        page=page,
+        chapter=chapter,
+        timeout=timeout,
+        data=data,
+        func=func,
+        has_chapters=has_chapters,
     )
+
 
 async def custom_previous_chapter(
     ctx: commands.Context,
@@ -217,7 +260,17 @@ async def custom_previous_chapter(
     embed = await func(ctx, data, page)
 
     return await custom_menu(
-        ctx, embed, bot, controls, message=message, page=page, chapter=chapter, timeout=timeout, data=data, func=func, has_chapters=has_chapters
+        ctx,
+        embed,
+        bot,
+        controls,
+        message=message,
+        page=page,
+        chapter=chapter,
+        timeout=timeout,
+        data=data,
+        func=func,
+        has_chapters=has_chapters,
     )
 
 
@@ -251,17 +304,19 @@ def start_adding_reactions(
     return asyncio.create_task(task())
 
 
-def check_controls(bot: Red, embeds: Union[List[str], List[discord.Embed]], data: list, has_chapters: bool):
+def check_controls(
+    bot: Red, embeds: Union[List[str], List[discord.Embed]], data: list, has_chapters: bool
+):
     """And here's another one just for good measure."""
     if len(embeds) > 1:
-         output = {
+        output = {
             "\N{LEFTWARDS BLACK ARROW}\N{VARIATION SELECTOR-16}": custom_previous_page,
             "\N{CROSS MARK}": custom_close_menu,
             "\N{BLACK RIGHTWARDS ARROW}\N{VARIATION SELECTOR-16}": custom_next_page,
         }
     else:
         output = {"\N{CROSS MARK}": custom_close_menu}
-    
+
     if has_chapters:
         if len(data) > 1:
             output["\N{UPWARDS BLACK ARROW}\N{VARIATION SELECTOR-16}"] = custom_previous_chapter
