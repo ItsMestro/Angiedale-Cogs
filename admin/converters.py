@@ -4,8 +4,8 @@ from typing import Dict, Union
 
 import discord
 from redbot.core import commands
-from redbot.core.utils.chat_formatting import inline
 from redbot.core.utils import AsyncIter
+from redbot.core.utils.chat_formatting import inline
 
 # the following regex is slightly modified from Red
 # it's changed to be slightly more strict on matching with finditer
@@ -33,10 +33,10 @@ class SelfRole(commands.Converter):
         admin = ctx.command.cog
         if admin is None:
             raise commands.BadArgument(("The Admin cog is not loaded."))
-        
+
         selfroles = await admin.config.guild(ctx.guild).selfroles()
         role_converter = commands.RoleConverter()
-        
+
         pool = set()
         async for role_id in AsyncIter(selfroles, steps=100):
             role = ctx.guild.get_role(role_id)
@@ -49,9 +49,7 @@ class SelfRole(commands.Converter):
             role = await role_converter.convert(ctx, arg)
             if role.id not in selfroles:
                 raise commands.BadArgument(
-                    ('The role "{role_name}" is not a valid selfrole.').format(
-                        role_name=role.name
-                    )
+                    ('The role "{role_name}" is not a valid selfrole.').format(role_name=role.name)
                 )
         elif len(pool) > 1:
             raise commands.BadArgument(
