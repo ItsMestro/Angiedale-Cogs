@@ -146,7 +146,6 @@ log = logging.getLogger("red.angiedale.games.data")
 
 
 class Database:
-
     config: Config = Config.get_conf(
         _DataObj, identifier=1387000, cog_name="GamesCasino", force_registration=True
     )

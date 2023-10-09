@@ -12,16 +12,16 @@ from random import choice
 from typing import Any, Dict, Final, Iterable, List, Literal, Union, cast
 
 import discord
+import schema
 import yaml
-from redbot.core import Config, bank, checks, commands, errors
+from redbot.core import Config, bank, commands, errors
 from redbot.core.bot import Red
 from redbot.core.data_manager import cog_data_path
 from redbot.core.errors import BalanceTooHigh
-from redbot.core.utils import AsyncIter
+from redbot.core.utils import AsyncIter, can_user_react_in
 from redbot.core.utils.chat_formatting import bold, box, humanize_number, pagify
 from redbot.core.utils.menus import start_adding_reactions
 from redbot.core.utils.predicates import MessagePredicate, ReactionPredicate
-import schema
 from tabulate import tabulate
 
 from . import utils
@@ -30,8 +30,8 @@ from .checks import trivia_stop_check
 from .converters import finite_float
 from .data import Database
 from .session import TriviaSession
-from .utils import is_input_unsupported
 from .triviaschema import TRIVIA_LIST_SCHEMA, format_schema_error
+from .utils import is_input_unsupported
 
 __all__ = ["get_core_lists"]
 
@@ -207,8 +207,8 @@ class Games(Database, commands.Cog):
 
         self.economyconfig = Config.get_conf(self, identifier=1387000, cog_name="Economy")
 
-    async def initialise(self):
-        self.migration_task = self.bot.loop.create_task(
+    async def cog_load(self) -> None:
+        self.migration_task = asyncio.create_task(
             self.data_schema_migration(
                 from_version=await self.config.schema_version(), to_version=_SCHEMA_VERSION
             )
@@ -321,7 +321,7 @@ class Games(Database, commands.Cog):
 
     @commands.group()
     @commands.guild_only()
-    @checks.guildowner()
+    @commands.guildowner()
     async def triviaset(self, ctx: commands.Context):
         """Manage Trivia settings."""
 
@@ -436,8 +436,8 @@ class Games(Database, commands.Cog):
         else:
             await ctx.send(("Alright, I won't reveal the answer to the questions anymore."))
 
-    @is_owner_if_bank_global()
-    @checks.admin_or_permissions(manage_guild=True)
+    @bank.is_owner_if_bank_global()
+    @commands.admin_or_permissions(manage_guild=True)
     @triviaset.command(name="payout")
     async def triviaset_payout_multiplier(self, ctx: commands.Context, multiplier: finite_float):
         """Set the payout multiplier.
@@ -636,7 +636,7 @@ class Games(Database, commands.Cog):
         subcommands for a more customised leaderboard.
         """
         cmd = self.trivia_leaderboard_server
-        if isinstance(ctx.channel, discord.abc.PrivateChannel):
+        if ctx.guild is None:
             cmd = self.trivia_leaderboard_global
         await ctx.invoke(cmd, "wins", 10)
 
@@ -899,7 +899,7 @@ class Games(Database, commands.Cog):
                 filename=filename
             )
 
-            can_react = ctx.channel.permissions_for(ctx.me).add_reactions
+            can_react = can_user_react_in(ctx.me, ctx.channel)
             if not can_react:
                 overwrite_message += " (yes/no)"
 
@@ -940,10 +940,15 @@ class Games(Database, commands.Cog):
                 )
             )
             return
-        
+
         await ctx.send(("Saved Trivia list as {filename}.").format(filename=filename))
 
-    def _get_trivia_session(self, channel: discord.TextChannel) -> TriviaSession:
+    def _get_trivia_session(
+        self,
+        channel: Union[
+            discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread
+        ],
+    ) -> TriviaSession:
         return next(
             (session for session in self.trivia_sessions if session.ctx.channel == channel), None
         )
@@ -1075,7 +1080,7 @@ class Games(Database, commands.Cog):
         """Use the slot machine.
 
         Example:
-            - `[p]slot 50`
+        - `[p]slot 50`
 
         **Arguments**
 
@@ -1265,7 +1270,7 @@ class Games(Database, commands.Cog):
         await ctx.send(embed=embed)
 
     @casino.command()
-    @checks.admin_or_permissions(administrator=True)
+    @commands.admin_or_permissions(administrator=True)
     async def releasecredits(self, ctx, player: Union[discord.Member, discord.User]):
         """Approves pending currency for a user.
 
@@ -1315,7 +1320,7 @@ class Games(Database, commands.Cog):
             await ctx.send(("Action canceled."))
 
     @casino.command()
-    @checks.admin_or_permissions(administrator=True)
+    @commands.admin_or_permissions(administrator=True)
     async def resetuser(self, ctx: commands.Context, user: discord.Member):
         """Reset a user's cooldowns, stats, or everything."""
 
@@ -1341,7 +1346,7 @@ class Games(Database, commands.Cog):
             await super()._reset_player_all(ctx, user)
 
     @casino.command()
-    @checks.admin_or_permissions(administrator=True)
+    @commands.admin_or_permissions(administrator=True)
     async def resetinstance(self, ctx: commands.Context):
         """Reset global/server cooldowns, settings, memberships, or everything."""
         if await super().casino_is_global() and not await ctx.bot.is_owner(ctx.author):
@@ -1371,7 +1376,7 @@ class Games(Database, commands.Cog):
             await super()._reset_all_settings(ctx)
 
     @casino.command()
-    @checks.is_owner()
+    @commands.is_owner()
     async def wipe(self, ctx: commands.Context):
         """Completely wipes casino data."""
         await ctx.send(
@@ -1393,7 +1398,7 @@ class Games(Database, commands.Cog):
             return await ctx.send(("Wipe canceled."))
 
     @casino.command()
-    @checks.admin_or_permissions(administrator=True)
+    @commands.admin_or_permissions(administrator=True)
     async def assignmem(
         self,
         ctx: commands.Context,
@@ -1422,7 +1427,7 @@ class Games(Database, commands.Cog):
         await ctx.send(msg)
 
     @casino.command()
-    @checks.admin_or_permissions(administrator=True)
+    @commands.admin_or_permissions(administrator=True)
     async def revokemem(self, ctx: commands.Context, player: Union[discord.Member, discord.User]):
         """Revoke an assigned membership.
 
@@ -1443,7 +1448,7 @@ class Games(Database, commands.Cog):
         )
 
     @casino.command()
-    @checks.admin_or_permissions(administrator=True)
+    @commands.admin_or_permissions(administrator=True)
     async def admin(self, ctx: commands.Context):
         """A list of Admin level and above commands for Casino."""
         cmd_list = []
@@ -1546,7 +1551,8 @@ class Games(Database, commands.Cog):
         await ctx.send(embed=embed)
 
     @casino.command()
-    @checks.admin_or_permissions(administrator=True)
+    @commands.max_concurrency(1, commands.BucketType.guild)
+    @commands.admin_or_permissions(administrator=True)
     async def memdesigner(self, ctx: commands.Context):
         """A process to create, edit, and delete memberships."""
         timeout = ctx.send(("Process timed out. Exiting membership process."))
@@ -1570,7 +1576,7 @@ class Games(Database, commands.Cog):
     @commands.check(global_casino_only)
     @commands.group()
     @commands.guild_only()
-    @checks.admin_or_permissions(administrator=True)
+    @commands.admin_or_permissions(administrator=True)
     async def casinoset(self, ctx: commands.Context):
         """Changes Casino settings"""
         pass
@@ -1589,7 +1595,7 @@ class Games(Database, commands.Cog):
         )
 
     @casinoset.command(name="mode")
-    @checks.is_owner()
+    @commands.is_owner()
     async def mode(self, ctx: commands.Context):
         """Toggles Casino between global and local modes.
 
@@ -1846,7 +1852,7 @@ class Games(Database, commands.Cog):
         await ctx.send(msg)
 
     async def membership_updater(self):
-        await self.bot.wait_until_ready()
+        await self.bot.wait_until_red_ready()
         try:
             while True:
                 await asyncio.sleep(300)  # Wait 5 minutes to cycle again
@@ -1916,6 +1922,7 @@ class Games(Database, commands.Cog):
                 "back to local with the casinoset mode command or make your economy "
                 "global with the bankset toggleglobal command."
             )
+            return
         for name, requirements in memberships.items():
             if _global:
                 if requirements["Credits"] and bal < requirements["Credits"]:
@@ -1928,11 +1935,11 @@ class Games(Database, commands.Cog):
                 else:
                     qualified.append((name, requirements["Access"]))
             else:
+                role_list = [x.name for x in user.roles]
+                role_list += [x.mention for x in user.roles]
                 if requirements["Credits"] and bal < requirements["Credits"]:
                     continue
-                elif requirements["Role"] and requirements["Role"] not in [
-                    x.name for x in user.roles
-                ]:
+                elif requirements["Role"] and requirements["Role"] not in role_list:
                     continue
                 elif (
                     requirements["DOS"]
@@ -1973,7 +1980,7 @@ class Games(Database, commands.Cog):
         results = []
         for cooldown in cooldowns:
             seconds = int((cooldown + reduction - now))
-            results.append(utils.cooldown_formatter(seconds, custom_msg="<<Ready to Play!"))
+            results.append(utils.cooldown_formatter(seconds, custom_msg="<Ready to Play!>"))
         return results
 
 
@@ -2069,7 +2076,6 @@ class Membership(Database):
             await self.ctx.send(("Deletion canceled."))
 
     async def creator(self):
-
         await self.ctx.send(
             _(
                 "You are about to create a new membership. You may exit this "

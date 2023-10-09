@@ -4,6 +4,7 @@ import random
 
 # Discord
 import discord
+
 # Red
 from redbot.core import bank
 from redbot.core.errors import BalanceTooHigh
@@ -51,19 +52,17 @@ class Core:
 
     @game_engine("Allin")
     async def play_allin(self, ctx, bet, multiplier):
-        message = await ctx.send(
-            ("You put all your chips into the machine and pull the lever...")
-        )
+        message = await ctx.send(("You put all your chips into the machine and pull the lever..."))
         await asyncio.sleep(3)
         outcome = random.randint(0, multiplier + 1)
         if outcome == 0:
             msg = "▂▃▅▇█▓▒░ [♠]  [♥]  [♦]  [♣] ░▒▓█▇▅▃▂\n"
-            msg += ("          CONGRATULATIONS YOU WON\n")
-            msg += ("░▒▓█▇▅▃▂ ⚅ J A C K P O T ⚅ ▂▃▅▇█▓▒░")
+            msg += "          CONGRATULATIONS YOU WON\n"
+            msg += "░▒▓█▇▅▃▂ ⚅ J A C K P O T ⚅ ▂▃▅▇█▓▒░"
             msg = box(msg, lang="py")
             bet *= multiplier
         else:
-            msg = ("Nothing happens. You stare at the machine contemplating your decision.")
+            msg = "Nothing happens. You stare at the machine contemplating your decision."
         return outcome == 0, bet, msg, message
 
     @game_engine("Coin", (("heads"), ("tails")))
@@ -84,7 +83,9 @@ class Core:
 
     @game_engine("Dice")
     async def play_dice(self, ctx, bet):
-        message = await ctx.send(("The dice strike the back of the table and begin to tumble into place..."))
+        message = await ctx.send(
+            ("The dice strike the back of the table and begin to tumble into place...")
+        )
         await asyncio.sleep(2)
         die_one, die_two = self.roll_dice()
         outcome = die_one + die_two
@@ -117,7 +118,7 @@ class Core:
         return await self._craps_game(ctx, bet)
 
     async def _craps_game(self, ctx, bet, comeout=False, message=None):
-        msg1 = ("The dice strike against the back of the table...")
+        msg1 = "The dice strike against the back of the table..."
         if (not await self.old_message_cache.get_guild(ctx.guild)) and message:
             await asyncio.sleep(3)
             await message.edit(content=msg1)
@@ -126,7 +127,7 @@ class Core:
         await asyncio.sleep(2)
         d1, d2 = self.roll_dice()
         result = d1 + d2
-        msg = ("You rolled a {} and {}.")
+        msg = "You rolled a {} and {}."
 
         if comeout:
             if result == comeout:
@@ -212,7 +213,11 @@ class Blackjack:
         try:
             await bank.withdraw_credits(ctx.author, amount)
         except ValueError:
-            await ctx.send(("{} You can not cover the bet. Please choose hit or stay.").format(ctx.author.mention))
+            await ctx.send(
+                ("{} You can not cover the bet. Please choose hit or stay.").format(
+                    ctx.author.mention
+                )
+            )
 
             try:
                 choice2 = await ctx.bot.wait_for("message", check=condition2, timeout=35.0)
@@ -239,20 +244,20 @@ class Blackjack:
         pc = deck.bj_count(ph)
 
         if dc > 21 >= pc or dc < pc <= 21:
-            outcome = ("Winner!")
+            outcome = "Winner!"
             result = True
         elif pc > 21:
-            outcome = ("BUST!")
+            outcome = "BUST!"
             result = False
         elif dc == pc <= 21:
-            outcome = ("Pushed")
+            outcome = "Pushed"
             try:
                 await bank.deposit_credits(ctx.author, amount)
             except BalanceTooHigh as e:
                 await bank.set_balance(ctx.author, e.max_balance)
             result = False
         else:
-            outcome = ("House Wins!")
+            outcome = "House Wins!"
             result = False
         embed = self.bj_embed(ctx, ph, dh, pc, outcome=outcome)
         return result, amount, embed, message
@@ -290,17 +295,17 @@ class Blackjack:
             count = deck.bj_count(dh)
 
         # defines maximum hit score X
-        while count < 16:
+        while count < 17:
             deck.deal(hand=dh)
             count = deck.bj_count(dh)
         return dh
 
     @staticmethod
     def bj_embed(ctx, ph, dh, count1, initial=False, outcome=None):
-        hand = ("{}\n**Score:** {}")
-        footer = ("Cards in Deck: {}")
-        start = ("**Options:** hit, stay, or double")
-        after = ("**Options:** hit or stay")
+        hand = "{}\n**Score:** {}"
+        footer = "Cards in Deck: {}"
+        start = "**Options:** hit, stay, or double"
+        after = "**Options:** hit or stay"
         options = "**Outcome:** " + outcome if outcome else start if initial else after
         count2 = deck.bj_count(dh, hole=True) if not outcome else deck.bj_count(dh)
         hole = " ".join(deck.fmt_hand([dh[0]]))
@@ -340,7 +345,7 @@ class War:
             )
         )
         await asyncio.sleep(2)
-        text = ("**FLIP!**")
+        text = "**FLIP!**"
         if not await self.old_message_cache.get_guild(ctx.guild):
             await message.edit(content=text)
         else:
@@ -377,8 +382,8 @@ class War:
         else:
             player_card, dealer_card, pc, dc = self.burn_and_draw()
 
-            msg1 = ("The dealer burns three cards and deals two cards face down...")
-            msg2 = ("**FLIP!**")
+            msg1 = "The dealer burns three cards and deals two cards face down..."
+            msg2 = "**FLIP!**"
 
             if not await self.old_message_cache.get_guild(ctx.guild):
                 action = message.edit
@@ -401,14 +406,14 @@ class War:
             deck.fmt_card(player_card), deck.fmt_card(dealer_card)
         )
         if outcome == "Win":
-            msg += ("**Result**: Winner")
+            msg += "**Result**: Winner"
             return True, amount, msg, message
 
         elif outcome == "Loss":
-            msg += ("**Result**: Loser")
+            msg += "**Result**: Loser"
             return False, amount, msg, message
         else:
-            msg += ("**Result**: Surrendered")
+            msg += "**Result**: Surrendered"
             return False, amount, msg, message
 
     @staticmethod
@@ -473,19 +478,19 @@ class Double:
 
     async def double_results(self, ctx, count, amount, message=None):
         if amount > 0:
-            outcome = ("Cashed Out!")
+            outcome = "Cashed Out!"
             result = True
         else:
-            outcome = ("You Lost It All!")
+            outcome = "You Lost It All!"
             result = False
         embed = self.double_embed(ctx, count, amount, outcome=outcome)
         return result, amount, embed, message
 
     @staticmethod
     def double_embed(ctx, count, amount, outcome=None):
-        double = ("{}\n**DOUBLE!:** x{}")
-        zero = ("{}\n**NOTHING!**")
-        choice = ("**Options:** double or cash out")
+        double = "{}\n**DOUBLE!:** x{}"
+        zero = "{}\n**NOTHING!**"
+        choice = "**Options:** double or cash out"
         options = "**Outcome:** " + outcome if outcome else choice
 
         if amount == 0:

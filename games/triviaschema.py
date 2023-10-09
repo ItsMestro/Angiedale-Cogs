@@ -1,10 +1,9 @@
 import itertools
 import math
 import re
-from typing import Any, NoReturn
+from typing import Any
 
 from schema import And, Const, Optional, Schema, SchemaError, SchemaMissingKeyError, Use
-
 
 __all__ = ("TRIVIA_LIST_SCHEMA", "format_schema_error")
 
@@ -13,7 +12,7 @@ KEY_ERROR_MSG_RE = re.compile(r"Key '(.+)' error:")
 
 class SchemaErrorMessage(str):
     def format(self, *args: Any, **kwargs: Any) -> str:
-        return (str(self))
+        return str(self)
 
 
 def int_or_float(value: Any) -> float:
@@ -29,7 +28,7 @@ def not_str(value: Any) -> float:
 
 
 _ = SchemaErrorMessage
-NO_QUESTIONS_ERROR_MSG = ("The trivia list does not contain any questions.")
+NO_QUESTIONS_ERROR_MSG = "The trivia list does not contain any questions."
 ALWAYS_MATCH = Optional(Use(lambda x: x))
 MATCH_ALL_BUT_STR = Optional(Use(not_str))
 TRIVIA_LIST_SCHEMA = Schema(
