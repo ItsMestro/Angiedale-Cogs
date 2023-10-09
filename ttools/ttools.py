@@ -1,21 +1,22 @@
 import asyncio
 import logging
 import os
-from osu.tools import del_message
 import re
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from random import choice
 from typing import Optional, Union
 
 import discord
 import gspread
 from PIL import Image, ImageDraw, ImageFont
-from redbot.core import Config, checks, commands
+from redbot.core import Config, commands
 from redbot.core.bot import Red
 from redbot.core.data_manager import bundled_data_path, cog_data_path
 from redbot.core.utils.chat_formatting import humanize_number, humanize_timedelta
 from redbot.core.utils.menus import start_adding_reactions
-from redbot.core.utils.predicates import ReactionPredicate, MessagePredicate
+from redbot.core.utils.predicates import MessagePredicate, ReactionPredicate
+
+from osu.tools import del_message
 
 log = logging.getLogger("red.angiedale.ttools")
 
@@ -71,14 +72,11 @@ class TTools(commands.Cog):
 
         self.gs = gspread.service_account(filename=f"{bundled_data_path(self)}/key.json")
 
-        self.initialize_task: asyncio.Task = self.bot.loop.create_task(self.initialize())
-
     async def red_delete_data_for_user(self, **kwargs):
         """Nothing to delete"""
         return
 
-    async def initialize(self):
-        await self.bot.wait_until_ready()
+    async def cog_load(self) -> None:
         await self._update_listenchannels()
 
     async def _update_listenchannels(self):
@@ -97,14 +95,14 @@ class TTools(commands.Cog):
 
     @commands.group(hidden=True)
     @commands.guild_only()
-    @checks.admin_or_permissions(administrator=True)
+    @commands.admin_or_permissions(administrator=True)
     async def ttools(self, ctx: commands.Context):
         """"""
         pass
 
     @ttools.group()
     @commands.guild_only()
-    @checks.is_owner()
+    @commands.is_owner()
     async def debug(self, ctx: commands.Context):
         """"""
         pass
@@ -159,7 +157,7 @@ class TTools(commands.Cog):
                 await ctx.send("Cleared channel.")
 
     @ttools.command()
-    @checks.is_owner()
+    @commands.is_owner()
     async def toggleserver(self, ctx: commands.Context):
         """"""
         enabled = await self.config.guild(ctx.guild).enabled()
@@ -171,7 +169,7 @@ class TTools(commands.Cog):
             await ctx.send(("TTools disable in this server."))
 
     @ttools.command()
-    @checks.is_owner()
+    @commands.is_owner()
     async def resetserver(self, ctx: commands.Context):
         """"""
         can_react = ctx.channel.permissions_for(ctx.me).add_reactions
@@ -207,7 +205,7 @@ class TTools(commands.Cog):
         await self.settings(ctx)
 
     @ttools.command()
-    @checks.is_owner()
+    @commands.is_owner()
     async def settings(self, ctx: commands.Context):
         """"""
         embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
@@ -233,7 +231,7 @@ class TTools(commands.Cog):
         await ctx.send(embed=embed)
 
     @ttools.command()
-    @checks.is_owner()
+    @commands.is_owner()
     async def setup(self, ctx: commands.Context):
         """"""
         if not ctx.guild.me.guild_permissions.manage_channels:
@@ -269,7 +267,7 @@ class TTools(commands.Cog):
         await self.settings(ctx)
 
     @ttools.command()
-    @checks.is_owner()
+    @commands.is_owner()
     async def sheet(self, ctx: commands.Context, key: str = None):
         """"""
         await ctx.message.delete()
@@ -281,7 +279,7 @@ class TTools(commands.Cog):
             await ctx.send("Sheet key removed.")
 
     @ttools.command()
-    @checks.is_owner()
+    @commands.is_owner()
     async def mode(self, ctx: commands.Context, mode: str):
         """"""
         mode = mode.lower()
@@ -292,7 +290,7 @@ class TTools(commands.Cog):
             await ctx.send("Invalid mode. Please use one of: `osu, taiko, fruits, mania`")
 
     @ttools.command(name="referee")
-    @checks.is_owner()
+    @commands.is_owner()
     async def set_referee_role(self, ctx: commands.Context, role: discord.Role):
         """"""
         if role:
@@ -303,7 +301,7 @@ class TTools(commands.Cog):
             await ctx.send("Referee role removed.")
 
     @ttools.command()
-    @checks.is_owner()
+    @commands.is_owner()
     async def useimage(self, ctx: commands.Context):
         """"""
         useimg = await self.config.guild(ctx.guild).useimg()
@@ -315,7 +313,7 @@ class TTools(commands.Cog):
             await ctx.send("Referee pings will no longer use images.")
 
     @ttools.command()
-    @checks.is_owner()
+    @commands.is_owner()
     async def setimage(self, ctx: commands.Context):
         """"""
         if len(ctx.message.attachments) == 1:
@@ -341,7 +339,7 @@ class TTools(commands.Cog):
                 pass
 
     @ttools.command()
-    @checks.is_owner()
+    @commands.is_owner()
     async def setteamsize(self, ctx: commands.Context, teamsize: int):
         """"""
         if teamsize < 1 or teamsize > 4:
@@ -351,7 +349,7 @@ class TTools(commands.Cog):
         await ctx.send(f"Teamsize for tourney now set to {teamsize}")
 
     @ttools.command()
-    @checks.is_owner()
+    @commands.is_owner()
     async def setregcategory(self, ctx: commands.Context, category: discord.CategoryChannel):
         """"""
         await self.config.guild(ctx.guild).regcategory.set(category.id)
@@ -359,7 +357,7 @@ class TTools(commands.Cog):
         await ctx.send("Registration category updated.")
 
     @ttools.command()
-    @checks.is_owner()
+    @commands.is_owner()
     async def setregchannel(self, ctx: commands.Context, channel: discord.TextChannel):
         """"""
         await self.config.guild(ctx.guild).regchannel.set(channel.id)
@@ -406,7 +404,7 @@ class TTools(commands.Cog):
             await ctx.send(("Registrations closed."))
 
     @ttools.command()
-    @checks.is_owner()
+    @commands.is_owner()
     async def playerrole(self, ctx: commands.Context, role: Optional[discord.Role]):
         """"""
         if role:
@@ -586,7 +584,7 @@ class TTools(commands.Cog):
         permusers[ctx.guild.me] = perms
         permusers[ctx.guild.default_role] = defaultperms
         for ar in await self.bot.get_admin_roles(ctx.guild):
-           permusers[ar] = perms
+            permusers[ar] = perms
 
         regchannel = await regcategory.create_text_channel(
             name=f"{ctx.author.name}",
@@ -832,15 +830,11 @@ class TTools(commands.Cog):
                         )
                         return embed
                     elif embed_field.name.startswith(f"P{player}"):
-                        embed.insert_field_at(
-                            i, name=f"Player {player} ID", value=id, inline=True
-                        )
-                        embed.insert_field_at(
-                            i, name=f"Player {player}", value=name, inline=True
-                        )
+                        embed.insert_field_at(i, name=f"Player {player} ID", value=id, inline=True)
+                        embed.insert_field_at(i, name=f"Player {player}", value=name, inline=True)
                         return embed
                     i += 1
-                
+
                 if embed.fields[-1].name.startswith("Player"):
                     new_player = int(embed.fields[-1].name[-4]) + 1
                 else:
@@ -946,9 +940,7 @@ class TTools(commands.Cog):
 
             channel_settings["players"][0]["id"] = player_id
             channel_settings["players"][0]["name"] = player_name
-            new_embed = await self.set_registration(
-                embed_msg, 1, name=player_name, id=player_id
-            )
+            new_embed = await self.set_registration(embed_msg, 1, name=player_name, id=player_id)
             await embed_msg.edit(embed=new_embed)
 
             reg_status = 0
@@ -1171,7 +1163,7 @@ class TTools(commands.Cog):
             return await ctx.send(
                 f"Your team doesn't have a team name yet. Set one using `{ctx.clean_prefix}teamname <name>`"
             )
-        
+
         processing_msg = await ctx.send("Processing...")
 
         serverkey = await self.serverkey(ctx)
