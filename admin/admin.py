@@ -718,6 +718,8 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
 
         if channel:
             channel = guild.get_channel(channel)
+            if not channel.permissions_for(guild.me).send_messages:
+                return
             out = "{} {}".format(member, member.nick if member.nick is not None else "")
             if await self.bot.embed_requested(channel):
                 embed = discord.Embed(
