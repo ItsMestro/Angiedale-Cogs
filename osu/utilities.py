@@ -295,7 +295,7 @@ class Utilities(MixinMeta):
         return pretty_mode
 
 
-async def del_message(ctx, message_text: str, timeout: int = 10) -> None:
+async def del_message(ctx: commands.Context, message_text: str, timeout: int = 10) -> None:
     """Simple function to sends a small embed that auto-deletes."""
 
     message = await ctx.maybe_send_embed(message_text)

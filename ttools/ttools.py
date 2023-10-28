@@ -16,7 +16,21 @@ from redbot.core.utils.chat_formatting import humanize_number, humanize_timedelt
 from redbot.core.utils.menus import start_adding_reactions
 from redbot.core.utils.predicates import MessagePredicate, ReactionPredicate
 
-from osu.tools import del_message
+# This cog will be unusable for the time being until such a time that I need it again.
+# As much as I love the use it got I don't forsee it being used again.
+# Because of that I'd rather spend my time on other projects until this becomes needed again
+
+
+async def del_message(ctx: commands.Context, message_text: str, timeout: int = 10) -> None:
+    """Simple function to sends a small embed that auto-deletes."""
+
+    message = await ctx.maybe_send_embed(message_text)
+    await asyncio.sleep(timeout)
+    try:
+        await message.delete()
+    except (discord.errors.NotFound, discord.errors.Forbidden):
+        pass
+
 
 log = logging.getLogger("red.angiedale.ttools")
 
@@ -643,6 +657,7 @@ class TTools(commands.Cog):
         )
 
     async def useosufetch(self, api: str):
+        return  # TODO
         osucog = self.bot.get_cog("Osu")
         if osucog:
             return await osucog.fetch_api(api)
