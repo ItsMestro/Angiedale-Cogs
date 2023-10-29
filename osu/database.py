@@ -1,12 +1,12 @@
 import asyncio
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Set, Union
+from typing import List, Optional, Set
 
 import aiohttp
-from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorCollection, AsyncIOMotorDatabase
 from ossapi import Beatmap, GameMode
 from ossapi import Score as OsuScore
 from ossapi.models import Grade as OsuGrade
@@ -35,7 +35,9 @@ class Database(MixinMeta):
         self.leaderboard_tasks: Set[Optional[asyncio.Task]] = set()
 
     async def get_last_cache_date(self) -> None:
-        """Set the default cache date on init."""
+        """Set the cache date for when the offline beatmap caching script
+        was ran, from file.
+        """
         try:
             with open(f'{cog_data_path(raw_name="Osu")}/cachedate') as f:
                 last_cached = f.read()
@@ -44,33 +46,50 @@ class Database(MixinMeta):
             log.error("No 'cachedate' file found. Database can't be used without it.")
 
     async def extra_beatmap_info(self, beatmap: Beatmap) -> Optional[DatabaseBeatmap]:
-        """Gathers and returns extra beatmap info.
+        """Gathers and returns extra beatmap info that the API doesn't provide.
 
-        Uses database cache if possible."""
-        # Needs testing
+        Checks the database for a cached version of the beatmap first
+        and makes sure the data is up to date before returning it.
+
+        Otherwise downloads and caches the beatmap in database.
+
+        This beatmap info is needed for some of the features I use that
+        requires the hitobjects of a .osu file. It's also keeping all the .osu
+        files for the future in case I ever decide to add pp calc features, which
+        the wrappers for it usually need the .osu file.
+        """
         if not self.db_connected:
             return
 
-        if not self.last_caching:
+        if self.last_caching is None:
             return
 
+        # Try to find the beatmap in the database
         map_data: Optional[dict] = await self.db.beatmaps.find_one({"_id": beatmap.id})
-        if not map_data:
+        if not map_data:  # If it's not cached. Cache it then find the new entry.
             await self.cache_beatmap(beatmap.id)
             map_data = await self.db.beatmaps.find_one({"_id": beatmap.id})
 
         map_data: DatabaseBeatmap = DatabaseBeatmap(map_data["data"])
 
-        if beatmap.status.value == 1 and map_data.cachedate > beatmap.last_updated:
+        # If map is ranked and we cached after its rank date, return the map
+        if beatmap.status == RankStatus.RANKED and map_data.cachedate > beatmap.last_updated:
             return map_data
+        # If map was updated after we cached it
+        # or our offline caching is newer than the stored cache(What?)
+        # Re-cache then return
         elif beatmap.last_updated > map_data.cachedate or map_data.cachedate < self.last_caching:
             await self.cache_beatmap(beatmap.id, forced=True)
-            return await self.db.beatmaps.find_one({"_id": beatmap.id})
+            map_data = await self.db.beatmaps.find_one({"_id": beatmap.id})
+            return DatabaseBeatmap(map_data["data"])
         else:
             return map_data
 
     async def cache_beatmap(self, map_id: int, forced=False) -> None:
-        """Creates and stores a beatmaps data in the database cache."""
+        """Caches a beatmaps data in the database
+        and optionally downloads the .osu file if we don't already have it
+        or are forced to.
+        """
 
         file_path = f"{self.map_path}/{map_id}.osu"
 
@@ -79,6 +98,7 @@ class Database(MixinMeta):
 
         try:
             beatmap = parse_beatmap(file_path)
+        # TODO: If this becomes an issue I need to add proper exception handling for it.
         except Exception as e:
             return log.exception("There was an error parsing beatmap", exc_info=e)
 
@@ -100,7 +120,9 @@ class Database(MixinMeta):
         await asyncio.sleep(0.2)
 
     def queue_leaderboard(self, data: List[OsuScore], mode: GameMode) -> None:
-        """Filters out ranked and loved maps from score list and creates a task for adding to leaderboard."""
+        """Filters out ranked and loved maps from score list
+        and creates a task for adding to leaderboard.
+        """
         filtered_data = []
 
         for score in data:
@@ -120,15 +142,20 @@ class Database(MixinMeta):
         task.add_done_callback(self.leaderboard_tasks.discard)
 
     async def add_to_leaderboard(self, scores: List[OsuScore], mode: GameMode) -> None:
-        """Takes a set of scores and adds it to the leaderboard."""
+        """Takes a list of scores and adds it to the leaderboard.
+
+        Also handles checking if the beatmap was updated since we started this
+        leaderboard and wipes the scores if that's the case.
+        """
         dbcollection = self.db[f"leaderboard_{mode.value}"]
 
         for score in scores:
-            entry = DatabaseLeaderboard(
+            beatmap_entry = DatabaseLeaderboard(
                 await dbcollection.find_one({"_id": score.beatmap.id}, {"beatmap": 1})
-            )
+            )  # Try to get the stored beatmap of the score
 
-            async def add_entry(score):
+            async def add_entry(score: OsuScore) -> None:
+                """Add a new beatmap entry to our leaderboard."""
                 new_entry = {"_id": score.beatmap.id}
                 beatmap_data = await self.api.beatmap(score.beatmap.id)
                 beatmapset_data = beatmap_data.beatmapset()
@@ -142,31 +169,36 @@ class Database(MixinMeta):
                 new_entry["leaderboard"] = {}
                 await dbcollection.replace_one({"_id": score.beatmap.id}, new_entry, upsert=True)
 
-            if entry.id is None:
+            # We don't have the beatmap stored
+            if beatmap_entry.id is None:
                 await add_entry(score)
-            elif score.beatmap.last_updated > datetime.now(timezone.utc):
+            # The stored data is outdated
+            elif score.beatmap.last_updated > beatmap_entry.last_updated:
                 await add_entry(score)
 
             score_entry = DatabaseLeaderboard(
                 await dbcollection.find_one(
                     {"_id": score.beatmap.id}, {f"leaderboard.{score.user_id}": 1}
                 )
-            )
+            )  # Try to get the stored score for this play
 
-            if len(score_entry.leaderboard) == 0:
-                await self.push_to_leaderboard(score, dbcollection)
-            elif score_entry.leaderboard[str(score.user_id)].score > score.score:
+            try:
+                # Leaderboard is empty
+                if len(score_entry.leaderboard) == 0:
+                    await self.push_to_leaderboard(score, dbcollection)
+                # Score is improved
+                elif score_entry.leaderboard[str(score.user_id)].score > score.score:
+                    await self.push_to_leaderboard(score, dbcollection)
+            except KeyError:  # Score is not on the leaderboard yet
                 await self.push_to_leaderboard(score, dbcollection)
 
-    async def push_to_leaderboard(self, score: OsuScore, dbc):
-        """Creates dict with needed entries and updates database."""
-        return await dbc.update_one(
+    async def push_to_leaderboard(self, score: OsuScore, dbcollection: AsyncIOMotorCollection):
+        """Adds a score to the unranked leaderboards."""
+        return await dbcollection.update_one(
             {"_id": score.beatmap.id},
             {
                 "$set": {
-                    f"leaderboard.{score.user_id}": DatabaseScore(
-                        score.user_id, score
-                    ).flatten_to_dict()
+                    f"leaderboard.{score.user_id}": DatabaseScore(score.user_id, score).to_dict()
                 }
             },
             upsert=True,
@@ -175,15 +207,16 @@ class Database(MixinMeta):
     async def get_unranked_leaderboard(
         self, map_id: int, mode: GameMode
     ) -> Optional[DatabaseLeaderboard]:
-        dbc = self.db[f"leaderboard_{mode.value}"]
-        leaderboard = await dbc.find_one({"_id": map_id})
-        if leaderboard:
+        """Get the unranked leaderboard for a beatmap."""
+        dbcollection = self.db[f"leaderboard_{mode.value}"]
+        leaderboard = await dbcollection.find_one({"_id": map_id})
+        if leaderboard is not None:
             return DatabaseLeaderboard(leaderboard)
 
-    async def connect_to_mongo(self) -> Union[AsyncIOMotorClient, None]:
+    async def connect_to_mongo(self) -> Optional[AsyncIOMotorClient]:
         self.db_connected = False
 
-        if self.mongo_client is not None:
+        if self.mongo_client is not None:  # Close client if there is one already
             self.mongo_client.close()
 
         config = await self.osu_config.custom("mongodb").all()

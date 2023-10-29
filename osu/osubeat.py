@@ -483,7 +483,7 @@ class Functions(Embeds):
             self.osubeat_task: asyncio.Task = asyncio.create_task(self.check_osu_beat())
 
     async def end_osubeat(self, guild_id: int, map_id: int) -> None:
-        """Handles ending beat compatitions and sends results."""
+        """Handles ending beat competitions and sends results."""
 
         if not map_id in self.osubeat_maps:
             return
@@ -501,7 +501,7 @@ class Functions(Embeds):
         beat_current = Osubeat(await self.osu_config.guild(guild).beat_current())
 
         channel = guild.get_channel_or_thread(beat_current.channel_id)
-        if channel is None:
+        if channel is None:  # Missing channel so silently end
             beat_current.channel_id = None
             beat_current.message_id = None
             beat_current.pinned = False
@@ -546,6 +546,7 @@ class Functions(Embeds):
         await self.osu_config.guild(guild).beat_current.clear()
         await self.osu_config.guild(guild).beat_last.set(beat_current.to_dict())
 
+        # Remove map from dict if this was last guild entry
         if len(self.osubeat_maps[map_id]) == 0:
             del self.osubeat_maps[map_id]
 
@@ -564,7 +565,7 @@ class Functions(Embeds):
         beat_current = Osubeat(await self.osu_config.guild(ctx.guild).beat_current())
 
         channel = ctx.guild.get_channel_or_thread(beat_current.channel_id)
-        if channel is None:
+        if channel is None:  # Missing channel so silently end
             beat_current.channel_id = None
             beat_current.message_id = None
             beat_current.pinned = False
@@ -588,11 +589,12 @@ class Functions(Embeds):
 
         await self.osu_config.guild(ctx.guild).beat_current.clear()
 
+        # Remove map from dict if this was last guild entry
         if len(self.osubeat_maps[map_id]) == 0:
             del self.osubeat_maps[map_id]
 
     async def queue_osubeat_check(self, ctx: commands.Context, data: List[OsuScore]) -> None:
-        """Adds a list of scores to be checked against osubeat to the queue."""
+        """Adds a list of scores to be checked against osubeat, to the queue."""
 
         task = asyncio.create_task(self.check_score_for_osubeat(ctx, data))
         self.osubeat_check_tasks.add(task)
@@ -602,9 +604,11 @@ class Functions(Embeds):
         """Finds plays that fit beat criteria and adds to leaderboard."""
 
         for score in data:
+            # No beat for the scores map
             if not score.beatmap.id in self.osubeat_maps.keys():
                 continue
 
+            # Don't count fails.
             if score.rank == OsuGrade.F:
                 continue
 
@@ -612,10 +616,10 @@ class Functions(Embeds):
                 if score.mode != beat_data["mode"]:
                     continue
 
-                if len(beat_data["mods"]) > 0:
+                if len(beat_data["mods"]) > 0:  # len() == 0 is "FM". Not "NM"
                     if not score.mods in beat_data["mods"]:
                         continue
-                else:
+                else:  # This is a solution to handle beats that run with "FM"
                     split_mods = score.mods.decompose()
                     try:
                         for mod in split_mods:
@@ -628,7 +632,7 @@ class Functions(Embeds):
                     await self.osu_config.member_from_ids(guild_id, ctx.author.id).beat_score()
                 )
 
-                if beat_score.score is None:
+                if beat_score.score is None:  # User hasn't signed up for this beat
                     continue
 
                 if score.user().id != beat_score.user.id:

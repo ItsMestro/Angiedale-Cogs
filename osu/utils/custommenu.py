@@ -2,7 +2,9 @@
 # https://github.com/Lunar-Dust/Dusty-Cogs/blob/master/menu/menu.py
 #
 # Ported to Red V3 by Palm\_\_ (https://github.com/palmtree5)
-# Modified by Mestro
+# Modified by Mestro to support dynamically getting the embed for each page.
+
+# TODO: Make the menu cache pages that it has already fetched dynamically
 import asyncio
 import contextlib
 import functools
@@ -381,6 +383,8 @@ async def custom_close_menu(
         await message.delete()
 
 
+# This is my only real addition here as I want the ability to have pagination
+# for each "bundle" of embeds
 async def chapter_menu(
     ctx: commands.Context,
     data: List[dict],

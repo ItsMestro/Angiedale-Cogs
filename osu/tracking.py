@@ -195,7 +195,7 @@ class Functions(Embeds):
         self.tracking_cache: Dict[GameMode, Dict[int, List[int]]] = {}
 
     async def initialize_tracking(self):
-        """First time tracking logic when boot gets started up."""
+        """First time tracking logic when starting up."""
 
         await self.bot.wait_until_red_ready()
 
@@ -215,6 +215,8 @@ class Functions(Embeds):
 
         # Since bot is just starting up. Update every user once without sending embed just in case
         # to avoid accidental spam on boot.
+        #
+        # This has been a problem in the past so now there is a fail safe.
 
         await asyncio.sleep(20)
         active_cache = deepcopy(self.tracking_cache)
@@ -236,13 +238,20 @@ class Functions(Embeds):
         self.tracking_task = asyncio.create_task(self.update_tracking(path))
 
     async def ping_api(self) -> bool:
+        """Pings the api with a long cooldown to test if it's alive."""
         await asyncio.sleep(600)
-        data = await self.api.user(4798263)
+        data = (
+            await self.api.seasonal_backgrounds()
+        )  # I'll probably regret using this endpoint in the future but I thought it was funny
         if data is None:
             return False
         return True
 
     async def restart_tracking(self, exception: Exception = None, api_fail: bool = False):
+        """Restarts tracking in case of an error.
+
+        Will wait on api to become alive again if it detected the api as down.
+        """
         if exception:
             log.warning("Tracking loop failed and will restart shortly.", exc_info=exception)
         await asyncio.sleep(300)
@@ -261,7 +270,11 @@ class Functions(Embeds):
         self.tracking_init_task = asyncio.create_task(self.initialize_tracking())
 
     async def update_tracking(self, path: Path):
-        """Checks for new top plays based on list of tracked users."""
+        """Top score tracking loop (The magnum opus of awful code).
+
+        Checks a users top scores and compares with stored data
+        and sends any changes to subscribed servers.
+        """
 
         log.info("Starting tracking loop.")
 
@@ -357,7 +370,10 @@ class Functions(Embeds):
                 break
 
     async def refresh_tracking_cache(self) -> None:
-        """Should be called after every config change to flush the cache with new data."""
+        """Tracking cache instantiation.
+
+        Should be called after every config change to flush the cache with new data.
+        """
 
         async with self.osu_config.tracking() as data:
             new_cache = {}
@@ -369,7 +385,7 @@ class Functions(Embeds):
 
         self.tracking_cache = new_cache
 
-        if self.tracking_task:
+        if self.tracking_task:  # Restart tracking if needed
             if self.tracking_task.done():
                 self.tracking_init_task = asyncio.create_task(self.initialize_tracking())
 
@@ -381,6 +397,7 @@ class Functions(Embeds):
         stored_data: List[dict],
         fresh_data: List[dict],
     ) -> None:
+        """Builds score embed and sends to subscribed servers."""
         for stored_index, _ in enumerate(stored_data):
             for fresh_index, _ in enumerate(fresh_data):
                 if (
@@ -405,7 +422,7 @@ class Functions(Embeds):
             for channel_id in channels:
                 channel = self.bot.get_channel(channel_id)
 
-                if channel:
+                if channel is not None:
                     try:
                         await channel.send(embed=embed)
                     except discord.errors.Forbidden:
@@ -435,7 +452,8 @@ class Functions(Embeds):
 
     def scores_to_dict(
         self, scores: List[OsuScore]
-    ) -> dict:  # This returns just a generic dict but is formatted same as Score
+    ) -> dict:  # This returns just a generic dict but is formatted same as ossapi.Score
+        """Converts ossapi.Score to dict for storing locally as json."""
         output = []
         index = 0
 
@@ -498,6 +516,11 @@ class Functions(Embeds):
     async def get_player(
         self, ctx: commands.Context, user: Union[discord.Member, str]
     ) -> Optional[Tuple[int, str]]:
+        """Gets a users id and username from a string or mention.
+
+        This is just a slightly modified version of `utilities.Utilities.user_id_extractor()`
+        that is less persistant on trying to find a functional user.
+        """
         if isinstance(user, discord.Member):
             user_id = await self.osu_config.user(user).userid()
             if user_id is not None:
@@ -560,7 +583,11 @@ class Functions(Embeds):
             ]
         ],
     ]:
-        """Helper for getting tracked users for guilds."""
+        """Counts how many instances of tracking are happening in a server.
+
+        Will return a list with data in a weird edge case where we re-use this function for
+        listing the tracked users instead of counting them.
+        """
 
         count = 0
         channel_list = []
@@ -568,18 +595,15 @@ class Functions(Embeds):
         async with self.osu_config.tracking() as data:
             for mode, users in data.items():
                 for user_id, channels in users.items():
-                    if channel is not None:  # We provided a channel
+                    if channel is not None:
                         if user_id == user:
                             count -= 1
                         for channel_id in channels:
-                            if channel.guild.get_channel_or_thread(
-                                channel_id
-                            ):  # If channel is in guild count it
+                            # If channel is in guild count it
+                            if channel.guild.get_channel_or_thread(channel_id):
                                 count += 1
                                 break
-                    elif (
-                        user is not None and user == user_id
-                    ):  # We provided a user and the user matches
+                    elif user is not None and user == user_id:
                         count += 1
                         break
                     elif guild is not None:
@@ -595,7 +619,6 @@ class Functions(Embeds):
                                 )
                                 break
         if guild is not None:
-            log.info(channel_list)
             return channel_list
 
         return count
@@ -609,14 +632,19 @@ class Functions(Embeds):
         ] = None,
         remove_only: bool = False,
     ) -> None:
+        """Updates our top score tracking config with new data.
+
+        Has logic for finding and removing old entries first before
+        updating our config or to just clear the data.
+        """
         async with self.osu_config.tracking() as data:
-            users = data[mode.value]  # Get users of the given mode
+            users: Dict[str, List[int]] = data[mode.value]  # Get users of the given mode
 
             channels = []
 
             try:
                 if channel is not None:
-                    channels = users[str(user)]  # Get user channel from list of users
+                    channels = users[str(user)]  # Get user channel from dict of users
                     for channel_id in channels:
                         if channel.guild.get_channel_or_thread(
                             channel_id

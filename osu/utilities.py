@@ -99,6 +99,7 @@ class Utilities(MixinMeta):
         )
 
     def beatmap_converter(self, search_string: Union[int, str]) -> Optional[int]:
+        """Tries to get a beatmap id from a search string."""
         if "osu.ppy.sh/b/" in search_string or "osu.ppy.sh/beatmap" in search_string:
             if search_string.endswith("/"):
                 search_string = search_string[-1:]
@@ -116,6 +117,11 @@ class Utilities(MixinMeta):
         user: Optional[Union[discord.Member, str]],
         check_leaderboard: bool = False,
     ) -> Union[Tuple[Optional[int], bool], Optional[int]]:
+        """User ID extraction.
+
+        A function that tries its best to find a user ID from a users config
+        or by extracting it from the given string.
+        """
         user_id = None
         if user is None:
             user_id: Optional[int] = await self.osu_config.user(ctx.author).userid()
@@ -171,6 +177,13 @@ class Utilities(MixinMeta):
         double_args: List[DoubleArgs] = [],
         skip_user: bool = False,
     ) -> Optional[CommandParams]:
+        """The verbose part of the parameter search logic.
+
+        Will look for the given arguments in our parameters
+        and output any issues to the user.
+
+        Will also try to find a functional user ID unless `skip_user` is `True`.
+        """
         try:
             parameters = CommandParams(params, single_args, double_args)
         except TooManyArgumentsError:
@@ -206,6 +219,11 @@ class Utilities(MixinMeta):
     async def argument_extractor(
         self, ctx: commands.Context, args: Tuple[str]
     ) -> Optional[CommandArgs]:
+        """The verbose part of the argument search logic.
+
+        Will look for arguments that match criteria
+        and output any issues to the user.
+        """
         try:
             arguments = CommandArgs(args)
         except TooManyArgumentsError:
@@ -229,6 +247,12 @@ class Utilities(MixinMeta):
     async def message_history_lookup(
         self, ctx: commands.Context
     ) -> Tuple[Optional[int], OsuMod, GameMode]:
+        """Embed history searcher.
+
+        Will look through old embeds from the bot
+        and try to find a matching map id, mods and gamemode
+        from the variou embeds formats the bot uses.
+        """
         mods = OsuMod(0)
         embeds: List[discord.Embed] = []
         map_id: Optional[int] = None
@@ -285,6 +309,7 @@ class Utilities(MixinMeta):
         return map_id, mods, mode
 
     def prettify_mode(self, mode: GameMode) -> str:
+        """Turns the api mode names into my own flavor of naming."""
         if mode == GameMode.OSU:
             pretty_mode = "standard"
         elif mode == GameMode.CATCH:

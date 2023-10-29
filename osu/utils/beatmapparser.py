@@ -89,6 +89,7 @@ class DatabaseBeatmap:
 
     def _init_parse(self, data):
         try:
+            log.info(data)
             self.cachedate = datetime.strptime(data["Cached"], "%Y-%m-%dT%H:%M:%S%z")
             self.title = data["Title"]
             self.artist = data["Artist"]
@@ -150,14 +151,13 @@ class DatabaseBeatmap:
 def parse_beatmap(beatmap_path: str) -> DatabaseBeatmap:
     """Custom parser for beatmap info"""
 
-    if beatmap_path[-4:] == ".osu":
-        # filename
+    if beatmap_path[-4:] == ".osu":  # Make sure we're actually dealing with a .osu file.
         with codecs.open(beatmap_path, "r", "utf-8") as beatmap:
             map_lines = beatmap.readlines()
     else:
         raise ValueError("Path given was not a .osu file.")
     index = -1
-    for i, line in enumerate(map_lines):
+    for i, line in enumerate(map_lines):  # Find HitObjects. Otherwise it would be an empty map.
         if line.startswith("[HitObjects]"):
             index = i
             break
@@ -171,27 +171,27 @@ def parse_beatmap(beatmap_path: str) -> DatabaseBeatmap:
 
     beatmap_info.cachedate = datetime.now(timezone.utc)
 
-    def findline(search):
+    def find_line(search: str) -> str:
         for x in metadata:
             if x.startswith(search):
                 x = x.replace(search, "", 1)
 
-                # if x.startswith(" "):
-                #     x = x[1:]
-
                 return x[:-2]
 
-    beatmap_info.title = findline("Title:")
-    beatmap_info.artist = findline("Artist:")
-    beatmap_info.creator = findline("Creator:")
-    beatmap_info.version = findline("Version:")
-    beatmap_info.hp = findline("HPDrainRate:")
-    beatmap_info.cs = findline("CircleSize:")
-    beatmap_info.od = findline("OverallDifficulty:")
-    beatmap_info.ar = findline("ApproachRate:")
-    beatmap_info.sv = findline("SliderMultiplier:")
-    beatmap_info.tr = findline("SliderTickRate:")
+    # Grab metadata from first section.
+    beatmap_info.title = find_line("Title:")
+    beatmap_info.artist = find_line("Artist:")
+    beatmap_info.creator = find_line("Creator:")
+    beatmap_info.version = find_line("Version:")
+    beatmap_info.hp = find_line("HPDrainRate:")
+    beatmap_info.cs = find_line("CircleSize:")
+    beatmap_info.od = find_line("OverallDifficulty:")
+    beatmap_info.ar = find_line("ApproachRate:")
+    beatmap_info.sv = find_line("SliderMultiplier:")
+    beatmap_info.tr = find_line("SliderTickRate:")
 
+    # My very crude way of getting each hitobject into a more usable format.
+    # If I ever need more data out of this I'll revisit this as needed.
     objects: List[HitObject] = []
     for x in hitcircles:
         if x.endswith("\r\n"):
