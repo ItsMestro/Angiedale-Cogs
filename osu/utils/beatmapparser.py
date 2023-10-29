@@ -89,7 +89,6 @@ class DatabaseBeatmap:
 
     def _init_parse(self, data):
         try:
-            log.info(data)
             self.cachedate = datetime.strptime(data["Cached"], "%Y-%m-%dT%H:%M:%S%z")
             self.title = data["Title"]
             self.artist = data["Artist"]
