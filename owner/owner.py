@@ -3,9 +3,9 @@ import logging
 import os
 import re
 import shutil
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from random import choice
-from typing import Optional
+from typing import List, Optional, Union
 from zipfile import ZipFile
 
 import discord
@@ -39,27 +39,28 @@ class Owner(commands.Cog):
     """Bot set-up commands."""
 
     def __init__(self, bot: Red):
+        super().__init__()
         self.bot = bot
         self.interaction = []
 
-        self.adminconfig = Config.get_conf(
+        self.admin_config = Config.get_conf(
             self, identifier=1387000, force_registration=True, cog_name="OwnerAdmin"
         )
-        self.adminconfig.register_global(serverlocked=False, schema_version=0)
+        self.admin_config.register_global(serverlocked=False, schema_version=1)
 
-        self.mutesconfig = Config.get_conf(
+        self.mutes_config = Config.get_conf(
             self, identifier=1387000, force_registration=True, cog_name="Mutes"
         )
 
-        self.statsconfig = Config.get_conf(
+        self.stats_config = Config.get_conf(
             self, identifier=1387000, force_registration=True, cog_name="Stats"
         )
-        self.statsconfig.register_global(Channel=None, Message=None, bonk=0)
+        self.stats_config.register_global(Channel=None, Message=None, bonk=0)
 
-        self.__current_announcer = None
-        self.statschannel = None
-        self.statsmessage = None
-        self.statstask: Optional[asyncio.Task] = None
+        self.__current_announcer: Optional[Announcer] = None
+        self.stats_channel_id: Optional[int] = None
+        self.stats_message_id: Optional[int] = None
+        self.stats_task: Optional[asyncio.Task] = None
 
         self.presence_task = asyncio.create_task(self.maybe_update_presence())
 
@@ -68,37 +69,17 @@ class Owner(commands.Cog):
         return
 
     async def cog_load(self) -> None:
-        lock = self.adminconfig.get_guilds_lock()
-        async with lock:
-            # This prevents the edge case of someone loading admin,
-            # unloading it, loading it again during a migration
-            current_schema = await self.adminconfig.schema_version()
+        async with self.stats_config.all() as sconfig:
+            self.stats_channel_id: int = sconfig["Channel"]
+            self.stats_message_id: int = sconfig["Message"]
+        if self.stats_channel_id:
+            self.stats_task = asyncio.create_task(self._update_stats())
 
-            if current_schema == 0:
-                await self.migrate_config_from_0_to_1()
-                await self.adminconfig.schema_version.set(1)
-
-        async with self.statsconfig.all() as sconfig:
-            self.statschannel = sconfig["Channel"]
-            self.statsmessage = sconfig["Message"]
-        if self.statschannel:
-            self.statstask = asyncio.create_task(self._update_stats())
-
-    async def migrate_config_from_0_to_1(self) -> None:
-        all_guilds = await self.adminconfig.all_guilds()
-
-        for guild_id, guild_data in all_guilds.items():
-            if guild_data.get("announce_ignore", False):
-                async with self.adminconfig.guild_from_id(guild_id).all(
-                    acquire_lock=False
-                ) as guild_config:
-                    guild_config.pop("announce_channel", None)
-                    guild_config.pop("announce_ignore", None)
-
-    def cog_unload(self):
-        self.presence_task.cancel()
-        if self.statstask:
-            self.statstask.cancel()
+    def cog_unload(self) -> None:
+        if self.presence_task:
+            self.presence_task.cancel()
+        if self.stats_task:
+            self.stats_task.cancel()
         try:
             self.__current_announcer.cancel()
         except AttributeError:
@@ -106,8 +87,9 @@ class Owner(commands.Cog):
         for user in self.interaction:
             asyncio.create_task(self.stop_interaction(user))
 
-    async def _update_stats(self):
+    async def _update_stats(self) -> None:
         await asyncio.sleep(30 * 1)
+
         while True:
             try:
                 await self.check_statsembed()
@@ -117,98 +99,120 @@ class Owner(commands.Cog):
                 log.exception(e, exc_info=e)
             await asyncio.sleep(60 * 10)
 
-    async def check_statsembed(self):
-        total_users = len(self.bot.users)
-        servers = len(self.bot.guilds)
-        commands = len(self.bot.commands)
-        emojis = len(self.bot.emojis)
-        bonkedusers = await self.statsconfig.bonk()
+    async def check_statsembed(self) -> None:
         latencies = self.bot.latencies
-        uptime = humanize_timedelta(timedelta=datetime.utcnow() - self.bot.uptime)
 
-        latencymsg = ""
-        for shard, pingt in latencies:
-            latencymsg += "Shard **{}/{}**: `{}ms`\n".format(
-                shard + 1, len(latencies), round(pingt * 1000)
+        latency_message = ""
+        for shard, ping_time in latencies:
+            latency_message += "Shard **{}/{}**: `{}ms`\n".format(
+                shard + 1, len(latencies), round(ping_time * 1000)
             )
 
-        channel = self.bot.get_channel(self.statschannel)
-        message = await channel.fetch_message(self.statsmessage)
+        channel = self.bot.get_channel(self.stats_channel_id)
+        message = await channel.fetch_message(self.stats_message_id)
         embed = message.embeds[0]
 
-        embed.set_field_at(0, name="Serving Users", value=total_users)
-        embed.set_field_at(1, name="In Servers", value=servers)
-        embed.set_field_at(2, name="Commands", value=commands)
-        embed.set_field_at(3, name="Emojis", value=emojis)
-        embed.set_field_at(4, name="Bonked Users", value=bonkedusers)
-        embed.set_field_at(5, name="Uptime", value=uptime, inline=False)
-        embed.set_field_at(6, name="Latency", value=latencymsg, inline=False)
+        embed.set_field_at(0, name="Serving Users", value=len(self.bot.users))
+        embed.set_field_at(1, name="In Servers", value=len(self.bot.guilds))
+        embed.set_field_at(2, name="Commands", value=len(self.bot.commands))
+        embed.set_field_at(3, name="Emojis", value=len(self.bot.emojis))
+        embed.set_field_at(4, name="Bonked Users", value=await self.stats_config.bonk())
+        embed.set_field_at(
+            5,
+            name="Uptime",
+            value=humanize_timedelta(timedelta=datetime.utcnow() - self.bot.uptime),
+            inline=False,
+        )
+        embed.set_field_at(6, name="Latency", value=latency_message, inline=False)
 
-        embed.timestamp = datetime.utcnow()
+        embed.timestamp = datetime.now(timezone.utc)
 
         await message.edit(embed=embed)
 
-    @commands.command()
+    @commands.command(name="setstatschannel")
     @commands.guild_only()
     @commands.is_owner()
-    async def setstatschannel(self, ctx, channel: discord.TextChannel = None):
+    async def set_stats_channel(
+        self,
+        ctx: commands.Context,
+        channel: Union[
+            discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread
+        ] = None,
+    ):
         """Set a channel for displaying bot stats."""
-        if not self.statsmessage and not channel:
+        if not self.stats_message_id and not channel:
             return await ctx.send("Please provide a channel to start displaying bot stats in.")
-        response = []
-        if self.statsmessage:
-            if self.statstask:
-                self.statstask.cancel()
-            schannel = self.bot.get_channel(self.statschannel)
-            smessage = await schannel.fetch_message(self.statsmessage)
+        response: List[str] = []
+        if self.stats_message_id is not None:
+            if self.stats_task:
+                self.stats_task.cancel()
+            stats_channel = self.bot.get_channel(self.stats_channel_id)
+            stats_message = await stats_channel.fetch_message(self.stats_message_id)
             try:
-                await smessage.delete()
+                await stats_message.delete()
             except:
                 pass
-            await self.statsconfig.clear_all()
+            await self.stats_config.clear_all()
             response.append("deleted the previous stats message")
         if channel:
-            embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
-            embed.title = f"Statistics for {self.bot.user.name}"
-            embed.set_thumbnail(url=self.bot.user.avatar_url)
-            embed.add_field(name="Serving Users", value=0)
-            embed.add_field(name="In Servers", value=0)
-            embed.add_field(name="Commands", value=0)
-            embed.add_field(name="Emojis", value=0)
-            embed.add_field(name="Bonked Users", value=0)
-            embed.add_field(name="Uptime", value=0, inline=False)
-            embed.add_field(name="Latency", value=0, inline=False)
-            embed.timestamp = datetime.utcnow()
-            embed.set_footer(text="Updated")
+            if (
+                isinstance(channel, discord.Thread)
+                and not channel.permissions_for(ctx.guild.me).send_messages_in_threads
+            ):
+                response.append(
+                    f"tried to start displaying stats in {channel.mention} but I don't have "
+                    f"the permission to send messages in that thread."
+                )
+            elif not channel.permissions_for(ctx.guild.me).send_messages:
+                response.append(
+                    f"tried to start displaying stats in {channel.mention} but I don't have "
+                    f"the permission to send messages there."
+                )
+            else:
+                embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
+                embed.title = f"Statistics for {self.bot.user.name}"
+                embed.set_thumbnail(url=self.bot.user.avatar.url)
+                embed.add_field(name="Serving Users", value=0)
+                embed.add_field(name="In Servers", value=0)
+                embed.add_field(name="Commands", value=0)
+                embed.add_field(name="Emojis", value=0)
+                embed.add_field(name="Bonked Users", value=0)
+                embed.add_field(name="Uptime", value=0, inline=False)
+                embed.add_field(name="Latency", value=0, inline=False)
+                embed.timestamp = datetime.now(timezone.utc)
+                embed.set_footer(text="Updated")
 
-            message = await channel.send(embed=embed)
+                message = await channel.send(embed=embed)
 
-            await self.statsconfig.Channel.set(channel.id)
-            await self.statsconfig.Message.set(message.id)
+                await self.stats_config.Channel.set(channel.id)
+                await self.stats_config.Message.set(message.id)
 
-            self.statschannel = channel.id
-            self.statsmessage = message.id
-            self.statstask = asyncio.create_task(self._update_stats())
+                self.stats_channel_id = channel.id
+                self.stats_message_id = message.id
+                self.stats_task = asyncio.create_task(self._update_stats())
 
-            response.append(f"started displaying stats for {self.bot.user.name} in {channel.name}")
+                response.append(
+                    f"started displaying stats for {self.bot.user.name} in {channel.mention}"
+                )
 
-        await ctx.send(" and ".join(response).capitalize())
+        await ctx.send(" and ".join(response).capitalize() + ".")
 
     @commands.Cog.listener()
-    async def on_reaction_add(self, reaction, user):
+    async def on_reaction_add(
+        self, reaction: discord.Reaction, user: Union[discord.Member, discord.User]
+    ):
         if user in self.interaction:
             channel = reaction.message.channel
             if isinstance(channel, discord.DMChannel):
                 await self.stop_interaction(user)
 
-    async def stop_interaction(self, user):
+    async def stop_interaction(self, user: Union[discord.Member, discord.User]) -> None:
         self.interaction.remove(user)
         await user.send(("Session closed"))
 
     def is_announcing(self) -> bool:
         """
         Is the bot currently announcing something?
-        :return:
         """
         if self.__current_announcer is None:
             return False
@@ -220,7 +224,7 @@ class Owner(commands.Cog):
     async def announce(self, ctx: commands.Context, *, message: str):
         """Announce a message to all servers the bot is in."""
         if not self.is_announcing():
-            announcer = Announcer(ctx, message, config=self.adminconfig)
+            announcer = Announcer(ctx, message, config=self.admin_config)
             announcer.start()
 
             self.__current_announcer = announcer
@@ -231,7 +235,7 @@ class Owner(commands.Cog):
             await ctx.send((RUNNING_ANNOUNCEMENT).format(prefix=prefix))
 
     @announce.command(name="cancel")
-    async def announce_cancel(self, ctx):
+    async def announce_cancel(self, ctx: commands.Context):
         """Cancel a running announce."""
         if not self.is_announcing():
             await ctx.send(("There is no currently running announcement."))
@@ -243,8 +247,8 @@ class Owner(commands.Cog):
     @commands.is_owner()
     async def serverlock(self, ctx: commands.Context):
         """Lock a bot to its current servers only."""
-        serverlocked = await self.adminconfig.serverlocked()
-        await self.adminconfig.serverlocked.set(not serverlocked)
+        serverlocked = await self.admin_config.serverlocked()
+        await self.admin_config.serverlocked.set(not serverlocked)
 
         if serverlocked:
             await ctx.send(("The bot is no longer serverlocked."))
@@ -253,14 +257,16 @@ class Owner(commands.Cog):
 
     async def say(
         self,
-        ctx,
-        channel: Optional[discord.TextChannel],
+        ctx: commands.Context,
+        channel: Optional[
+            Union[discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread]
+        ],
         text: str,
         files: list,
         mentions: discord.AllowedMentions = None,
-        delete: int = None,
+        delete_after: int = None,
     ):
-        if not channel:
+        if channel is None:
             channel = ctx.channel
         if not text and not files:
             await ctx.send_help()
@@ -278,9 +284,14 @@ class Owner(commands.Cog):
 
         # sending the message
         try:
-            await channel.send(text, files=files, allowed_mentions=mentions, delete_after=delete)
+            await channel.send(
+                text, files=files, allowed_mentions=mentions, delete_after=delete_after
+            )
         except discord.errors.HTTPException as e:
-            if not ctx.guild.me.permissions_in(channel).send_messages:
+            if (
+                isinstance(channel, discord.Thread)
+                and not channel.permissions_for(ctx.me).send_messages_in_threads
+            ):
                 try:
                     await ctx.send(
                         ("I am not allowed to send messages in ") + channel.mention,
@@ -292,7 +303,19 @@ class Owner(commands.Cog):
                         delete_after=15,
                     )
                     # If this fails then fuck the command author
-            elif not ctx.guild.me.permissions_in(channel).attach_files:
+            elif not channel.permissions_for(ctx.me).send_messages:
+                try:
+                    await ctx.send(
+                        ("I am not allowed to send messages in ") + channel.mention,
+                        delete_after=2,
+                    )
+                except discord.errors.Forbidden:
+                    await ctx.author.send(
+                        ("I am not allowed to send messages in ") + channel.mention,
+                        delete_after=15,
+                    )
+                    # If this fails then fuck the command author
+            elif not channel.permissions_for(ctx.me).attach_files:
                 try:
                     await ctx.send(
                         ("I am not allowed to upload files in ") + channel.mention, delete_after=2
@@ -310,7 +333,15 @@ class Owner(commands.Cog):
 
     @commands.command(name="say")
     @commands.is_owner()
-    async def _say(self, ctx, channel: Optional[discord.TextChannel], *, text: str = ""):
+    async def _say(
+        self,
+        ctx: commands.Context,
+        channel: Optional[
+            Union[discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread]
+        ],
+        *,
+        text: str = "",
+    ):
         """
         Make the bot say what you want in the desired channel.
 
@@ -327,7 +358,15 @@ class Owner(commands.Cog):
 
     @commands.command(name="sayd", aliases=["sd"])
     @commands.is_owner()
-    async def _saydelete(self, ctx, channel: Optional[discord.TextChannel], *, text: str = ""):
+    async def _saydelete(
+        self,
+        ctx: commands.Context,
+        channel: Optional[
+            Union[discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread]
+        ],
+        *,
+        text: str = "",
+    ):
         """
         Same as say command, except it deletes your message.
 
@@ -350,10 +389,15 @@ class Owner(commands.Cog):
 
     @commands.command(name="interact")
     @commands.is_owner()
-    async def _interact(self, ctx, channel: discord.TextChannel = None):
+    async def _interact(
+        self,
+        ctx: commands.Context,
+        channel: Union[
+            discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread
+        ] = None,
+    ):
         """Start receiving and sending messages as the bot through DM"""
 
-        u = ctx.author
         if channel is None:
             if isinstance(ctx.channel, discord.DMChannel):
                 await ctx.send(
@@ -366,11 +410,11 @@ class Owner(commands.Cog):
             else:
                 channel = ctx.channel
 
-        if u in self.interaction:
+        if ctx.author in self.interaction:
             await ctx.send(("A session is already running."))
             return
 
-        message = await u.send(
+        message = await ctx.author.send(
             (
                 "I will start sending you messages from {0}.\n"
                 "Just send me any message and I will send it in that channel.\n"
@@ -380,20 +424,20 @@ class Owner(commands.Cog):
             ).format(channel.mention)
         )
         await message.add_reaction("❌")
-        self.interaction.append(u)
+        self.interaction.append(ctx.author)
 
         while True:
-            if u not in self.interaction:
+            if ctx.author not in self.interaction:
                 return
 
             try:
-                message = await self.bot.wait_for("message", timeout=300)
+                message: discord.Message = await self.bot.wait_for("message", timeout=300)
             except asyncio.TimeoutError:
-                await u.send(("Request timed out. Session closed"))
-                self.interaction.remove(u)
+                await ctx.author.send(("Request timed out. Session closed"))
+                self.interaction.remove(ctx.author)
                 return
 
-            if message.author == u and isinstance(message.channel, discord.DMChannel):
+            if message.author == ctx.author and isinstance(message.channel, discord.DMChannel):
                 files = await Tunnel.files_from_attatch(message)
                 if message.content.startswith(tuple(await self.bot.get_valid_prefixes())):
                     return
@@ -401,28 +445,27 @@ class Owner(commands.Cog):
             elif (
                 message.channel != channel
                 or message.author == channel.guild.me
-                or message.author == u
+                or message.author == ctx.author
             ):
                 pass
 
             else:
-                embed = discord.Embed()
+                embed = discord.Embed(color=message.author.color)
                 embed.set_author(
                     name="{} | {}".format(str(message.author), message.author.id),
-                    icon_url=message.author.avatar_url,
+                    icon_url=message.author.avatar.url,
                 )
                 embed.set_footer(text=message.created_at.strftime("%d %b %Y %H:%M"))
                 embed.description = message.content
-                embed.colour = message.author.color
 
                 if message.attachments != []:
                     embed.set_image(url=message.attachments[0].url)
 
-                await u.send(embed=embed)
+                await ctx.author.send(embed=embed)
 
     @commands.command(name="listguilds", aliases=["listservers", "guildlist", "serverlist"])
     @commands.is_owner()
-    async def listguilds(self, ctx):
+    async def list_guilds(self, ctx: commands.Context):
         """List the servers the bot is in."""
         guilds = sorted(self.bot.guilds, key=lambda g: -g.member_count)
 
@@ -430,18 +473,16 @@ class Owner(commands.Cog):
 
         base_embed.set_author(
             name=f"{self.bot.user.name} is in {len(guilds)} servers",
-            icon_url=self.bot.user.avatar_url,
+            icon_url=self.bot.user.avatar.url,
         )
 
         guild_list = []
-        for g in guilds:
-            entry = f"**{g.name}** ◈ {humanize_number(g.member_count)} Users ◈ {g.id}"
+        for guild in guilds:
+            entry = f"**{guild.name}** ◈ {humanize_number(guild.member_count)} Users ◈ {guild.id}"
             guild_list.append(entry)
 
-        final = "\n".join(guild_list)
-
-        page_list = []
-        pages = list(pagify(final, delims=["\n"], page_length=1000))
+        embeds = []
+        pages = list(pagify("\n".join(guild_list), delims=["\n"], page_length=1000))
 
         i = 1
         for page in pages:
@@ -449,18 +490,14 @@ class Owner(commands.Cog):
             embed.description = page
             embed.set_footer(text=f"Page {i}/{len(pages)}")
 
-            page_list.append(embed)
+            embeds.append(embed)
             i += 1
 
-        await menu(
-            ctx,
-            page_list,
-            DEFAULT_CONTROLS if len(page_list) > 1 else {"\N{CROSS MARK}": close_menu},
-        )
+        await menu(ctx, embeds)
 
     @commands.Cog.listener()
     async def on_guild_join(self, guild: discord.Guild):
-        if await self.adminconfig.serverlocked():
+        if await self.admin_config.serverlocked():
             if len(self.bot.guilds) == 1:  # will be 0 once left
                 log.warning(
                     f"Leaving guild '{guild.name}' ({guild.id}) due to serverlock. You can "
@@ -470,7 +507,7 @@ class Owner(commands.Cog):
                 log.info(f"Leaving guild '{guild.name}' ({guild.id}) due to serverlock.")
             await guild.leave()
 
-    async def maybe_update_presence(self):
+    async def maybe_update_presence(self) -> None:
         await self.bot.wait_until_red_ready()
         delay = 90
         while True:
@@ -481,11 +518,9 @@ class Owner(commands.Cog):
 
             await asyncio.sleep(int(delay))
 
-    async def presence_updater(self):
-        pattern = re.compile(rf"<@!?{self.bot.user.id}>")
-        guilds = self.bot.guilds
+    async def presence_updater(self) -> None:
         try:
-            guild = next(g for g in guilds if not g.unavailable)
+            guild = next(g for g in self.bot.guilds if not g.unavailable)
         except StopIteration:
             return
         try:
@@ -494,15 +529,14 @@ class Owner(commands.Cog):
             current_game = None
         _type = 0
 
-        url = f"https://www.twitch.tv/itsmestro"
         prefix = await self.bot.get_valid_prefixes()
         status = discord.Status.online
 
         me = self.bot.user
-        clean_prefix = pattern.sub(f"@{me.name}", prefix[0])
+        clean_prefix = re.compile(rf"<@!?{self.bot.user.id}>").sub(f"@{me.name}", prefix[0])
         total_users = len(self.bot.users)
         servers = str(len(self.bot.guilds))
-        helpaddon = f"{clean_prefix}help"
+        help_addon = f"{clean_prefix}help"
         usersstatus = f"with {total_users} users"
         serversstatus = f"in {servers} servers"
         datetoday = date.today()
@@ -617,24 +651,26 @@ class Owner(commands.Cog):
                 usersstatus,
                 serversstatus,
             ]
-        new_status = self.random_status(guild, statuses, helpaddon)
-        new_status = " | ".join((new_status, helpaddon))
+        new_status = self.random_status(guild, statuses, help_addon)
+        new_status = " | ".join((new_status, help_addon))
         if (current_game != new_status) or (current_game is None):
             await self.bot.change_presence(
                 activity=discord.Activity(name=new_status, type=_type), status=status
             )
 
-    def random_status(self, guild, statuses, helpaddon):
+    def random_status(self, guild: discord.Guild, statuses: List[str], help_addon: str) -> str:
         try:
-            current = str(guild.me.activity.name)
+            current_status = str(guild.me.activity.name)
         except AttributeError:
-            current = None
-        new_statuses = [s for s in statuses if " | ".join((s, helpaddon)) != current]
+            current_status = None
+        new_statuses = [
+            status for status in statuses if " | ".join((status, help_addon)) != current_status
+        ]
         if len(new_statuses) > 1:
             return choice(new_statuses)
         elif len(new_statuses) == 1:
             return new_statuses[0]
-        return current
+        return current_status
 
     @commands.command(name="forcerolemutes")
     @commands.is_owner()
@@ -642,28 +678,32 @@ class Owner(commands.Cog):
         """
         Whether or not to force role only mutes on the bot
         """
-        await self.config.force_role_mutes.set(true_or_false)
+        await self.mutes_config.force_role_mutes.set(true_or_false)
         if true_or_false:
             await ctx.send(("Okay I will enforce role mutes before muting users."))
         else:
             await ctx.send(("Okay I will allow channel overwrites for muting users."))
 
-    @commands.command()
+    @commands.command(name="dumpemotes", aliases=["dumpemojis"])
     @commands.guild_only()
     @commands.is_owner()
-    async def dumpemotes(self, ctx, guild: int = None):
+    async def dump_emotes(self, ctx: commands.Context, guild_id: int = None):
         """Dumps emotes from a server."""
-        if guild:
-            g = self.bot.get_guild(guild)
+        if guild_id is None:
+            guild = ctx.guild
         else:
-            g = ctx.guild
-        path = f"{cog_data_path(self)}/{g.id}"
+            guild = self.bot.get_guild(guild_id)
+            if guild is None:
+                return await ctx.send("Couldn't find a guild with that ID.")
+
+        path = f"{cog_data_path(self)}/{guild.id}"
         message = await ctx.send("Give me a moment...")
+        await ctx.typing()
 
         if not os.path.exists(path):
             os.makedirs(path)
 
-        for emote in g.emojis:
+        for emote in guild.emojis:
             r = requests.get(emote.url)
             if emote.animated:
                 with open(f"{path}/{emote.name}.gif", "wb") as f:
@@ -682,7 +722,7 @@ class Owner(commands.Cog):
 
         with open(f"{path}.zip", "rb") as fp:
             await ctx.send(
-                content="Here's your emotes!", file=discord.File(fp, f"{g.name} Emotes.zip")
+                content="Here's your emotes!", file=discord.File(fp, f"{guild.name} Emotes.zip")
             )
 
         os.remove(f"{path}.zip")
@@ -690,7 +730,7 @@ class Owner(commands.Cog):
 
 
 class Announcer:
-    def __init__(self, ctx: commands.Context, message: str, config=None):
+    def __init__(self, ctx: commands.Context, message: str, config: Optional[Config] = None):
         """
         :param ctx:
         :param message:
@@ -700,9 +740,9 @@ class Announcer:
         self.message = message
         self.config = config
 
-        self.active = None
+        self.active: Optional[bool] = None
 
-    def start(self):
+    def start(self) -> None:
         """
         Starts an announcement.
         :return:
@@ -711,43 +751,63 @@ class Announcer:
             self.active = True
             asyncio.create_task(self.announcer())
 
-    def cancel(self):
+    def cancel(self) -> None:
         """
         Cancels a running announcement.
         :return:
         """
         self.active = False
 
-    async def _get_announce_channel(self, guild: discord.Guild) -> Optional[discord.TextChannel]:
+    async def _get_announce_channel(
+        self, guild: discord.Guild
+    ) -> Optional[
+        Union[discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread]
+    ]:
         if await self.ctx.bot.cog_disabled_in_guild_raw("Admin", guild.id):
             return
-        channel_id = await self.config.guild(guild).announce_channel()
-        return guild.get_channel(channel_id)
+        channel_id: int = await self.config.guild(guild).announce_channel()
+        return guild.get_channel_or_thread(channel_id)
 
     async def announcer(self):
         guild_list = self.ctx.bot.guilds
-        failed = []
+        failed: List[str] = []
+        count = 0
         async for g in AsyncIter(guild_list, delay=0.5):
             if not self.active:
                 return
 
             channel = await self._get_announce_channel(g)
 
-            if channel:
-                if channel.permissions_for(g.me).send_messages:
+            if channel is not None:
+                if (
+                    isinstance(channel, discord.Thread)
+                    and channel.permissions_for(g.me).send_messages_in_threads
+                ):
                     try:
                         await channel.send(self.message)
+                        count += 1
+                    except discord.Forbidden:
+                        failed.append(str(g.id))
+                elif channel.permissions_for(g.me).send_messages:
+                    try:
+                        await channel.send(self.message)
+                        count += 1
                     except discord.Forbidden:
                         failed.append(str(g.id))
                 else:
                     failed.append(str(g.id))
 
         if failed:
-            msg = (
+            msg = f"Finished announcing to {count} server{'s' if count > 1 else ''}.\n\n"
+            msg += (
                 ("I could not announce to the following server: ")
                 if len(failed) == 1
                 else ("I could not announce to the following servers: ")
             )
             msg += humanize_list(tuple(map(inline, failed)))
             await self.ctx.bot.send_to_owners(msg)
+        else:
+            await self.ctx.bot.send_to_owners(
+                f"Finished announcing to {count} server{'s' if count > 1 else ''}."
+            )
         self.active = False
