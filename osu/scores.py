@@ -250,19 +250,18 @@ class Embeds(MixinMeta):
             while page_num <= ceil(len(data) / 5):
                 start_index = (page_num - 1) * 5
                 end_index = (page_num - 1) * 5 + 5
-                score_entries = ""
+                score_entries = []
                 for score in data[start_index:end_index]:
-                    description = self.score_entry_builder(
+                    score_entries.append(self.score_entry_builder(
                         score, score.index if sort_recent else index
-                    )
-                    score_entries += description
+                    ))
                     index += 1
 
                 embed = base_embed.copy()
 
                 embed.set_footer(text=f"Page {page_num}/{ceil(len(data) / 5)}")
 
-                embed.description = score_entries
+                embed.description = "\n\n".join(score_entries)
 
                 embed_list.append(embed)
                 page_num += 1
