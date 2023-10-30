@@ -6,7 +6,9 @@ from typing import Dict, List, Optional, Tuple, Union
 import discord
 from ossapi import Beatmap
 from ossapi import Build as OsuBuild
-from ossapi import GameMode, Rankings, RankingType
+from ossapi import GameMode
+from ossapi import Mod as OsuMod
+from ossapi import Rankings, RankingType
 from ossapi.models import NewsPost, RankStatus, UpdateStream
 from redbot.core import commands
 from redbot.core.utils.chat_formatting import humanize_number
@@ -438,7 +440,7 @@ class Embeds(MixinMeta):
                 extra = "**"
 
             mods = ""
-            if not score.mods.NM:
+            if score.mods != OsuMod.NM:
                 mods = f" +{score.mods.short_name()}"
 
             if arguments.mode == GameMode.MANIA:

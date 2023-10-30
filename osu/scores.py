@@ -4,7 +4,9 @@ from math import ceil
 from typing import List, Optional, Union
 
 import discord
-from ossapi import Cursor, GameMode, RankingType
+from ossapi import Cursor, GameMode
+from ossapi import Mod as OsuMod
+from ossapi import RankingType
 from ossapi import Score as OsuScore
 from ossapi import ScoreType
 from ossapi.models import Grade as OsuGrade
@@ -147,7 +149,7 @@ class Embeds(MixinMeta):
                 fail_string = ""
 
         mods = ""
-        if not score.mods.NM:
+        if score.mods != OsuMod.NM:
             mods = f" +{score.mods.short_name()}"
 
         try:
@@ -324,7 +326,7 @@ class Embeds(MixinMeta):
 
     def score_entry_builder(self, score: OsuScore, index: int) -> str:
         mods = ""
-        if not score.mods.NM:
+        if score.mods != OsuMod.NM:
             mods = f" **+{score.mods.short_name()}**"
 
         if score.mode == GameMode.MANIA:

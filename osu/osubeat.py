@@ -202,7 +202,7 @@ class Embeds(MixinMeta):
                 )
 
             mods = ""
-            if not score.mods.NM:
+            if score.mods != OsuMod.NM:
                 mods = f" +{score.mods.short_name()}"
 
             embed.add_field(
@@ -296,7 +296,7 @@ class Embeds(MixinMeta):
                 bold_highlight = "**"
 
             mods = ""
-            if not score.mods.NM:  # Add mods if it wasn't played with NoMod
+            if score.mods != OsuMod.NM:  # Add mods if it wasn't played with NoMod
                 mods = f" +{score.mods.short_name()}"
 
             if osubeat.mode == GameMode.MANIA:  # Our hit string that differs for mania
