@@ -124,14 +124,14 @@ class Utilities(MixinMeta):
         """
         user_id = None
         if user is None:
-            user_id: Optional[int] = await self.osu_config.user(ctx.author).userid()
+            user_id: Optional[int] = await self.osu_config.user(ctx.author).user_id()
             if user_id is None:
                 return await self.profile_linking_onboarding(ctx)
             elif check_leaderboard:
                 return user_id, True
         else:
             if isinstance(user, discord.Member):
-                user_id: Optional[int] = await self.osu_config.user(user).userid()
+                user_id: Optional[int] = await self.osu_config.user(user).user_id()
 
             if user_id is None:
                 if isinstance(user, discord.Member):
@@ -163,7 +163,7 @@ class Utilities(MixinMeta):
             if user_id is None:
                 try:
                     member = await commands.MemberConverter().convert(ctx, str(user))
-                    user_id: Optional[int] = await self.osu_config.user(member).userid()
+                    user_id: Optional[int] = await self.osu_config.user(member).user_id()
                 except:
                     await del_message(ctx, f"Could not find the user {user}.")
 

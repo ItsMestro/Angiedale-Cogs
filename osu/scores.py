@@ -427,7 +427,7 @@ class Commands(Embeds):
         if not user_or_args:
             return await ctx.send_help()
 
-        author_id: Optional[int] = await self.osu_config.user(ctx.author).userid()
+        author_id: Optional[int] = await self.osu_config.user(ctx.author).user_id()
 
         if author_id is None:
             return await del_message(

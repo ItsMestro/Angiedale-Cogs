@@ -423,7 +423,7 @@ class Embeds(MixinMeta):
             all_config = await self.osu_config.all_users()
             for user, user_data in all_config.items():
                 if ctx.guild.get_member(user):
-                    guild_users.append(user_data["userid"])
+                    guild_users.append(user_data["user_id"])
 
         for score in data.leaderboard.values():
             if arguments.g:
@@ -613,7 +613,7 @@ class Commands(Embeds):
                 ctx, "Nobody has set any plays on this map yet. Go ahead and be the first one!"
             )
 
-        user_id = await self.osu_config.user(ctx.author).userid()
+        user_id = await self.osu_config.user(ctx.author).user_id()
 
         embeds, page_start = await self.leaderboard_embed(
             ctx, leaderboard_data, arguments, user_id

@@ -522,7 +522,7 @@ class Functions(Embeds):
         that is less persistant on trying to find a functional user.
         """
         if isinstance(user, discord.Member):
-            user_id = await self.osu_config.user(user).userid()
+            user_id = await self.osu_config.user(user).user_id()
             if user_id is not None:
                 username = await self.osu_config.user(user).username()
         else:

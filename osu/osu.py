@@ -62,7 +62,7 @@ class Osu(
 
     default_user_settings: ClassVar[dict[str, str | None]] = {
         "username": None,
-        "userid": None,
+        "user_id": None,
     }
     default_guild_settings: ClassVar[
         dict[str, int | bool | BeatMode | dict[str, dict | int | None]]
@@ -141,6 +141,16 @@ class Osu(
 
     async def cog_load(self) -> None:
         """Should be called straight after cog instantiation."""
+
+        # Temporary config migration
+        users = await self.osu_config.all_users()
+        for user_id, data in users.items():
+            async with self.osu_config.user_from_id(user_id).all() as user_data:
+                if data.get("userid", False):
+                    user_data.update({"user_id": user_data["userid"]})
+                    user_data.pop("userid", None)
+        # TODO: Remove section next update
+
         guilds = await self.osu_config.all_guilds()
         for g_id, g_data in guilds.items():
             if g_data["running_beat"]:
@@ -287,7 +297,7 @@ class Osu(
                 return await embed_msg.delete()
 
         await self.osu_config.user(ctx.author).username.set(data.username)
-        await self.osu_config.user(ctx.author).userid.set(data.id)
+        await self.osu_config.user(ctx.author).user_id.set(data.id)
         await embed_msg.edit(
             content=f"{data.username} is successfully linked to your account!", embed=None
         )
