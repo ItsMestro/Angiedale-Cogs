@@ -141,11 +141,11 @@ class CommandParams:
         if self.r and self.p is not None:
             raise ConflictingArgumentsError(["-r", "-p"])
         if self.p is not None:  # API limits
-            if self.p < 100 or self.p > 1:
-                raise OutOfRangeError("-p", self.p)
+            if self.p > 100 or self.p < 1:
+                raise OutOfRangeError("-p", 100)
         if self.rank is not None:  # API limits
-            if self.rank < 10000 or self.rank > 1:
-                raise OutOfRangeError("-rank", self.rank)
+            if self.rank > 10000 or self.rank < 1:
+                raise OutOfRangeError("-rank", 10000)
 
         if len(params) == 1:  # Some commands have a wildcard like a user so we store it here
             self.extra_param = params[0]
