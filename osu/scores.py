@@ -237,7 +237,7 @@ class Embeds(MixinMeta):
 
         if index:
             score = data[index - 1]
-            description = self.score_entry_builder(score, index)
+            description = self.score_entry_builder(score, index - 1)
             embed = base_embed.copy()
             embed.set_footer(
                 text=f"Weighted pp | {round(score.weight.pp,1)}pp ({round(score.weight.percentage,1)}%)"
@@ -252,9 +252,9 @@ class Embeds(MixinMeta):
                 end_index = (page_num - 1) * 5 + 5
                 score_entries = []
                 for score in data[start_index:end_index]:
-                    score_entries.append(self.score_entry_builder(
-                        score, score.index if sort_recent else index
-                    ))
+                    score_entries.append(
+                        self.score_entry_builder(score, score.index if sort_recent else index)
+                    )
                     index += 1
 
                 embed = base_embed.copy()
