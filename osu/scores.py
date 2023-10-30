@@ -354,7 +354,7 @@ class Embeds(MixinMeta):
         return "\n".join(
             [
                 f"**{index + 1}.** **[{score.beatmapset.title} - [{version}]]({score.beatmap.url})**{mods} [{score.beatmap.difficulty_rating}★]",
-                f"{EMOJI[score.rank.value]} **{humanize_number(round(score.pp,2))}pp** ◈{mods} ({'{:.2%}'.format(score.accuracy)}) ◈ {humanize_number(score.score)}",
+                f"{EMOJI[score.rank.value]} **{humanize_number(round(score.pp,2))}pp** ◈ ({'{:.2%}'.format(score.accuracy)}) ◈ {humanize_number(score.score)}",
                 f"**{humanize_number(score.max_combo)}x** ◈ [{hits}] ◈ <t:{int(score.created_at.timestamp())}:R>",
             ]
         )
