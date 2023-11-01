@@ -992,7 +992,7 @@ class Commands(Functions, Embeds):
         async with self.osu_config.fuwwy_clan() as data:
             data["role_id"] = role.id
 
-        await ctx.send(f"Set the new role id to {inline(role.id)}.")
+        await ctx.send(f"Set the new role id to {inline(str(role.id))}.")
 
     async def claim_role_command(self, ctx: commands.Context) -> None:
         user_data = await self.osu_config.user(ctx.author).fuwwy_clan()
