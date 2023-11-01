@@ -5,24 +5,27 @@ import re
 import shutil
 from datetime import date, datetime, timedelta, timezone
 from random import choice
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 from zipfile import ZipFile
 
 import discord
 import requests
 from dateutil.easter import easter
+from github import Auth, Github
 from redbot.core import Config, commands
 from redbot.core.bot import Red
 from redbot.core.data_manager import cog_data_path
 from redbot.core.utils import AsyncIter
+from redbot.core.utils.angiedale import ANGIEDALE_VERSION
 from redbot.core.utils.chat_formatting import (
+    bold,
     humanize_list,
     humanize_number,
     humanize_timedelta,
     inline,
     pagify,
 )
-from redbot.core.utils.menus import DEFAULT_CONTROLS, close_menu, menu
+from redbot.core.utils.menus import menu
 from redbot.core.utils.tunnel import Tunnel
 
 log = logging.getLogger("red.angiedale.owner")
@@ -55,12 +58,25 @@ class Owner(commands.Cog):
         self.stats_config = Config.get_conf(
             self, identifier=1387000, force_registration=True, cog_name="Stats"
         )
+        self.owner_config = Config.get_conf(
+            self, identifier=1387000, force_registration=True, cog_name="Owner"
+        )
+        self.owner_config.register_global(
+            changelog={
+                "channel_id": None,
+                "last_version": "0.0.0",
+                "github_pat": None,
+                "repo": None,
+                "role_id": None,
+            }
+        )
         self.stats_config.register_global(Channel=None, Message=None, bonk=0)
 
         self.__current_announcer: Optional[Announcer] = None
         self.stats_channel_id: Optional[int] = None
         self.stats_message_id: Optional[int] = None
         self.stats_task: Optional[asyncio.Task] = None
+        self.changelog_task = asyncio.create_task(self.check_changelog())
 
         self.presence_task = asyncio.create_task(self.maybe_update_presence())
 
@@ -80,6 +96,8 @@ class Owner(commands.Cog):
             self.presence_task.cancel()
         if self.stats_task:
             self.stats_task.cancel()
+        if self.changelog_task:
+            self.changelog_task.cancel()
         try:
             self.__current_announcer.cancel()
         except AttributeError:
@@ -727,6 +745,197 @@ class Owner(commands.Cog):
 
         os.remove(f"{path}.zip")
         shutil.rmtree(path)
+
+    @commands.group(name="setchangelog")
+    @commands.is_owner()
+    async def set_changelog(self, ctx: commands.Context):
+        """Set values for the changelog feature."""
+
+    @set_changelog.command(name="channel")
+    @commands.guild_only()
+    async def _set_changelog_channel(
+        self,
+        ctx: commands.Context,
+        channel: Union[
+            discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread
+        ] = None,
+    ):
+        """Set the channel where changelogs will be sent."""
+        if channel is None:
+            await self.owner_config.changelog.clear()
+            return await ctx.maybe_send_embed("Cleared the changelog channel")
+
+        async with self.owner_config.changelog() as config:
+            config["channel_id"] = channel.id
+
+        await ctx.maybe_send_embed(f"Now set the changelog channel to {channel.mention}")
+
+    @set_changelog.command(name="pat")
+    @commands.dm_only()
+    async def _set_changelog_pat(self, ctx: commands.Context, clear: str = None):
+        """Set the PAT token used to access github api."""
+        if clear is not None:
+            async with self.owner_config.changelog() as data:
+                data["github_pat"] = None
+            await ctx.send("PAT key cleared.")
+        else:
+            view = PATView(self.owner_config)
+            message = await ctx.send("Click the button below to set your PAT key.", view=view)
+            timed_out = await view.wait()
+            if timed_out:
+                await message.edit(content="The key submission timed out.", view=None)
+
+    @set_changelog.command(name="repo")
+    async def _set_changelog_repo(self, ctx: commands.Context, repo: str = None):
+        """Set the repo to be checked for new updates."""
+        if repo is None:
+            await ctx.maybe_send_embed("Cleared the repo.")
+        else:
+            if repo.endswith("/"):
+                repo = repo[:-1]
+            repo_split = repo.split("/")
+            repo = f"{repo_split[-2]}/{repo_split[-1]}"
+            await ctx.maybe_send_embed(f"Set the repo used to {repo}")
+
+        async with self.owner_config.changelog() as data:
+            data["repo"] = repo
+
+    @set_changelog.command(name="role")
+    async def _set_changelog_role(
+        self, ctx: commands.Context, role: Optional[discord.Role] = None
+    ):
+        """Set the repo to be checked for new updates."""
+        if role is None:
+            async with self.owner_config.changelog() as data:
+                data["role_id"] = None
+            await ctx.maybe_send_embed("Cleared the role.")
+        else:
+            async with self.owner_config.changelog() as data:
+                data["role_id"] = role.id
+            await ctx.maybe_send_embed(f"Set the role used to {role.name}")
+
+    async def check_changelog(self) -> None:
+        await self.bot.wait_until_red_ready()
+
+        data = await self.owner_config.changelog()
+
+        if data["channel_id"] is None:
+            return
+
+        if data["github_pat"] is None:
+            return
+
+        if data["repo"] is None:
+            return
+
+        github = Github(auth=Auth.Token(data["github_pat"]))
+
+        repo = github.get_repo(data["repo"])
+        release = repo.get_latest_release()
+
+        new_version = release.title
+
+        if "v" in new_version:
+            new_version = new_version.replace("v", "")
+
+        if new_version == data["last_version"]:
+            return log.info(f"{self.bot.user.name} is running the most recent version.")
+
+        if ANGIEDALE_VERSION != new_version:
+            return log.info(
+                f"{self.bot.user.name} isn't running the same version as is available on github."
+            )
+
+        channel = self.bot.get_channel(data["channel_id"])
+        if channel is None:
+            return log.warning(
+                f"Couldn't find the channel with id {data['channel_id']} to send the changelog embed to."
+            )
+
+        embed = discord.Embed(color=await self.bot.get_embed_color(channel))
+
+        embed.set_author(
+            name=f"{release.author.name} ◈ {release.target_commitish[:7]}",
+            url=release.author.html_url,
+            icon_url=release.author.avatar_url,
+        )
+
+        embed.set_thumbnail(url=self.bot.user.avatar.url)
+
+        embed.title = data["repo"]
+        embed.url = f"https://github.com/{release.author.login}/{data['repo']}"
+
+        embed.description = f"# {release.title} - [Release Link]({release.html_url})"
+
+        embed.timestamp = release.created_at
+
+        lines = release.body.split("\r\n")
+
+        current_header = None
+        headers: Dict[str, List[str]] = {}
+        for line in lines:
+            if not line:
+                continue
+
+            if line.startswith("## "):
+                current_header = line
+                headers[line] = []
+                continue
+
+            if line.startswith("### "):
+                line = f"- {bold(line[4:])}"
+
+            headers[current_header].append(line)
+
+        for header, body in headers.items():
+            embed.add_field(name=header[3:], value="\n".join(body), inline=False)
+
+        role = channel.guild.get_role(data["role_id"])
+        try:
+            if role is not None:
+                await channel.send(content=role.mention, embed=embed)
+            else:
+                await channel.send(embed=embed)
+            async with self.owner_config.changelog() as config:
+                config["last_version"] = release.title
+        except Exception as e:
+            log.exception("Error trying to send changelog embed", exc_info=e)
+
+
+class PATModal(discord.ui.Modal, title="PAT Key"):
+    def __init__(self, config: Config):
+        self.config = config
+        super().__init__(title=self.title)
+
+        self.key_input = discord.ui.TextInput(
+            label="Key", style=discord.TextStyle.long, required=True
+        )
+
+        self.add_item(self.key_input)
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        if not await interaction.client.is_owner(interaction.user):
+            return
+
+        async with self.config.changelog() as data:
+            data["github_pat"] = self.key_input.value
+
+        await interaction.response.send_message(f"PAT key saved", ephemeral=True)
+
+
+class PATView(discord.ui.View):
+    def __init__(self, config: Config):
+        self.config = config
+        super().__init__()
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if not await interaction.client.is_owner(interaction.user):
+            return False
+        return True
+
+    @discord.ui.button(label=("Set PAT"), style=discord.ButtonStyle.grey)
+    async def button(self, interaction: discord.Interaction, button: discord.Button):
+        return await interaction.response.send_modal(PATModal(self.config))
 
 
 class Announcer:
