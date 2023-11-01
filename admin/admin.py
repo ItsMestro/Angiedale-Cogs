@@ -756,12 +756,14 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
 
     @commands.guild_only()
     @commands.admin_or_permissions(administrator=True)
-    @commands.group()
-    async def rrole(self, ctx: commands.Context):
+    @commands.group(name="reactionrole", aliases=["rrole"])
+    async def reaction_role(self, ctx: commands.Context):
         """Create or manage reaction roles."""
 
-    @rrole.command(aliases=["new", "create"], usage="<type> <role> <emoji> <message> [channel]")
-    async def make(
+    @reaction_role.command(
+        name="make", aliases=["new", "create"], usage="<type> <role> <emoji> <message> [channel]"
+    )
+    async def _rrole_make(
         self,
         ctx: commands.Context,
         rrtype: RRoleTypeConverter,
@@ -864,8 +866,10 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
 
         self._edit_cache(message.id)
 
-    @rrole.command(aliases=["delete", "del"], usage="<message> [channel] [emoji]")
-    async def remove(
+    @reaction_role.command(
+        name="remove", aliases=["delete", "del"], usage="<message> [channel] [emoji]"
+    )
+    async def _rrole_remove(
         self,
         ctx: commands.Context,
         message: Union[discord.Message, int],
