@@ -57,7 +57,7 @@ class OsuUrls(Enum):
 
     `NEWS`: `URL`+`NewsPost.slug`
 
-    `NEWS`: `URL`+`UpdateStream.name`+`Build.version`
+    `CHANGELOG`: `URL`+`UpdateStream.name`+`Build.version`
     """
 
     MAIN = "https://osu.ppy.sh/"

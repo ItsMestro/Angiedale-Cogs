@@ -489,7 +489,7 @@ class Embeds(MixinMeta):
             embed = base_embed.copy()
 
             start_index = (page_num - 1) * 5
-            end_index = (page_num - 1) * 5 + 5
+            end_index = start_index + 5
 
             embed.description = "\n\n".join(score_strings[start_index:end_index])
 

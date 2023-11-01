@@ -383,7 +383,7 @@ class Embeds(MixinMeta):
             embed = base_embed.copy()
 
             start_index = (page_num - 1) * 5
-            end_index = (page_num - 1) * 5 + 5
+            end_index = start_index + 5
 
             embed.description = "\n\n".join(score_strings[start_index:end_index])
 
@@ -1035,43 +1035,33 @@ class Commands(Functions):
     async def mods_beat_command(self, ctx: commands.Context) -> None:
         section_one = []
         section_one.append("Acronym: Name")
-        section_one.append("FM: FreeMod")
-        longest = 0
-        for mod in OSUBEAT_ALLOWED_MODS:
-            text = f"{mod.short_name()}: {mod.long_name()}"
-            if len(text) > longest:
-                longest = len(text)
-            section_one.append(text)
 
-        lines = ""
-        for i in range(longest):
-            lines += "-"
-        section_one.insert(1, lines)
+        line_string = ""
+        for _ in range(len(section_one[0])):
+            line_string += "-"
+        section_one.append(line_string)
+
+        section_one.append("FM: FreeMod")
+        for mod in OSUBEAT_ALLOWED_MODS:
+            section_one.append(f"{mod.short_name()}: {mod.long_name()}")
 
         section_two = []
         section_two.append("Tournament: Mod Combinations")
-        longest = 0
+        line_string = ""
+        for _ in range(len(section_two[0])):
+            line_string += "-"
+        section_two.append(line_string)
 
         def make_string(strings: List[str], mods: List[OsuMod]) -> str:
-            nonlocal longest
             for mod in mods:
                 strings.append(mod.short_name())
 
-            text = " ".join(strings)
-            if len(text) > longest:
-                longest = len(text)
-
-            return text
+            return " ".join(strings)
 
         section_two.append(make_string(["STANDARD:"], OSUBEAT_MODS_STANDARD))
         section_two.append(make_string(["TAIKO:"], OSUBEAT_MODS_TAIKO))
         section_two.append(make_string(["CATCH:"], OSUBEAT_MODS_CATCH))
         section_two.append(make_string(["MANIA:"], OSUBEAT_MODS_MANIA))
-
-        lines = ""
-        for i in range(longest):
-            lines += "-"
-        section_two.insert(1, lines)
 
         section_one = "\n".join(section_one)
         section_two = "\n".join(section_two)

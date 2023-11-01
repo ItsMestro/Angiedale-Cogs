@@ -64,7 +64,7 @@ class Embeds(MixinMeta):
 
         embed.set_author(
             name=f"{len(tracking_entries)} players are being tracked in this server.",
-            icon_url=self.bot.user.avatar.url,
+            icon_url=self.bot.user.display_avatar.url,
         )
 
         embed.description = tracked_string

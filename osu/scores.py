@@ -249,7 +249,7 @@ class Embeds(MixinMeta):
             page_num = 1
             while page_num <= ceil(len(data) / 5):
                 start_index = (page_num - 1) * 5
-                end_index = (page_num - 1) * 5 + 5
+                end_index = start_index + 5
                 score_entries = []
                 for score in data[start_index:end_index]:
                     score_entries.append(
@@ -307,7 +307,7 @@ class Embeds(MixinMeta):
             embed = base_embed.copy()
 
             start_index = (page_num - 1) * 5
-            end_index = (page_num - 1) * 5 + 5
+            end_index = start_index + 5
             score_entries = []
             for score in compare_data[start_index:end_index]:
                 score_entries.append(self.score_entry_builder(score, score.index))

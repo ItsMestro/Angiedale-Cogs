@@ -16,6 +16,7 @@ from redbot.core.utils.views import ConfirmView
 
 from .converters import BeatMode
 from .database import Database
+from .fuwwy import Fuwwy, FuwwyBeatmapIDs
 from .misc import Misc
 from .osubeat import OsuBeat
 from .scores import Scores
@@ -43,6 +44,7 @@ class Osu(
     OsuBeat,
     Tracking,
     Misc,
+    Fuwwy,
     commands.Cog,
     metaclass=CompositeMetaClass,
 ):
@@ -60,9 +62,18 @@ class Osu(
     `m`
     """
 
-    default_user_settings: ClassVar[dict[str, str | None]] = {
+    default_user_settings: ClassVar[dict[str, str | dict[str, bool | dict] | None]] = {
         "username": None,
         "user_id": None,
+        "fuwwy_clan": {
+            "member": False,
+            "join_date": None,
+            FuwwyBeatmapIDs.FULL.name: {},
+            FuwwyBeatmapIDs.JACKS.name: {},
+            FuwwyBeatmapIDs.STREAMS.name: {},
+            FuwwyBeatmapIDs.LN.name: {},
+            FuwwyBeatmapIDs.TECH.name: {},
+        },
     }
     default_guild_settings: ClassVar[
         dict[str, int | bool | BeatMode | dict[str, dict | int | None]]
@@ -90,13 +101,14 @@ class Osu(
     default_member_settings: ClassVar[dict[str, dict]] = {
         "beat_score": {},
     }
-    default_global_settings: ClassVar[dict[str, dict]] = {
+    default_global_settings: ClassVar[dict[str, dict[str, int | str]]] = {
         "tracking": {
             "osu": {},
             "taiko": {},
             "fruits": {},
             "mania": {},
         },
+        "fuwwy_clan": {"score": 0, "map_version": "2007-09-16T00:00:00+0000", "role_id": None},
     }
     default_mongodb: ClassVar[dict[str, str | int | None]] = {
         "host": "localhost",
