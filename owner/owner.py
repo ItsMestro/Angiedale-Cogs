@@ -762,7 +762,7 @@ class Owner(commands.Cog):
     ):
         """Set the channel where changelogs will be sent."""
         if channel is None:
-            await self.owner_config.changelog.clear()
+            await self.owner_config.changelog.channel_id.clear()
             return await ctx.maybe_send_embed("Cleared the changelog channel")
 
         async with self.owner_config.changelog() as config:
@@ -818,6 +818,8 @@ class Owner(commands.Cog):
         await self.bot.wait_until_red_ready()
 
         data = await self.owner_config.changelog()
+
+        log.info(data)
 
         if data["channel_id"] is None:
             return
@@ -906,7 +908,7 @@ class Owner(commands.Cog):
             else:
                 await channel.send(embed=embed)
             async with self.owner_config.changelog() as config:
-                config["last_version"] = release.title
+                config["last_version"] = new_version
         except Exception as e:
             log.exception("Error trying to send changelog embed", exc_info=e)
 
