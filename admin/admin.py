@@ -665,33 +665,6 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
         else:
             await ctx.send(("Reporting is now disabled."))
 
-    @is_support_guild()
-    @commands.command()
-    async def setup(self, ctx):
-        """Sends invite to support server."""
-        if not ctx.guild.id == 128856147162562560:
-            await ctx.send(
-                "Join this server and run this command again in there.\n\nhttps://discord.gg/xxjdXmR"
-            )
-        else:
-            for guild in self.bot.guilds:
-                if ctx.author.id == guild.owner_id:
-                    supportrole = ctx.guild.get_role(815025432507318304)
-                    if supportrole in ctx.author.roles:
-                        await ctx.author.remove_roles(supportrole)
-                        return await ctx.send("Removed your support role.")
-                    else:
-                        await ctx.author.add_roles(supportrole)
-                        return await ctx.send(
-                            "You've now been given a support role with access to exclusive channels for information on the bot."
-                        )
-            return await ctx.send(
-                (
-                    f"You're not the owner of any servers that I'm in. The support role is only for server owners.\n"
-                    f"Feel free to let me join one of your servers with `{ctx.clean_prefix}invite`"
-                )
-            )
-
     @commands.command()
     @commands.admin_or_permissions(administrator=True)
     @commands.guild_only()
