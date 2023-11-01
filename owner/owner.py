@@ -865,7 +865,7 @@ class Owner(commands.Cog):
         embed.title = data["repo"]
         embed.url = f"https://github.com/{release.author.login}/{data['repo']}"
 
-        embed.description = f"# {release.title} - [Release Link]({release.html_url})"
+        preface = [f"# {release.title} - [Release Link]({release.html_url})"]
 
         embed.timestamp = release.created_at
 
@@ -877,6 +877,9 @@ class Owner(commands.Cog):
             if not line:
                 continue
 
+            if line.startswith("---"):
+                continue
+
             if line.startswith("## "):
                 current_header = line
                 headers[line] = []
@@ -885,7 +888,13 @@ class Owner(commands.Cog):
             if line.startswith("### "):
                 line = f"- {bold(line[4:])}"
 
+            if len(headers) == 0:
+                preface.append(line)
+                continue
+
             headers[current_header].append(line)
+
+            embed.description = "\n\n".join(preface)
 
         for header, body in headers.items():
             embed.add_field(name=header[3:], value="\n".join(body), inline=False)
