@@ -616,7 +616,7 @@ class Commands(Functions, Embeds):
 
         # Needs account linked
         if user_data["user_id"] is None:
-            return self.profile_linking_onboarding(ctx)
+            return await self.profile_linking_onboarding(ctx)
 
         # If not a member already and not in home guild.
         # You can only submit scores as a non-member in the home guild.
@@ -698,7 +698,7 @@ class Commands(Functions, Embeds):
                 if data.score <= fuwwy_data.FULL.score:
                     return await del_message(
                         ctx,
-                        f"Your score {inline(humanize_number(data.score))} isn't better than "
+                        f"Your score of {inline(humanize_number(data.score))} isn't better than "
                         f"your last submitted one {inline(humanize_number(fuwwy_data.FULL.score))}.",
                     )
 
