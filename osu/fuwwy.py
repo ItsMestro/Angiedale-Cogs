@@ -136,7 +136,7 @@ class FuwwyUser:
 
         self.FULL = None
         self.JACKS = None
-        self.STREAM = None
+        self.STREAMS = None
         self.LN = None
         self.TECH = None
 
