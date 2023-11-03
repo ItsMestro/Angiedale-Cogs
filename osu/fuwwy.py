@@ -261,7 +261,7 @@ class Embeds(MixinMeta):
             for score in temp_dict.values():
                 total_accuracy += score.accuracy
             embed.set_footer(
-                text=f"The average accuracy on your best {len(temp_dict)} stage maps is {total_accuracy / len(temp_dict)}"
+                text=f"The average accuracy on your best {len(temp_dict)} stage maps is {'{:.2%}'.format(total_accuracy / len(temp_dict))}"
             )
 
         return embed
