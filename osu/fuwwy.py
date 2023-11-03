@@ -52,6 +52,8 @@ FUWWY_BEATMAP_STAGES = {
 }
 
 FUWWY_ACC_THRESHOLD = 98
+FUWWY_GRADE_THRESHOLD = OsuGrade.A
+FUWWY_GRADES = [OsuGrade.A, OsuGrade.S, OsuGrade.SH, OsuGrade.SS, OsuGrade.SSH]
 
 
 def inkopolis_server_check():
@@ -299,8 +301,6 @@ class Embeds(MixinMeta):
         )
         embed.title = "[FUWWY] Clan Entry Requirements"
 
-        reference_score = await self.osu_config.fuwwy_clan()
-
         embed.description = "\n\n".join(
             [
                 "First of all. This clan is just a meme. Don't expect anything out of it.",
@@ -318,9 +318,8 @@ class Embeds(MixinMeta):
             name="You have two options for becoming eligible as a member.",
             value="\n".join(
                 [
-                    f"- {inline('Beat my reference score')} on the full "
-                    f"{inline(FUWWY_BEATMAP_STAGES[FuwwyBeatmapIDs.FULL]['name'])} "
-                    f"map which is currently at {bold(humanize_number(reference_score['score']))}",
+                    f"- Get and {bold(FUWWY_GRADE_THRESHOLD)} on the full "
+                    f"{inline(FUWWY_BEATMAP_STAGES[FuwwyBeatmapIDs.FULL]['name'])} ",
                     f"- {bold('Get an average accuracy')} of {bold(f'{FUWWY_ACC_THRESHOLD}%')} on three of the four stage maps.",
                 ]
             ),
@@ -347,7 +346,7 @@ class Embeds(MixinMeta):
         )
 
         embed.add_field(
-            name="If the reference score ever improves or one of the maps get updates.",
+            name="If one of the maps get updated with a mapping change.",
             value="You'll be given a grace period of 2 weeks "
             "where you have to re-submit your score before having your saved scores deleted "
             "and be removed from the clan.",
@@ -665,15 +664,13 @@ class Commands(Functions, Embeds):
 
         # First if else here is just to differentiate between the full map and stage maps
         if data.beatmap.id == FuwwyBeatmapIDs.FULL.value:
-            reference = await self.osu_config.fuwwy_clan()
-            # Score isn't better than ref
-            if data.score <= reference["score"]:
+            # Score isn't better than grade requirement
+            if data.rank not in FUWWY_GRADES:
                 return await del_message(
                     ctx,
                     "\n".join(
                         [
-                            f"Your score {inline(data.score)} isn't better than my reference score "
-                            f"of {inline(humanize_number(reference['score']))}",
+                            f"Your score doesn't have at least an {bold(FUWWY_GRADE_THRESHOLD)} rank.",
                             "Try again and see if you can improve!",
                         ]
                     ),
@@ -1149,7 +1146,7 @@ class Fuwwy(Commands):
 
         await self.fuwwy_profile_command(ctx)
 
-    @fuwwy_clan.command(name="leaderboard", aliases=["lb"])
+    @fuwwy_clan.command(name="leaderboard", aliases=["lb", "standings"])
     async def _leaderboard(self, ctx: commands.Context, *, stage: str):
         """See the leaderboard for one of the maps in the exam.
 
