@@ -434,20 +434,22 @@ class Embeds(MixinMeta):
 
         text_list = []
         if submitted_stages < 3:
-            text_list.append(f"play {bold(3 - submitted_stages)} more stages")
+            text_list.append(f"play {bold(str(3 - submitted_stages))} more stages")
 
         if submitted_stages == 4:
             if accuracy / 3 < FUWWY_ACC_THRESHOLD:
-                text_list.append(f"get {bold(round(accuracy / 3, 2))}% higher average accuracy")
-            text_add1 = f"{bold(round(accuracy / 3, 2))} with "
-            f"{bold(4)} stages submitted."
+                text_list.append(
+                    f"get {bold(f'{round(accuracy / 3, 2)}%')} higher average accuracy"
+                )
+            text_add1 = f"{bold(f'{round(accuracy / 3, 2)}%')} with "
+            f"{bold('4')} stages submitted."
         else:
             if accuracy / submitted_stages < FUWWY_ACC_THRESHOLD:
                 text_list.append(
-                    f"get {bold(round(accuracy / submitted_stages, 2))}% higher average accuracy"
+                    f"get {bold(f'{round(accuracy / submitted_stages, 2)}%')} higher average accuracy"
                 )
-            text_add1 = f"{bold(round(accuracy / submitted_stages, 2))} on "
-            f"{bold(submitted_stages)} stage{'s' if len(submitted_stages) > 1 else ''}."
+            text_add1 = f"{bold(f'{round(accuracy / submitted_stages, 2)}%')} on "
+            f"{bold(str(submitted_stages))} stage{'s' if len(submitted_stages) > 1 else ''}."
 
         text_add2 = " and ".join(text_list)
 
@@ -510,16 +512,16 @@ class Embeds(MixinMeta):
 
                 index += 1
 
-                embed = base_embed.copy()
+            embed = base_embed.copy()
 
-                embed.set_footer(
-                    text=f"Page {page_num}/{ceil(len(members) / 5)} ◈ Total Scores: {len(members)}"
-                )
+            embed.set_footer(
+                text=f"Page {page_num}/{ceil(len(members) / 5)} ◈ Total Scores: {len(members)}"
+            )
 
-                embed.description = "\n\n".join(score_entries)
+            embed.description = "\n\n".join(score_entries)
 
-                embed_list.append(embed)
-                page_num += 1
+            embed_list.append(embed)
+            page_num += 1
 
         return embed_list
 
@@ -817,7 +819,7 @@ class Commands(Functions, Embeds):
             if old_play.score > data.score:
                 return await del_message(
                     ctx,
-                    f"Your old score {bold(old_play['score'])} on {inline(data.beatmap.version)} is better than this play.",
+                    f"Your old score {bold(str(old_play['score']))} on {inline(data.beatmap.version)} is better than this play.",
                 )
 
             # If both score and acc is better. Just submit.
