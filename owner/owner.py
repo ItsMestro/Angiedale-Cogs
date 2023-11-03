@@ -819,8 +819,6 @@ class Owner(commands.Cog):
 
         data = await self.owner_config.changelog()
 
-        log.info(data)
-
         if data["channel_id"] is None:
             return
 
