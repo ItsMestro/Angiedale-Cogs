@@ -657,7 +657,7 @@ class Commands(Functions, Embeds):
         # Re-use my logic from osubeat for checking if any mod used isn't in whitelist
         split_mods = data.mods.decompose()
         for mod in split_mods:
-            if not OsuMod(mod) in FUWWY_ALLOWED_MODS:
+            if not OsuMod(mod.short_name()) in FUWWY_ALLOWED_MODS:
                 return await del_message(
                     ctx,
                     f"The {inline(OsuMod(mod).long_name())} mod isn't allowed for score submissions!",
@@ -1047,7 +1047,7 @@ class Commands(Functions, Embeds):
         all_user_data = await self.osu_config.all_users()
 
         members: List[Dict[str, Union[FuwwyScore, int, str, None]]] = []
-        for user_id, data in all_user_data.items():
+        for data in all_user_data.values():
             if data["fuwwy_clan"]["member"]:
                 if data["fuwwy_clan"][clean_stage.name]:
                     members.append(

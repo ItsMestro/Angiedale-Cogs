@@ -623,7 +623,7 @@ class Functions(Embeds):
                     split_mods = score.mods.decompose()
                     try:
                         for mod in split_mods:
-                            if not OsuMod(mod) in OSUBEAT_ALLOWED_MODS:
+                            if not OsuMod(mod.short_name()) in OSUBEAT_ALLOWED_MODS:
                                 raise ValueFound
                     except ValueFound:
                         continue
