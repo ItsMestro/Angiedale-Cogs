@@ -51,7 +51,7 @@ FUWWY_BEATMAP_STAGES = {
     FuwwyBeatmapIDs.TECH: {"name": "Beans", "stage": "Stage 4"},
 }
 
-FUWWY_ACC_THRESHOLD = 98
+FUWWY_ACC_THRESHOLD = 0.98
 FUWWY_GRADE_THRESHOLD = OsuGrade.A
 FUWWY_GRADES = [OsuGrade.A, OsuGrade.S, OsuGrade.SH, OsuGrade.SS, OsuGrade.SSH]
 
@@ -318,9 +318,9 @@ class Embeds(MixinMeta):
             name="You have two options for becoming eligible as a member.",
             value="\n".join(
                 [
-                    f"- Get and {bold(FUWWY_GRADE_THRESHOLD)} on the full "
+                    f"- Get an {bold(FUWWY_GRADE_THRESHOLD.value)} on the full "
                     f"{inline(FUWWY_BEATMAP_STAGES[FuwwyBeatmapIDs.FULL]['name'])} ",
-                    f"- {bold('Get an average accuracy')} of {bold(f'{FUWWY_ACC_THRESHOLD}%')} on three of the four stage maps.",
+                    f"- {bold('Get an average accuracy')} of {bold('{:.2%}'.format(FUWWY_ACC_THRESHOLD))} on three of the four stage maps.",
                 ]
             ),
             inline=False,
@@ -439,16 +439,16 @@ class Embeds(MixinMeta):
         if submitted_stages == 4:
             if accuracy / 3 < FUWWY_ACC_THRESHOLD:
                 text_list.append(
-                    f"get {bold(f'{round(accuracy / 3, 2)}%')} higher average accuracy"
+                    f"get {bold('{:.2%}'.format(accuracy / 3))} higher average accuracy"
                 )
-            text_add1 = f"{bold(f'{round(accuracy / 3, 2)}%')} with "
+            text_add1 = f"{bold('{:.2%}'.format(accuracy / 3))} with "
             f"{bold('4')} stages submitted."
         else:
             if accuracy / submitted_stages < FUWWY_ACC_THRESHOLD:
                 text_list.append(
-                    f"get {bold(f'{round(accuracy / submitted_stages, 2)}%')} higher average accuracy"
+                    f"get {bold('{:.2%}'.format(accuracy / submitted_stages))} higher average accuracy"
                 )
-            text_add1 = f"{bold(f'{round(accuracy / submitted_stages, 2)}%')} on "
+            text_add1 = f"{bold('{:.2%}'.format(accuracy / submitted_stages))} on "
             f"{bold(str(submitted_stages))} stage{'s' if len(submitted_stages) > 1 else ''}."
 
         text_add2 = " and ".join(text_list)
@@ -460,13 +460,11 @@ class Embeds(MixinMeta):
             ]
         )
 
-        reference = await self.osu_config.fuwwy_clan()
-
         embed.set_footer(
-            f"Entry requirements: Get more than "
-            f"{humanize_number(reference['score'])} on "
+            f"Entry requirements: Get an "
+            f"{FUWWY_GRADE_THRESHOLD.value} on "
             f"{fuwwy_to_stage_string(FuwwyBeatmapIDs.FULL)} "
-            f"or {FUWWY_ACC_THRESHOLD}% average accuracy on 3 of the 4 stages"
+            f"or {'{:.2%}'.format(FUWWY_ACC_THRESHOLD)} average accuracy on 3 of the 4 stages"
         )
 
     async def fuwwy_leaderboard_embed(
@@ -672,7 +670,7 @@ class Commands(Functions, Embeds):
                     ctx,
                     "\n".join(
                         [
-                            f"Your score doesn't have at least an {bold(FUWWY_GRADE_THRESHOLD)} rank.",
+                            f"Your score doesn't have at least an {bold(FUWWY_GRADE_THRESHOLD.value)} rank.",
                             "Try again and see if you can improve!",
                         ]
                     ),
@@ -919,7 +917,7 @@ class Commands(Functions, Embeds):
                     return await del_message(
                         f"Your score on the map was improved but "
                         f"the accuracy got worse and submitting it "
-                        f"would drop you below the {FUWWY_ACC_THRESHOLD}% "
+                        f"would drop you below the {'{:.2%}'.format(FUWWY_ACC_THRESHOLD)} "
                         f"average accuracy threshold."
                     )
 
@@ -946,7 +944,7 @@ class Commands(Functions, Embeds):
                 return await del_message(
                     f"Your score on the map was improved but "
                     f"the accuracy got worse and submitting it "
-                    f"would drop you below the {FUWWY_ACC_THRESHOLD}% "
+                    f"would drop you below the {'{:.2%}'.format(FUWWY_ACC_THRESHOLD)} "
                     f"average accuracy threshold."
                 )
 
