@@ -5,7 +5,7 @@ import logging
 import random
 import re
 from datetime import datetime, timedelta
-from typing import Dict, Optional
+from typing import Dict, List, Optional, Union
 
 import discord
 from redbot.core import Config, commands
@@ -273,12 +273,12 @@ class Utility(commands.Cog):
 
     @raffle.command(hidden=True)
     @commands.is_owner()
-    async def clear(self, ctx):
+    async def clear(self, ctx: commands.Context):
         await self.raffleconfig.guild(ctx.guild).Raffles.clear()
         await ctx.send("Raffle data cleared out.")
 
     @raffle.command()
-    async def start(self, ctx, timer, *, title: str):
+    async def start(self, ctx: commands.Context, timer: str, *, title: str):
         """Starts a raffle.
 
         Timer accepts a integer input that represents seconds or it will
@@ -354,7 +354,7 @@ class Utility(commands.Cog):
         await self.raffle_timer(ctx.guild, new_raffle, timer)
 
     @raffle.command()
-    async def end(self, ctx, message_id: int = None):
+    async def end(self, ctx: commands.Context, message_id: int = None):
         """Ends a raffle early. A winner will still be chosen."""
         if message_id is None:
             try:
@@ -372,7 +372,7 @@ class Utility(commands.Cog):
             await ctx.send("The raffle has been ended.")
 
     @raffle.command()
-    async def cancel(self, ctx, message_id: int = None):
+    async def cancel(self, ctx: commands.Context, message_id: int = None):
         """Cancels an on-going raffle. No winner is chosen."""
         if message_id is None:
             try:
@@ -396,7 +396,7 @@ class Utility(commands.Cog):
                 except KeyError:
                     pass
 
-    async def _menu(self, ctx, end="end"):
+    async def _menu(self, ctx: commands.Context, end="end"):
         title = f"Which of the following **Active** Raffles would you like to {end}?"
         async with self.raffleconfig.guild(ctx.guild).Raffles() as r:
             if not r:
@@ -501,7 +501,7 @@ class Utility(commands.Cog):
         self.load_check.cancel()
         pass
 
-    async def start_checks(self, ctx, timer):
+    async def start_checks(self, ctx: commands.Context, timer: str):
         timer = self.time_converter(timer)
         if timer is None:
             await ctx.send(
@@ -619,7 +619,7 @@ class Utility(commands.Cog):
         """
         try:
             await self.bot.wait_until_red_ready()
-            guilds = []
+            guilds: List[discord.Guild] = []
             guilds_in_config = await self.raffleconfig.all_guilds()
             for guild in guilds_in_config:
                 guild_obj = self.bot.get_guild(guild)
@@ -642,7 +642,7 @@ class Utility(commands.Cog):
         except Exception:
             log.error("Error in raffle_worker task.", exc_info=True)
 
-    async def raffle_timer(self, guild, raffle: dict, remaining: int):
+    async def raffle_timer(self, guild: discord.Guild, raffle: dict, remaining: int):
         """Helper function for starting the raffle countdown.
 
         This function will silently pass when the unique raffle id is not found or
@@ -665,7 +665,7 @@ class Utility(commands.Cog):
         if data:
             await self.raffle_teardown(guild, raffle["ID"])
 
-    async def raffle_teardown(self, guild, message_id):
+    async def raffle_teardown(self, guild: discord.Guild, message_id):
         errored = False
         raffles = await self.raffleconfig.guild(guild).Raffles.all()
         channel = self.bot.get_channel(raffles[str(message_id)]["Channel"])
@@ -693,7 +693,19 @@ class Utility(commands.Cog):
             except KeyError:
                 pass
 
-    async def pick_winner(self, guild, channel, msg):
+    async def pick_winner(
+        self,
+        guild: discord.Guild,
+        channel: Union[
+            discord.TextChannel,
+            discord.CategoryChannel,
+            discord.VoiceChannel,
+            discord.StageChannel,
+            discord.ForumChannel,
+            discord.Thread,
+        ],
+        msg: discord.Message,
+    ):
         reaction = next(
             filter(lambda x: x.emoji == self.bot.get_emoji(755808378210746400), msg.reactions),
             None,
@@ -702,7 +714,7 @@ class Utility(commands.Cog):
             return await channel.send(
                 "It appears there were no valid entries, so a winner for the raffle could not be picked."
             )
-        users = [user for user in await reaction.users().flatten() if guild.get_member(user.id)]
+        users = [user async for user in reaction.users() if guild.get_member(user.id)]
         users.remove(self.bot.user)
         try:
             amt = int(msg.embeds[0].footer.text.split("Winners: ")[1][0])
@@ -754,7 +766,7 @@ class Utility(commands.Cog):
                 pass
 
     @staticmethod
-    def time_converter(units):
+    def time_converter(units: str):
         try:
             return sum(int(x) * 60**i for i, x in enumerate(reversed(units.split(":"))))
         except ValueError:
