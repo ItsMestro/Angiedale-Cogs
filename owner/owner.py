@@ -4,12 +4,12 @@ import os
 import re
 import shutil
 from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
 from random import choice
 from typing import Dict, List, Optional, Union
 from zipfile import ZipFile
 
 import discord
-import requests
 from dateutil.easter import easter
 from github import Auth, Github
 from redbot.core import Config, commands
@@ -702,7 +702,7 @@ class Owner(commands.Cog):
         else:
             await ctx.send(("Okay I will allow channel overwrites for muting users."))
 
-    @commands.command(name="dumpemotes", aliases=["dumpemojis"])
+    @commands.command(name="dumpemotes", aliases=["dumpemojis", "dumpe"])
     @commands.guild_only()
     @commands.is_owner()
     async def dump_emotes(self, ctx: commands.Context, guild_id: int = None):
@@ -714,26 +714,31 @@ class Owner(commands.Cog):
             if guild is None:
                 return await ctx.send("Couldn't find a guild with that ID.")
 
-        path = f"{cog_data_path(self)}/{guild.id}"
-        message = await ctx.send("Give me a moment...")
-        await ctx.typing()
+        path = Path(f"{cog_data_path(self)}/{guild.id}")
 
-        if not os.path.exists(path):
-            os.makedirs(path)
+        message = await ctx.send(
+            "\n".join(
+                [
+                    f"Found {inline(str(len(guild.emojis)))} emojis.",
+                    "Give me a moment to download them...",
+                ]
+            )
+        )
 
-        for emote in guild.emojis:
-            r = requests.get(emote.url)
-            if emote.animated:
-                with open(f"{path}/{emote.name}.gif", "wb") as f:
-                    f.write(r.content)
-            else:
-                with open(f"{path}/{emote.name}.png", "wb") as f:
-                    f.write(r.content)
-            await asyncio.sleep(0.2)
-        try:
-            await message.delete()
-        except:
-            pass
+        path.mkdir(parents=True, exist_ok=True)
+
+        async with ctx.typing():
+            for emoji in guild.emojis:
+                if emoji.animated:
+                    await emoji.save(f"{path}/{emoji.name}.gif")
+                else:
+                    await emoji.save(f"{path}/{emoji.name}.png")
+                await asyncio.sleep(0.2)
+            try:
+                await message.delete()
+            except:
+                pass
+
         with ZipFile(f"{path}.zip", "w") as zip:
             for file in os.listdir(path):
                 zip.write(f"{path}/{file}", file)
