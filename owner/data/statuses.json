@@ -1,0 +1,66 @@
+{
+    "default": [
+        "with you <3",
+        "with things",
+        "with ink",
+        "Splatoon",
+        "in the bot channel",
+        "with my owner"
+    ],
+    "easter": [
+        "Happy Easter",
+        "Happy Easter",
+        "with colored eggs",
+        "with bunnies",
+        "egghunt"
+    ],
+    "valentine": [
+        "Happy Valentine",
+        "Happy Valentine",
+        "cupid",
+        "with love",
+        "with a box of heart chocolate",
+        "with my lover",
+        "with my valentine"
+    ],
+    "christmas": [
+        "Merry Christmas",
+        "Happy Holidays",
+        "Merry Squidmas",
+        "the christmas tree",
+        "with santa",
+        "with gifts",
+        "in the snow"
+    ],
+    "new_year": [
+        "Happy New Year",
+        "Happy New Year",
+        "with fireworks",
+        "with the new year",
+        "with misstyped years"
+    ],
+    "halloween": [
+        "Happy Halloween",
+        "Happy Splatoween",
+        "trick or treat",
+        "with candy",
+        "spooky",
+        "with pumpkins"
+    ],
+    "extra": [
+        "with Pearl",
+        "with Marina",
+        "with Callie",
+        "with Marie",
+        "with Agent 3",
+        "with Agent 4",
+        "with Agent 8",
+        "with Captain",
+        "with Shiver",
+        "with Frye",
+        "with Big Man",
+        "with the Squid Sisters",
+        "with Off the Hook",
+        "with Deep Cut"
+    ]
+}

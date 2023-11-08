@@ -1,8 +1,10 @@
 import asyncio
+import json
 import logging
 import os
 import re
 import shutil
+import time
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from random import choice
@@ -14,7 +16,7 @@ from dateutil.easter import easter
 from github import Auth, Github
 from redbot.core import Config, commands
 from redbot.core.bot import Red
-from redbot.core.data_manager import cog_data_path
+from redbot.core.data_manager import bundled_data_path, cog_data_path
 from redbot.core.utils import AsyncIter
 from redbot.core.utils.angiedale import ANGIEDALE_VERSION
 from redbot.core.utils.chat_formatting import (
@@ -45,6 +47,7 @@ class Owner(commands.Cog):
         super().__init__()
         self.bot = bot
         self.interaction = []
+        self.statuses: Dict[str, List[str]] = {}
 
         self.admin_config = Config.get_conf(
             self, identifier=1387000, force_registration=True, cog_name="OwnerAdmin"
@@ -527,12 +530,16 @@ class Owner(commands.Cog):
 
     async def maybe_update_presence(self) -> None:
         await self.bot.wait_until_red_ready()
+
+        with Path(bundled_data_path(self) / "statuses.json").open("r") as file:
+            self.statuses = json.load(file)
+
         delay = 90
         while True:
             try:
                 await self.presence_updater()
-            except Exception:
-                log.exception("Something went wrong in maybe_update_presence task:")
+            except Exception as e:
+                log.exception("Something went wrong in maybe_update_presence task:", exc_info=e)
 
             await asyncio.sleep(int(delay))
 
@@ -542,148 +549,66 @@ class Owner(commands.Cog):
         except StopIteration:
             return
         try:
-            current_game = str(guild.me.activity.name)
-        except AttributeError:
-            current_game = None
-        _type = 0
-
-        prefix = await self.bot.get_valid_prefixes()
-        status = discord.Status.online
-
-        me = self.bot.user
-        clean_prefix = re.compile(rf"<@!?{self.bot.user.id}>").sub(f"@{me.name}", prefix[0])
-        total_users = len(self.bot.users)
-        servers = str(len(self.bot.guilds))
-        help_addon = f"{clean_prefix}help"
-        usersstatus = f"with {total_users} users"
-        serversstatus = f"in {servers} servers"
-        datetoday = date.today()
-        wheneaster = easter(datetoday.year)
-        if datetoday >= wheneaster and datetoday <= wheneaster + timedelta(days=7):
-            statuses = [
-                "with you <3",
-                "with things",
-                "with ink",
-                "Splatoon",
-                "in the bot channel",
-                "with my owner",
-                "Happy Easter",
-                "Happy Easter",
-                "with colored eggs",
-                "with bunnies",
-                "egghunt",
-                usersstatus,
-                serversstatus,
-            ]
-        elif datetoday.month == 2 and datetoday.day >= 14 and datetoday.day <= 15:
-            statuses = [
-                "with you <3",
-                "with things",
-                "with ink",
-                "Splatoon",
-                "in the bot channel",
-                "with my owner",
-                "Happy Valentine",
-                "Happy Valentine",
-                "cupid",
-                "with love",
-                "with a box of heart chocolate",
-                "with my lover",
-                "with my valentine",
-                usersstatus,
-                serversstatus,
-            ]
-        elif datetoday.month == 12 and datetoday.day >= 24 and datetoday.day < 31:
-            statuses = [
-                "with you <3",
-                "with things",
-                "with ink",
-                "Splatoon",
-                "in the bot channel",
-                "with my owner",
-                "Merry Christmas",
-                "Happy Holidays",
-                "Merry Squidmas",
-                "the christmas tree",
-                "with santa",
-                "with gifts",
-                "in the snow",
-                usersstatus,
-                serversstatus,
-            ]
-        elif (
-            datetoday.month == 12
-            and datetoday.day == 31
-            or datetoday.month == 1
-            and datetoday.day <= 7
-        ):
-            statuses = [
-                "with you <3",
-                "with things",
-                "with ink",
-                "Splatoon",
-                "in the bot channel",
-                "with my owner",
-                "Happy New Year",
-                "Happy New Year",
-                "with fireworks",
-                usersstatus,
-                serversstatus,
-            ]
-        elif (
-            datetoday.month == 11
-            and datetoday.day == 31
-            or datetoday.month == 11
-            and datetoday.day <= 7
-        ):
-            statuses = [
-                "with you <3",
-                "with things",
-                "with ink",
-                "Splatoon",
-                "in the bot channel",
-                "with my owner",
-                "Happy Halloween",
-                "Happy Splatoween",
-                "trick or treat",
-                "with candy",
-                "spooky",
-                "with pumpkins",
-                usersstatus,
-                serversstatus,
-            ]
-        else:
-            statuses = [
-                "with you <3",
-                "with things",
-                "with ink",
-                "Splatoon",
-                "in the bot channel",
-                "with my owner",
-                "with Pearl",
-                "with Marina",
-                "with Callie",
-                "with Marie",
-                "with Agent 3",
-                "with Agent 4",
-                usersstatus,
-                serversstatus,
-            ]
-        new_status = self.random_status(guild, statuses, help_addon)
-        new_status = " | ".join((new_status, help_addon))
-        if (current_game != new_status) or (current_game is None):
-            await self.bot.change_presence(
-                activity=discord.Activity(name=new_status, type=_type), status=status
-            )
-
-    def random_status(self, guild: discord.Guild, statuses: List[str], help_addon: str) -> str:
-        try:
             current_status = str(guild.me.activity.name)
+            current_status = current_status.split(" | ")[0]
         except AttributeError:
             current_status = None
-        new_statuses = [
-            status for status in statuses if " | ".join((status, help_addon)) != current_status
-        ]
+
+        prefix = (await self.bot.get_valid_prefixes())[0]
+
+        statuses = self.statuses["default"]
+
+        statuses.append(f"with {len(self.bot.users)} users")
+        statuses.append(f"in {len(self.bot.guilds)} servers")
+
+        date_today = datetime.now(timezone(timedelta(hours=14))).date()
+        easter_at = easter(date_today.year)
+
+        # Easter + 7 days
+        if date_today >= easter_at and date_today < easter_at + timedelta(days=7):
+            statuses += self.statuses["easter"]
+        # Valentines day + 7 days
+        elif date_today.month == 2 and date_today.day >= 14 and date_today.day < 21:
+            statuses += self.statuses["valentine"]
+        # Christmas until the 30th
+        elif date_today.month == 12 and date_today.day >= 24 and date_today.day < 31:
+            statuses += self.statuses["christmas"]
+        # 31st of previous year or the first 6 days of the new year
+        elif (
+            date_today.month == 12
+            and date_today.day == 31
+            or date_today.month == 1
+            and date_today.day < 7
+        ):
+            statuses += self.statuses["new_year"]
+        # Day of halloween or the following 6 days
+        elif (
+            date_today.month == 10
+            and date_today.day == 31
+            or date_today.month == 11
+            and date_today.day < 7
+        ):
+            statuses += self.statuses["halloween"]
+        else:
+            statuses += self.statuses["extra"]
+
+        new_status = self.random_status(current_status, statuses)
+
+        if (current_status != new_status) or (current_status is None):
+            new_status = " | ".join((new_status, f"{prefix}help"))
+
+            await self.bot.change_presence(
+                activity=discord.Activity(
+                    name=new_status,
+                    type=discord.ActivityType.playing,
+                    state=f"Invite this bot to your own server with {prefix}invite",
+                ),
+                status=discord.Status.online,
+            )
+
+    def random_status(self, current_status: str, statuses: List[str]) -> str:
+        new_statuses = [status for status in statuses if status != current_status]
+
         if len(new_statuses) > 1:
             return choice(new_statuses)
         elif len(new_statuses) == 1:
