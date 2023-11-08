@@ -434,7 +434,7 @@ class Info(MixinMeta):
         self, ctx: commands.Context, invite: Union[discord.Member, discord.TextChannel, str] = None
     ):
         """Show invite info for specific invite or for all."""
-        if not ctx.me.permissions_in(ctx.channel).manage_guild:
+        if not ctx.guild.me.guild_permissions.manage_guild:
             return await ctx.maybe_send_embed(
                 'I need the "Manage Server" permission to use this command.'
             )

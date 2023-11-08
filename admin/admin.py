@@ -770,10 +770,10 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
         if not ctx.guild.me.guild_permissions.manage_roles:
             return await ctx.send((NEED_MANAGE_ROLES))
 
-        if not ctx.guild.me.permissions_in(message.channel).add_reactions:
+        if not message.channel.permissions_for(ctx.guild.me).add_reactions:
             return await ctx.send((NEED_ADD_REACTIONS))
 
-        if not ctx.guild.me.permissions_in(message.channel).manage_messages:
+        if not message.channel.permissions_for(ctx.guild.me).manage_messages:
             return await ctx.send((NEED_MANAGE_MESSAGES))
 
         if not self.pass_user_hierarchy_check(ctx, role):
