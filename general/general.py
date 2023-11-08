@@ -606,26 +606,22 @@ class General(Reports, commands.Cog):
                 await reaction.message.channel.send(f"**{user.name}** has paid their respects.")
                 self.channels[str(reaction.message.channel.id)]["reacted"].append(user.id)
 
-    @commands.command(Aliases=["pfp"])
-    async def avatar(self, ctx, *, user: discord.Member = None):
+    @commands.command(aliases=["pfp"])
+    async def avatar(self, ctx: commands.Context, *, user: discord.Member = None):
         """Returns user avatar URL.
 
         User argument can be user mention, nickname, username, user ID.
         Default to yourself when no argument is supplied.
         """
-        author = ctx.author
-
         if not user:
-            user = author
+            user = ctx.author
 
-        if user.is_avatar_animated():
-            url = user.avatar_url_as(format="gif")
-        if not user.is_avatar_animated():
-            url = user.avatar_url_as(static_format="png")
+        avatar_url = user.avatar.replace(format="gif", static_format="png").url
+
         embed = discord.Embed(
             color=await self.bot.get_embed_color(ctx), title=f"{user.name}'s Avatar"
         )
-        embed.set_image(url=url)
+        embed.set_image(url=avatar_url)
 
         await ctx.send(embed=embed)
 
@@ -1572,7 +1568,7 @@ class General(Reports, commands.Cog):
         embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
         embed.title = "Pledge on Patreon"
         embed.url = "https://patreon.mestro.cc"
-        embed.set_thumbnail(url=self.bot.user.avatar_url)
+        embed.set_thumbnail(url=self.bot.user.avatar.url)
         embed.description = (
             "While I do enjoy working on Angiedale and will happily do so for free, "
             "running her isn't. Feel free to drop off some money to help her run longer. You'll also"
@@ -1595,12 +1591,12 @@ class General(Reports, commands.Cog):
             embed.title = "Pledge on Patreon"
             embed.url = "https://patreon.mestro.cc"
             embed.description = "Be the first person on this list by pledging to the patreon and help Angiedale run!"
-            embed.set_thumbnail(url=self.bot.user.avatar_url)
+            embed.set_thumbnail(url=self.bot.user.avatar.url)
         else:
             embed.title = "Special thanks to these awesome users"
 
             embed.set_author(name="Pledge on Patreon", url="https://patreon.mestro.cc")
-            embed.set_thumbnail(url=self.bot.user.avatar_url)
+            embed.set_thumbnail(url=self.bot.user.avatar.url)
 
             if not len(tier4) == 0:
                 templist = []

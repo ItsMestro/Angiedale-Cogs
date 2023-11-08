@@ -65,7 +65,7 @@ class Info(MixinMeta):
         embeds = []
 
         embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
-        embed.set_author(name=f"Comparing {ctx.author} with {user}", icon_url=user.avatar_url)
+        embed.set_author(name=f"Comparing {ctx.author} with {user}", icon_url=user.avatar.url)
         embed.add_field(
             name=f"Text channels in common ◈ {len(common_t)}",
             value=(f"{' ◈ '.join([c.name for c in common_t])}" if common_t else "~"),
@@ -128,7 +128,7 @@ class Info(MixinMeta):
         embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
         embed.set_author(
             name=f'{("You have" if user.id == ctx.author.id else str(user) + " has")} access to {len(can_access)} out of {len(text_channels)} text channels',
-            icon_url=user.avatar_url,
+            icon_url=user.avatar.url,
         )
         embed.add_field(
             name="Can Access",
@@ -174,7 +174,7 @@ class Info(MixinMeta):
         embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
         embed.set_author(
             name=f'{("You have" if user.id == ctx.author.id else str(user) + " has")} access to {len(can_access)} out of {len(voice_channels)} voice channels',
-            icon_url=user.avatar_url,
+            icon_url=user.avatar.url,
         )
         embed.add_field(
             name="Can Access",
@@ -293,7 +293,7 @@ class Info(MixinMeta):
         page = []
         embed = discord.Embed(color=await ctx.embed_colour())
         embed.set_author(
-            name=f"Permissions for {user.name} in {channel.name}", icon_url=user.avatar_url
+            name=f"Permissions for {user.name} in {channel.name}", icon_url=user.avatar.url
         )
         embed.add_field(name="\N{WHITE HEAVY CHECK MARK}", value=hasperms, inline=True)
         embed.add_field(name="\N{CROSS MARK}", value=nothasperms, inline=True)
@@ -310,9 +310,9 @@ class Info(MixinMeta):
 
         base_embed = discord.Embed(color=await ctx.embed_colour())
         base_embed.set_author(
-            name=f"{count} newest members in {ctx.guild.name}", icon_url=self.bot.user.avatar_url
+            name=f"{count} newest members in {ctx.guild.name}", icon_url=self.bot.user.avatar.url
         )
-        base_embed.set_thumbnail(url=ctx.guild.icon_url)
+        base_embed.set_thumbnail(url=ctx.guild.icon.url)
 
         n = 0
         p = 0
@@ -361,9 +361,9 @@ class Info(MixinMeta):
         page = []
         embed = discord.Embed(color=(role.color if role.color else await ctx.embed_colour()))
         embed.set_author(
-            name=f"Role info for role ◈ {role.name}", icon_url=self.bot.user.avatar_url
+            name=f"Role info for role ◈ {role.name}", icon_url=self.bot.user.avatar.url
         )
-        embed.set_thumbnail(url=role.guild.icon_url)
+        embed.set_thumbnail(url=role.guild.icon.url)
 
         perms = role.permissions
         perms_we_have = []
@@ -589,9 +589,9 @@ class Info(MixinMeta):
         base_embed = discord.Embed(color=await ctx.embed_colour())
         base_embed.set_author(
             name=f"{ctx.guild.name} has {len(ctx.guild.channels)} channel{'s' if len(ctx.guild.channels) > 1 else ''}",
-            icon_url=self.bot.user.avatar_url,
+            icon_url=self.bot.user.avatar.url,
         )
-        base_embed.set_thumbnail(url=ctx.guild.icon_url)
+        base_embed.set_thumbnail(url=ctx.guild.icon.url)
 
         i = 1
         pages = list(pagify(final_string, delims=["\a\a\a", "\n"], page_length=1000))

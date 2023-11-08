@@ -73,7 +73,7 @@ class Embeds(MixinMeta):
         embed.set_author(
             name=f"Mapped by {data_set.creator} | osu!{pretty_mode.capitalize()}",
             url=f"{OsuUrls.USER.value}{data_set.user_id}",
-            icon_url=creator.avatar_url,
+            icon_url=creator.avatar.url,
         )
 
         embed.set_footer(text=f"Status: {data.status.name.capitalize()}")

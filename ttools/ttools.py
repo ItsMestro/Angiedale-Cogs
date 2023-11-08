@@ -224,7 +224,7 @@ class TTools(commands.Cog):
         """"""
         embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
 
-        embed.set_author(name=f"TTools settings for {ctx.guild.name}", icon_url=ctx.guild.icon_url)
+        embed.set_author(name=f"TTools settings for {ctx.guild.name}", icon_url=ctx.guild.icon.url)
 
         guild_settings = await self.config.guild(ctx.guild).all()
 
@@ -613,7 +613,7 @@ class TTools(commands.Cog):
         teamsize = await self.teamsize(ctx)
 
         embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
-        embed.set_author(name=f"{ctx.author.name} registration", icon_url=ctx.guild.icon_url)
+        embed.set_author(name=f"{ctx.author.name} registration", icon_url=ctx.guild.icon.url)
 
         embed.description = (
             f"Welcome to your registration!\n\n"
