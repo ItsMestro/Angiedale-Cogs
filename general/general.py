@@ -635,7 +635,7 @@ class General(Reports, commands.Cog):
                     if message_id:
                         text = (await ctx.fetch_message(message_id)).content
             if not text:
-                text = (await ctx.channel.history(limit=2).flatten())[
+                text = [message async for message in ctx.channel.history(limit=2)][
                     1
                 ].content or "I can't translate that!"
         fuwwytext = self.fuwwyize_string(text)
