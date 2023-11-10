@@ -33,6 +33,7 @@ class MixinMeta(ABC):
         ]
         self.leaderboard_tasks: Set[Optional[asyncio.Task]]
         self.osubeat_check_tasks: Set[Optional[asyncio.Task]]
+        self.tracking_init_task: asyncio.Task
 
     @abstractmethod
     def toggle_page(self, bot: Red) -> Mapping[str, _ControlCallable]:

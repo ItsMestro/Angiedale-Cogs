@@ -1,11 +1,11 @@
 import asyncio
-import calendar
 import itertools
 import logging
 import random
 import re
+from abc import ABC
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Union
+from typing import Dict, Optional
 
 import discord
 from redbot.core import Config, commands
@@ -16,55 +16,83 @@ from redbot.core.utils.predicates import MessagePredicate, ReactionPredicate
 
 from .converters import MULTI_RE, TIME_RE, PollOptions
 from .polls import Poll
+from .raffle import Raffle
 
 log = logging.getLogger("red.angiedale.utility")
 
 EMOJI_RE = re.compile(r"<a?:[a-zA-Z0-9\_]+:([0-9]+)>")
 
 
-class Utility(commands.Cog):
-    """Utility commands"""
+class CompositeMetaClass(type(commands.Cog), type(ABC)):
+    """
+    This allows the metaclass used for proper type detection to
+    coexist with discord.py's metaclass
+    """
+
+    pass
+
+
+class Utility(commands.Cog, Raffle, metaclass=CompositeMetaClass):
+    """Utility commands."""
 
     raffle_defaults = {
-        "Channel": None,
-        "Raffles": {},
-        "Mention": None,
+        "channel": None,
+        "raffles": {},
+        "mention": None,
+    }
+
+    poll_guild_defaults = {
+        "polls": {},
+        "embed": True,
     }
 
     def __init__(self, bot: Red):
         super().__init__()
         self.bot = bot
+        self.polls: Dict[int, Dict[int, Poll]] = {}
+        self.close_loop = True
 
-        self.raffleconfig = Config.get_conf(
+        self.raffle_config = Config.get_conf(
             self, identifier=1387000, cog_name="UtilityRaffle", force_registration=True
         )
-        self.raffleconfig.register_guild(**self.raffle_defaults)
-        self.load_check = asyncio.create_task(self.raffle_worker())
-
-        self.conf = Config.get_conf(
+        self.poll_config = Config.get_conf(
             self, identifier=1387000, cog_name="UtilityReactPoll", force_registration=True
         )
-        default_guild_settings = {
-            "polls": {},
-            "embed": True,
-        }
-        self.conf.register_guild(**default_guild_settings)
-        self.conf.register_global(polls=[])
-        self.polls: Dict[int, Dict[int, Poll]] = {}
-        self.migrate = asyncio.create_task(self.migrate_old_polls())
-        self.loop = asyncio.create_task(self.load_polls())
+
+        self.raffle_config.register_guild(**self.raffle_defaults)
+        self.poll_config.register_guild(**self.poll_guild_defaults)
+        self.poll_config.register_global(polls=[])
+
+        self._poll_loader_task = asyncio.create_task(self.load_polls())
         self.poll_task = asyncio.create_task(self.poll_closer())
-        self.close_loop = True
+        self._raffle_load_task = asyncio.create_task(self.raffle_worker())
 
     async def red_delete_data_for_user(self, **kwargs):
         """Nothing to delete"""
         return
 
-    @commands.command(aliases=["choose", "random", "draw"])
-    async def pick(self, ctx, *items):
+    def cog_unload(self):
+        self.close_loop = False
+        if self._poll_loader_task:
+            self._poll_loader_task.cancel()
+        if self.poll_task:
+            self.poll_task.cancel()
+        if self._raffle_load_task:
+            self._raffle_load_task.cancel()
+
+    @commands.group(name="random", aliases=["rand", "rnd"])
+    async def random(self, ctx: commands.Context):
+        """Draw/Pick/Roll random things."""
+
+    @random.command(name="pick", aliases=["choose", "random", "draw"])
+    async def _pick(self, ctx: commands.Context, *items):
         """Chooses/picks a random item from N multiple items.
 
-        To denote multiple-word items, you should use double quotes."""
+        To denote multiple-word items, you should use double quotes.
+
+        Example:
+        - `[p]random pick item1 "item 2" "a 3rd item"`
+        """
         items = [escape(c, mass_mentions=True) for c in items]
         if len(items) < 1:
             await ctx.send(error("Not enough items to pick from."))
@@ -73,12 +101,13 @@ class Utility(commands.Cog):
                 info("From {} items, I pick: {}".format(len(items), random.choice(items)))
             )
 
-    @commands.command()
-    async def pickx(self, ctx, x: int, *items):
+    @random.command(name="pickx", aliases=["choosex", "randomx", "drawx"])
+    async def _pickx(self, ctx: commands.Context, x: int, *items):
         """From a set of N items, chooses/picks X items and display them.
 
         This is random choosing with replacement (Can be duplicate), and is the same as using the "pick" command multiple times.
-        To denote multiple-word items, use double quotes."""
+        To denote multiple-word items, use double quotes.
+        """
         items = [escape(c, mass_mentions=True) for c in items]
         if x < 1:
             await ctx.send(error("Must pick a positive number of items."))
@@ -93,9 +122,9 @@ class Utility(commands.Cog):
                 )
             )
 
-    @commands.command()
-    async def drawx(self, ctx, x: int, *items):
-        """From a set of N items, draw X items and display them.
+    @random.command(name="pickuniquex", aliases=["chooseuniquex", "randomuniquex", "drawuniquex"])
+    async def _pickuniquex(self, ctx: commands.Context, x: int, *items):
+        """From a set of N items, chooses/picks X items and display them.
 
         This is random drawing without replacement (No dupllicates).
         To denote multiple-word items, use double quotes."""
@@ -109,11 +138,15 @@ class Utility(commands.Cog):
             drawn = [items[i] for i in sorted(drawn)]
             await ctx.send(info("From {} items, I draw: {}".format(len(items), ", ".join(drawn))))
 
-    @commands.command()
-    async def mix(self, ctx, *items):
+    @random.command(name="mix", aliases=["shuffle"])
+    async def _mix(self, ctx: commands.Context, *items):
         """Shuffles/mixes a list of items.
 
-        To denote multiple-word items, use double quotes."""
+        To denote multiple-word items, use double quotes.
+
+        Example:
+        - `[p]random mix item1 "item 2" "a 3rd item"`
+        """
         items = [escape(c, mass_mentions=True) for c in items]
         if len(items) < 1:
             await ctx.send(error("Not enough items to shuffle."))
@@ -126,49 +159,50 @@ class Utility(commands.Cog):
                 )
             )
 
-    @commands.command(aliases=["rolld"])
-    async def rolldice(self, ctx, *bounds):
+    @random.command(name="dice", aliases=["rolldice", "rolld", "roll"], usage=["[arguments]"])
+    async def _dice(self, ctx: commands.Context, *bounds):
         """Rolls the specified single or multiple dice.
 
-        Possible arguments:
-        NONE rolls a 6-sided die.
-        A single number X: rolls an X-sided die (example: ".roll 17").
-        Two numbers X and Y: rolls a strange die with a minimum X and maximum Y (example: ".roll 3 8").
-        The text NdX: rolls N dice with X sides (example: ".roll 3d20".
-        The NdX "dice specification" can be repeated to roll a variety of dice at once. If multiple dice are used, statistics will be shown.
+        Defaults to a single 6-sided die.
+
+        **Arguments:**
+
+        A single number `X`: Rolls one `X`-sided die (Example: `[p]random dice 17`).
+        Two numbers `X` and `Y`: Rolls a die with a minimum `X` and maximum `Y` (Example: `[p]random dice 3 8`).
+        The notation `NdX`: Rolls `N` dice with `X` sides (Example: `[p]random dice 3d20`).
+        The `NdX` notation can be used multiple times with different dice in one command. If multiple dice are used, statistics will be shown.
         """
-        sbounds = " ".join(bounds).lower()
-        if "d" in sbounds:
-            # dice specifiers: remove the spaces around "d" (so "1 d6" -> "1d6"
-            while " d" in sbounds or "d " in sbounds:
-                bounds = sbounds.replace(" d", "d").replace("d ", "d").split(" ")
-                sbounds = " ".join(bounds)
+        bounds_string = " ".join(bounds).lower()
+        if "d" in bounds_string:
+            # Dice specifiers: Remove the spaces around "d" (so "1 d6" -> "1d6"
+            while " d" in bounds_string or "d " in bounds_string:
+                bounds = bounds_string.replace(" d", "d").replace("d ", "d").split(" ")
+                bounds_string = " ".join(bounds)
 
         if len(bounds) == 0:
-            # .roll
+            # [p]random dice
             bounds = ["6"]
-            # fall through to ".roll 6"
+            # Fall through to "[p]random dice 6"
 
         if len(bounds) == 1:
             if bounds[0].isnumeric():
-                # .roll X
-                # provided maximum, roll is between 1 and X
-                r_max = int(bounds[0])
-                await self._roll1(ctx, 1, r_max)
+                # [p]random dice X
+                # provided maximum roll is between 1 and X
+                roll_max = int(bounds[0])
+                await self._roll_dice(ctx, 1, roll_max)
                 return
 
         if len(bounds) == 2:
             if bounds[0].isnumeric() and bounds[1].isnumeric():
-                # .roll X Y
-                # provided minimum and maximum, roll is between X and Y
-                r_min = int(bounds[0])
-                r_max = int(bounds[1])
-                await self._roll1(ctx, r_min, r_max)
+                # [p]random dice X Y
+                # provided minimum and maximum roll is between X and Y
+                roll_min = int(bounds[0])
+                roll_max = int(bounds[1])
+                await self._roll_dice(ctx, roll_min, roll_max)
                 return
 
-        # got here, must have been non-numeric objects, possibly containing "d" dice specifiers?
+        # Got here. Must have been non-numeric objects, possibly containing "d" dice specifiers?
         dice = []
-        valid = True
         try:
             for spec in bounds:
                 spec = spec.strip(",()")
@@ -180,28 +214,28 @@ class Utility(commands.Cog):
                     raise ValueError("Invalid dice.")
 
                 if len(spspec[0]) == 0:
-                    r_mul = 1
+                    roll_multiplier = 1
                 elif spspec[0].isnumeric():
-                    r_mul = int(spspec[0])
-                    if r_mul < 1:
+                    roll_multiplier = int(spspec[0])
+                    if roll_multiplier < 1:
                         raise ValueError("Non-positive number of dice.")
                 else:
                     raise ValueError("Non-numeric number of dice.")
 
                 if spspec[1].isnumeric():
-                    r_max = int(spspec[1])
-                    if r_max < 1:
+                    roll_max = int(spspec[1])
+                    if roll_max < 1:
                         raise ValueError("Non-positive side count on dice.")
-                    elif r_max >= 10e100:
+                    elif roll_max >= 10e100:
                         raise ValueError("Side count on dice too large.")
                 else:
                     raise ValueError("Non-numeric side count on dice.")
 
-                if len(dice) + r_mul >= 1000:
+                if len(dice) + roll_multiplier >= 1000:
                     dice = []
                     raise ValueError("Number of dice too large (over 999).")
 
-                dice += itertools.repeat(r_max, r_mul)
+                dice += itertools.repeat(roll_max, roll_multiplier)
         except ValueError as ex:
             await ctx.send(error(str(ex)))
             return
@@ -211,566 +245,60 @@ class Utility(commands.Cog):
             return
 
         if len(dice) == 1:
-            # one die
-            await self._roll1(ctx, 1, dice[0])
+            # One die
+            await self._roll_dice(ctx, 1, dice[0])
             return
 
-        d_rol = [random.randint(1, X) for X in dice]
+        dice_roll = [random.randint(1, X) for X in dice]
 
-        d_ind = ""
+        dice_string = ""
         if len(dice) < 100:
-            d_ind = "\r\nValues: {}".format(", ".join(["`{}`".format(x) for x in d_rol]))
+            dice_string = "\r\nValues: {}".format(", ".join(["`{}`".format(x) for x in dice_roll]))
 
         await ctx.send(
             info(
                 "Collected and rolled {die_count:,} dice!{values}\r\nTotal number of sides: {side_count:,}\r\n**Total value: {total_sum:,}  Average value: {total_avg:,.2f}**".format(
                     die_count=len(dice),
-                    values=d_ind,
+                    values=dice_string,
                     side_count=sum(dice),
-                    total_sum=sum(d_rol),
-                    total_avg=sum(d_rol) / len(dice),
+                    total_sum=sum(dice_roll),
+                    total_avg=sum(dice_roll) / len(dice),
                 )
             )
         )
 
-    async def _roll1(self, ctx, r_min, r_max):
+    async def _roll_dice(self, ctx: commands.Context, roll_min: int, roll_max: int) -> None:
         """Perform and print a single dice roll."""
-        if r_min >= 10e100:
+        if roll_min >= 10e100:
             await ctx.send(error("Minimum value too large."))
             return
-        if r_max >= 10e100:
+        if roll_max >= 10e100:
             await ctx.send(error("Maximum value too large."))
             return
-        r_cnt = r_max - r_min + 1
+        roll_sides = roll_max - roll_min + 1
         strange = "strange "
         a_an = "a"
-        r_rng = ""
-        if r_min == 1:
-            if r_max in [4, 6, 8, 10, 12, 20]:
+        roll_range = ""
+        if roll_min == 1:
+            if roll_max in [4, 6, 8, 10, 12, 20]:
                 strange = ""
-                if r_max == 8:
+                if roll_max == 8:
                     a_an = "an"
         else:
-            r_rng = " ({:,} to {:,})".format(r_min, r_max)
-        if r_max < r_min:
-            await ctx.send(error("Between {} and {} is not a valid range.".format(r_min, r_max)))
+            roll_range = " ({:,} to {:,})".format(roll_min, roll_max)
+        if roll_max < roll_min:
+            await ctx.send(
+                error("Between {} and {} is not a valid range.".format(roll_min, roll_max))
+            )
         else:
-            r = random.randint(r_min, r_max)
+            random_output = random.randint(roll_min, roll_max)
             await ctx.send(
                 info(
                     "I roll {} {}{}-sided die{}, and it lands on: **{:,}**".format(
-                        a_an, strange, r_cnt, r_rng, r
+                        a_an, strange, roll_sides, roll_range, random_output
                     )
                 )
             )
-
-    @commands.group(autohelp=True)
-    @commands.guild_only()
-    @commands.mod_or_permissions(administrator=True)
-    async def raffle(self, ctx):
-        """Raffle group command"""
-        pass
-
-    @raffle.command(hidden=True)
-    @commands.is_owner()
-    async def clear(self, ctx: commands.Context):
-        await self.raffleconfig.guild(ctx.guild).Raffles.clear()
-        await ctx.send("Raffle data cleared out.")
-
-    @raffle.command()
-    async def start(self, ctx: commands.Context, timer: str, *, title: str):
-        """Starts a raffle.
-
-        Timer accepts a integer input that represents seconds or it will
-        take the format of HH:MM:SS.
-
-        Example timer inputs:
-        `80`       = 1 minute and 20 seconds or 80 seconds
-        `30:10`    = 30 minutes and 10 seconds
-        `24:00:00` = 1 day or 24 hours
-
-        Only one raffle can be active per server.
-        """
-        if not ctx.channel.permissions_for(ctx.guild.me).embed_links:
-            await ctx.send("I need the Embed Links permission to be able to start raffles.")
-            return
-        if not ctx.channel.permissions_for(ctx.guild.me).add_reactions:
-            await ctx.send("I need the Add Reactions permission to be able to start raffles.")
-            return
-        timer = await self.start_checks(ctx, timer)
-        if timer is None:
-            return
-
-        try:
-            description, url, winners, dos, roles = await self.raffle_setup(ctx)
-        except asyncio.TimeoutError:
-            return await ctx.send("Response timed out. A raffle failed to start.")
-        str_roles = [r[0] for r in roles]
-        description = f"{description}\n\nReact to this message with <:KannaPog:755808378210746400> to enter.\n\n"
-
-        channel = await self._get_channel(ctx)
-        mention = await self.raffleconfig.guild(ctx.guild).Mention()
-        fmt_end = calendar.timegm(ctx.message.created_at.utctimetuple()) + timer
-
-        if mention:
-            mention = ctx.guild.get_role(mention)
-
-        if not mention.is_default():
-            mention = mention.mention
-
-        color = await self.bot.get_embed_color(ctx)
-        embed = discord.Embed(description=description, title=title, color=color)
-        embed.add_field(name="Days on Server", value=f"{dos}")
-        role_info = f'{", ".join(str_roles) if roles else "@everyone"}'
-        embed.add_field(name="Allowed Roles", value=role_info)
-        embed.add_field(name="Hosted by", value=ctx.author.mention)
-        if mention:
-            msg = await channel.send(
-                content=mention,
-                embed=embed,
-                allowed_mentions=discord.AllowedMentions(everyone=True, roles=True),
-            )
-        else:
-            msg = await channel.send(embed=embed)
-        embed.set_footer(
-            text=(
-                f"Started by: {ctx.author.name} | Winners: {winners} | Ends at {fmt_end} UTC | Raffle ID: {msg.id}"
-            )
-        )
-        await msg.edit(embed=embed)
-        await msg.add_reaction("<:KannaPog:755808378210746400>")
-
-        async with self.raffleconfig.guild(ctx.guild).Raffles() as r:
-            new_raffle = {
-                "Channel": channel.id,
-                "Timestamp": fmt_end,
-                "DOS": dos,
-                "Roles": roles,
-                "ID": msg.id,
-                "Title": title,
-            }
-            r[msg.id] = new_raffle
-
-        await self.raffle_timer(ctx.guild, new_raffle, timer)
-
-    @raffle.command()
-    async def end(self, ctx: commands.Context, message_id: int = None):
-        """Ends a raffle early. A winner will still be chosen."""
-        if message_id is None:
-            try:
-                message_id = await self._menu(ctx)
-            except ValueError:
-                return await ctx.send("There are no active raffles to end.")
-            except asyncio.TimeoutError:
-                return await ctx.send("Response timed out.")
-
-        try:
-            await self.raffle_teardown(ctx.guild, message_id)
-        except discord.NotFound:
-            await ctx.send("The message id provided could not be found.")
-        else:
-            await ctx.send("The raffle has been ended.")
-
-    @raffle.command()
-    async def cancel(self, ctx: commands.Context, message_id: int = None):
-        """Cancels an on-going raffle. No winner is chosen."""
-        if message_id is None:
-            try:
-                message_id = await self._menu(ctx, end="cancel")
-            except ValueError:
-                return await ctx.send("There are no active raffles to cancel.")
-            except asyncio.TimeoutError:
-                return await ctx.send("Response timed out.")
-
-        try:
-            await self.raffle_removal(ctx, message_id)
-        except discord.NotFound:
-            await ctx.send("The message id provided could not be found.")
-        else:
-            await ctx.send("The raffle has been canceled.")
-        finally:
-            # Attempt to cleanup if a message was deleted and it's still stored in config.
-            async with self.raffleconfig.guild(ctx.guild).Raffles() as r:
-                try:
-                    del r[str(message_id)]
-                except KeyError:
-                    pass
-
-    async def _menu(self, ctx: commands.Context, end="end"):
-        title = f"Which of the following **Active** Raffles would you like to {end}?"
-        async with self.raffleconfig.guild(ctx.guild).Raffles() as r:
-            if not r:
-                raise ValueError
-            raffles = list(r.items())
-        color = await self.bot.get_embed_color(ctx)
-        embed = self.embed_builder(raffles, color, title)
-        msg = await ctx.send(embed=embed)
-
-        def predicate(m):
-            if m.channel == ctx.channel and m.author == ctx.author:
-                return int(m.content) in range(1, 11)
-
-        resp = await ctx.bot.wait_for("message", timeout=60, check=predicate)
-        message_id = raffles[int(resp.content) - 1][0]
-        await resp.delete()
-        await msg.delete()
-        return message_id
-
-    def embed_builder(self, raffles, color, title):
-        embeds = []
-        # FIXME Come back and make this more dynamic
-        truncate = raffles[:10]
-        emojis = (
-            ":one:",
-            ":two:",
-            ":three:",
-            ":four:",
-            ":five:",
-            ":six:",
-            ":seven:",
-            ":eight:",
-            ":nine:",
-            ":ten:",
-        )
-        e = discord.Embed(colour=color, title=title)
-        description = ""
-        for raffle, number_emoji in zip(truncate, emojis):
-            description += f"{number_emoji} - {raffle[1]['Title']}\n"
-            e.description = description
-            e.set_footer(text="Type the number of the raffle you wish to end.")
-            embeds.append(e)
-        return e
-
-    @raffle.command()
-    async def reroll(self, ctx, channel: discord.TextChannel, messageid: int):
-        """Reroll the winner for a raffle. Requires the channel and message id."""
-        if not channel.permissions_for(channel.guild.me).read_messages:
-            return await ctx.send("I can't read messages in that channel.")
-        if not channel.permissions_for(channel.guild.me).send_messages:
-            return await ctx.send("I can't send messages in that channel.")
-        try:
-            msg = await channel.fetch_message(messageid)
-        except discord.Forbidden:
-            return await ctx.send("Invalid message id or I can't view that channel or message.")
-        except discord.HTTPException:
-            return await ctx.send("Invalid message id or the message doesn't exist.")
-        try:
-            await self.pick_winner(ctx.guild, channel, msg)
-        except AttributeError:
-            return await ctx.send("This is not a raffle message.")
-        except IndexError:
-            return await ctx.send(
-                "Nice try slim. You can't add a reaction to a random msg "
-                "and think that I am stupid enough to say you won something."
-            )
-
-    @raffle.group(autohelp=True)
-    @commands.guildowner()
-    async def set(self, ctx):
-        """Change raffle settings"""
-        pass
-
-    @set.command()
-    async def channel(self, ctx, channel: discord.TextChannel = None):
-        """Set the output channel for raffles."""
-        if channel:
-            await self.raffleconfig.guild(ctx.guild).Channel.set(channel.id)
-            return await ctx.send(f"Raffle output channel set to {channel.mention}.")
-        await self.raffleconfig.guild(ctx.guild).Channel.clear()
-        await ctx.send("Raffles will now be started where they were created.")
-
-    @set.command()
-    async def mention(self, ctx, role: discord.Role = None):
-        """Set a role I should ping for raffles."""
-        if role:
-            if role.is_default():
-                await self.raffleconfig.guild(ctx.guild).Mention.set(role.id)
-                return await ctx.send(f"I will now mention {role} for new raffles.")
-            else:
-                await self.raffleconfig.guild(ctx.guild).Mention.set(role.id)
-                return await ctx.send(
-                    f"I will now mention {role.mention} for new raffles.",
-                    allowed_mentions=discord.AllowedMentions(roles=True),
-                )
-        await self.raffleconfig.guild(ctx.guild).Mention.clear()
-        await ctx.send("I will no longer mention any role for new raffles.")
-
-    def cog_unload(self):
-        self.close_loop = False
-        self.poll_task.cancel()
-        self.load_check.cancel()
-        pass
-
-    async def start_checks(self, ctx: commands.Context, timer: str):
-        timer = self.time_converter(timer)
-        if timer is None:
-            await ctx.send(
-                "Incorrect time format. Please use help on this command for more information."
-            )
-            return None
-        else:
-            return timer
-
-    async def _get_response(self, ctx, question, predicate):
-        question = await ctx.send(question)
-        resp = await ctx.bot.wait_for(
-            "message",
-            timeout=60,
-            check=lambda m: (m.author == ctx.author and m.channel == ctx.channel and predicate(m)),
-        )
-        if ctx.channel.permissions_for(ctx.me).manage_messages:
-            await resp.delete()
-        await question.delete()
-        return resp.content
-
-    async def _get_roles(self, ctx):
-        q = await ctx.send(
-            "What role or roles are allowed to enter? Use commas to separate "
-            "multiple entries. For example: `Admin, Patrons, super mod, helper`"
-        )
-
-        def predicate(m):
-            if m.author == ctx.author and m.channel == ctx.channel:
-                given = set(m.content.split(", "))
-                guild_roles = {r.name for r in ctx.guild.roles}
-                return guild_roles.issuperset(given)
-            else:
-                return False
-
-        resp = await ctx.bot.wait_for("message", timeout=60, check=predicate)
-        roles = []
-        for name in resp.content.split(", "):
-            for role in ctx.guild.roles:
-                if name == role.name:
-                    roles.append((name, role.id))
-        await q.delete()
-        if ctx.channel.permissions_for(ctx.me).manage_messages:
-            await resp.delete()
-        return roles
-
-    async def _get_channel(self, ctx):
-        channel_id = await self.raffleconfig.guild(ctx.guild).Channel()
-        channel = self.bot.get_channel(channel_id)
-        if channel is None:
-            channel = ctx.channel
-        return channel
-
-    async def raffle_setup(self, ctx):
-        predicate1 = lambda m: len(m.content) <= 1000
-
-        def predicate2(m):
-            try:
-                if int(m.content) >= 1:
-                    return True
-                return False
-            except ValueError:
-                return False
-
-        predicate3 = MessagePredicate.yes_or_no(ctx, ctx.channel, ctx.author)
-
-        def predicate4(m):
-            try:
-                if int(m.content) > 9:
-                    return False
-                if int(m.content) >= 0:
-                    return True
-                return False
-            except ValueError:
-                return False
-
-        predicate5 = lambda m: m.content.startswith("http")
-
-        q1 = "Please set a brief description (1000 chars max)"
-        q2 = "Would you like to link this raffle somewhere?"
-        q3 = (
-            "Please set how many winners are pulled, __*Maximum of up to and including 9*__.\n**Note**: If there are "
-            "more winners than entries, I will make everyone a winner."
-        )
-        q4 = "Would you like to set a 'days on server' requirement?"
-        q5 = "Do you want to limit this raffle to specific roles?"
-
-        description = await self._get_response(ctx, q1, predicate1)
-        url = ""
-
-        if await self._get_response(ctx, q2, predicate3) == "yes":
-            url = await self._get_response(ctx, "What's the link?", predicate5)
-
-        winners = await self._get_response(ctx, q3, predicate2)
-        dos = 0
-        roles = []
-
-        resp = await self._get_response(ctx, q3, predicate3)
-        if resp.lower() == "yes":
-            dos = await self._get_response(
-                ctx, "How many days on the server are required?", predicate4
-            )
-
-        resp = await self._get_response(ctx, q4, predicate3)
-        if resp.lower() == "yes":
-            roles = await self._get_roles(ctx)
-
-        return description, url, int(winners), int(dos), roles
-
-    async def raffle_worker(self):
-        """Restarts raffle timers
-        This worker will attempt to restart raffle timers incase of a cog reload or
-        if the bot has been restart or shutdown. The task is only created when the cog
-        is loaded, and is destroyed when it has finished.
-        """
-        try:
-            await self.bot.wait_until_red_ready()
-            guilds: List[discord.Guild] = []
-            guilds_in_config = await self.raffleconfig.all_guilds()
-            for guild in guilds_in_config:
-                guild_obj = self.bot.get_guild(guild)
-                if guild_obj is not None:
-                    guilds.append(guild_obj)
-                else:
-                    continue
-            coros = []
-            for guild in guilds:
-                raffles = await self.raffleconfig.guild(guild).Raffles.all()
-                if raffles:
-                    now = calendar.timegm(datetime.utcnow().utctimetuple())
-                    for key, value in raffles.items():
-                        remaining = raffles[key]["Timestamp"] - now
-                        if remaining <= 0:
-                            await self.raffle_teardown(guild, raffles[key]["ID"])
-                        else:
-                            coros.append(self.raffle_timer(guild, raffles[key], remaining))
-            await asyncio.gather(*coros)
-        except Exception:
-            log.error("Error in raffle_worker task.", exc_info=True)
-
-    async def raffle_timer(self, guild: discord.Guild, raffle: dict, remaining: int):
-        """Helper function for starting the raffle countdown.
-
-        This function will silently pass when the unique raffle id is not found or
-        if a raffle is empty. It will call `raffle_teardown` if the ID is still
-        current when the sleep call has completed.
-
-        Parameters
-        ----------
-        guild : Guild
-            The guild object
-        raffle : dict
-            All of the raffle information gained from the config to include:
-            ID, channel, message, timestamp, and entries.
-        remaining : int
-            Number of seconds remaining until the raffle should end
-        """
-        await asyncio.sleep(remaining)
-        async with self.raffleconfig.guild(guild).Raffles() as r:
-            data = r.get(str(raffle["ID"]))
-        if data:
-            await self.raffle_teardown(guild, raffle["ID"])
-
-    async def raffle_teardown(self, guild: discord.Guild, message_id):
-        errored = False
-        raffles = await self.raffleconfig.guild(guild).Raffles.all()
-        channel = self.bot.get_channel(raffles[str(message_id)]["Channel"])
-        if not channel:
-            errored = True
-        else:
-            if (
-                not channel.permissions_for(guild.me).read_messages
-                or not channel.permissions_for(guild.me).send_messages
-            ):
-                errored = True
-            if not errored:
-                try:
-                    msg = await channel.fetch_message(raffles[str(message_id)]["ID"])
-                except discord.NotFound:
-                    # they deleted the raffle message
-                    errored = True
-
-        if not errored:
-            await self.pick_winner(guild, channel, msg)
-
-        async with self.raffleconfig.guild(guild).Raffles() as r:
-            try:
-                del r[str(message_id)]
-            except KeyError:
-                pass
-
-    async def pick_winner(
-        self,
-        guild: discord.Guild,
-        channel: Union[
-            discord.TextChannel,
-            discord.CategoryChannel,
-            discord.VoiceChannel,
-            discord.StageChannel,
-            discord.ForumChannel,
-            discord.Thread,
-        ],
-        msg: discord.Message,
-    ):
-        reaction = next(
-            filter(lambda x: x.emoji == self.bot.get_emoji(755808378210746400), msg.reactions),
-            None,
-        )
-        if reaction is None:
-            return await channel.send(
-                "It appears there were no valid entries, so a winner for the raffle could not be picked."
-            )
-        users = [user async for user in reaction.users() if guild.get_member(user.id)]
-        users.remove(self.bot.user)
-        try:
-            amt = int(msg.embeds[0].footer.text.split("Winners: ")[1][0])
-        except AttributeError:  # the footer was not set in time
-            return await channel.send(
-                "An error occurred, so a winner for the raffle could not be picked."
-            )
-        valid_entries = await self.validate_entries(users, msg)
-        winners = random.sample(valid_entries, min(len(valid_entries), amt))
-        if not winners:
-            await channel.send(
-                "It appears there were no valid entries, so a winner for the raffle could not be picked."
-            )
-        else:
-            display = ", ".join(winner.mention for winner in winners)
-            await channel.send(
-                f"Congratulations {display}! You have won the {msg.embeds[0].title} raffle!"
-            )
-
-    async def validate_entries(self, users, msg):
-        try:
-            dos, roles, timestamp = msg.embeds[0].fields
-        except ValueError:
-            dos, roles = msg.embeds[0].fieldss
-        dos = int(dos.value)
-        roles = roles.value.split(", ")
-
-        try:
-            if dos:
-                users = [
-                    user for user in users if dos < (user.joined_at.now() - user.joined_at).days
-                ]
-
-            if roles:
-                users = [
-                    user
-                    for user in users
-                    if any(role in [r.name for r in user.roles] for role in roles)
-                ]
-        except AttributeError:
-            return None
-        return users
-
-    async def raffle_removal(self, ctx, message_id):
-        async with self.raffleconfig.guild(ctx.guild).Raffles() as r:
-            try:
-                del r[str(message_id)]
-            except KeyError:
-                pass
-
-    @staticmethod
-    def time_converter(units: str):
-        try:
-            return sum(int(x) * 60**i for i, x in enumerate(reversed(units.split(":"))))
-        except ValueError:
-            return None
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
@@ -814,7 +342,7 @@ class Utility(commands.Cog):
         poll = self.polls[guild.id][payload.message_id]
         await poll.remove_vote(payload.user_id, str(payload.emoji))
 
-    async def poll_closer(self):
+    async def poll_closer(self) -> None:
         await self.bot.wait_until_red_ready()
         while self.close_loop:
             # consider making < 60 second polls not use config + this task
@@ -851,59 +379,29 @@ class Utility(commands.Cog):
             except Exception as e:
                 log.error("Error checking for ended polls", exc_info=e)
 
-    async def delete_poll(self, guild: discord.Guild, poll: Poll):
-        async with self.conf.guild(guild).polls() as polls:
+    async def delete_poll(self, guild: discord.Guild, poll: Poll) -> None:
+        async with self.poll_config.guild(guild).polls() as polls:
             if str(poll.message_id) in polls:
                 del polls[str(poll.message_id)]
 
-    async def store_poll(self, poll: Poll):
+    async def store_poll(self, poll: Poll) -> None:
         try:
-            async with self.conf.guild(poll.guild).polls() as polls:
+            async with self.poll_config.guild(poll.guild).polls() as polls:
                 polls[str(poll.message_id)] = poll.as_dict()
         except AttributeError:
             # The guild no longer exists or the channel was deleted.
             return
 
-    async def load_polls(self):
+    async def load_polls(self) -> None:
         # unfortunately we have to deal with an issue where JSON
         # serialization fails if the config default list is used
-        all_polls = await self.conf.all_guilds()
+        all_polls = await self.poll_config.all_guilds()
 
         for g_id, polls in all_polls.items():
             if g_id not in self.polls:
                 self.polls[g_id] = {}
             for m_id, poll in polls["polls"].items():
                 self.polls[g_id][int(m_id)] = Poll(self.bot, **poll)
-
-    async def migrate_old_polls(self):
-        try:
-            polls = await self.conf.polls()
-        except AttributeError:
-            log.error("Error migrating old poll")
-            return
-        for poll in polls:
-            # log.info(poll)
-            poll["author_id"] = poll["author"]
-            poll["message_id"] = poll["message"]
-            poll["channel_id"] = poll["channel"]
-            new_poll = Poll(self.bot, **poll)
-            if not new_poll.channel:
-                continue
-            old_poll_msg = await new_poll.get_message()
-            move_msg = (
-                "Hello, due to a upgrade in the reaction poll cog "
-                "one of your polls is no longer compatible and cannot "
-                "be automatically tallied. If you wish to continue the poll, "
-                "it is recommended to create a new one or manually tally the results. "
-                f"The poll can be found at {old_poll_msg.jump_url}"
-            )
-            if new_poll.author:
-                try:
-                    await new_poll.author.send(move_msg)
-                except discord.errors.Forbidden:
-                    pass
-
-        await self.conf.polls.clear()
 
     @commands.group()
     @commands.guild_only()
@@ -918,8 +416,8 @@ class Utility(commands.Cog):
         """
         Toggle embed usage for polls in this server
         """
-        curr_setting = await self.conf.guild(ctx.guild).embed()
-        await self.conf.guild(ctx.guild).embed.set(not curr_setting)
+        curr_setting = await self.poll_config.guild(ctx.guild).embed()
+        await self.poll_config.guild(ctx.guild).embed.set(not curr_setting)
         if curr_setting:
             verb = "off"
         else:
@@ -1129,7 +627,7 @@ class Utility(commands.Cog):
         guild = ctx.guild
         # log.info(poll_options)
         embed = (
-            await self.conf.guild(guild).embed()
+            await self.poll_config.guild(guild).embed()
             and send_channel.permissions_for(ctx.me).embed_links
         )
         poll_options["embed"] = embed

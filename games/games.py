@@ -187,7 +187,7 @@ class Games(Database, commands.Cog):
     def __init__(self, bot: Red):
         super().__init__()
         self.bot = bot
-        self.cycle_task = self.bot.loop.create_task(self.membership_updater())
+        self._cycle_task = asyncio.create_task(self.membership_updater())
         self.trivia_sessions = []
         self.triviaconfig = Config.get_conf(
             self, identifier=1387000, cog_name="GamesTrivia", force_registration=True

@@ -128,6 +128,7 @@ class Osu(
         self.osu_config: Config = Config.get_conf(
             self, identifier=1387000, cog_name="Osu", force_registration=True
         )
+
         self.osu_config.register_user(**self.default_user_settings)
         self.osu_config.register_member(**self.default_member_settings)
         self.osu_config.register_global(**self.default_global_settings)
@@ -135,7 +136,7 @@ class Osu(
         self.osu_config.init_custom("mongodb", -1)
         self.osu_config.register_custom("mongodb", **self.default_mongodb)
 
-        self.cache_task: asyncio.Task = asyncio.create_task(self.get_last_cache_date())
+        self._cache_task: asyncio.Task = asyncio.create_task(self.get_last_cache_date())
         self._init_task: asyncio.Task = asyncio.create_task(self.initialize())
         self.tracking_init_task: asyncio.Task = asyncio.create_task(self.initialize_tracking())
         self.osubeat_check_tasks: Set[Optional[asyncio.Task]] = set()
