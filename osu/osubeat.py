@@ -746,6 +746,18 @@ class Commands(Functions):
                         ),
                     )
 
+        if osubeat.mode != GameMode.OSU and OsuMod.SO in osubeat.mods:
+            return await del_message(
+                ctx,
+                f"You can't use the mod {inline(OsuMod.SO.long_name())} for {self.prettify_mode(osubeat.mode).capitalize()} beats.",
+            )
+
+        if osubeat.mode == GameMode.MANIA and OsuMod.HR in osubeat.mods:
+            return await del_message(
+                ctx,
+                f"You can't use the mod {inline(OsuMod.HR.long_name())} for {self.prettify_mode(GameMode.MANIA).capitalize()} beats.",
+            )
+
         if free_mod and len(osubeat.mods) > 0:
             return await del_message(ctx, "Nice try but FM can't be combined with other mods.")
 
@@ -759,7 +771,7 @@ class Commands(Functions):
         if not map_data:
             return await del_message(ctx, "I can't find the map specified.")
 
-        if osubeat.mode != map_data.mode and osubeat.mode != GameMode.OSU:
+        if osubeat.mode != map_data.mode and map_data.mode != GameMode.OSU:
             return await del_message(
                 ctx,
                 f"{self.prettify_mode(osubeat.mode).capitalize()} can't be used with {self.prettify_mode(map_data.mode).capitalize()} maps.",

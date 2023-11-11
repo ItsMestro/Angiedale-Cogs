@@ -26,7 +26,6 @@ FUWWY_ALLOWED_MODS = [
     OsuMod("NM"),
     OsuMod("NF"),
     OsuMod("HD"),
-    OsuMod("HR"),
     OsuMod("DT"),
     OsuMod("NC"),
     OsuMod("FL"),
