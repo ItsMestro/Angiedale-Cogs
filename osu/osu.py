@@ -154,16 +154,6 @@ class Osu(
 
     async def cog_load(self) -> None:
         """Should be called straight after cog instantiation."""
-
-        # Temporary config migration
-        users = await self.osu_config.all_users()
-        for user_id, data in users.items():
-            async with self.osu_config.user_from_id(user_id).all() as user_data:
-                if data.get("userid", False):
-                    user_data.update({"user_id": user_data["userid"]})
-                    user_data.pop("userid", None)
-        # TODO: Remove section next update
-
         guilds = await self.osu_config.all_guilds()
         for g_id, g_data in guilds.items():
             if g_data["running_beat"]:
