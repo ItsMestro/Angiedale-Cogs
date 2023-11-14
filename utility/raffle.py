@@ -46,6 +46,7 @@ class RaffleSettings:
         self.winners: int = kwargs.get("winners", None)
         self.dos: Optional[int] = kwargs.get("dos", 0)
         self.roles: List[discord.Role] = kwargs.get("roles", [])
+        self.use_buttons: bool = kwargs.get("use_buttons", True)
 
         if self.embed is not None:
             self.title = self.embed.title
@@ -157,15 +158,18 @@ class Raffle(MixinMeta):
             embed=raffle.embed,
         )
 
-        view = RaffleView(
-            config=self.raffle_config,
-            roles=raffle.roles,
-            dos=raffle.dos,
-        )
+        if raffle.use_buttons:
+            view = RaffleView(
+                config=self.raffle_config,
+                roles=raffle.roles,
+                dos=raffle.dos,
+            )
 
-        await raffle_message.edit(
-            view=view,
-        )
+            await raffle_message.edit(
+                view=view,
+            )
+        else:
+            await raffle_message.add_reaction(raffle_entry_emoji)
 
         await ctx.send(success(f"Raffle sent! {raffle_message.jump_url}"))
 
@@ -180,6 +184,7 @@ class Raffle(MixinMeta):
                 "dos": raffle.dos,
                 "roles": raffle.role_ids(),
                 "entries": [],
+                "use_buttons": raffle.use_buttons,
             }
 
         _ = asyncio.create_task(self.raffle_timer(ctx.guild, raffle_message.id, timestamp))
@@ -494,6 +499,74 @@ class Raffle(MixinMeta):
     #     await self.clear_raffle_entry(ctx.guild, message.id)
     #     await ctx.send("Raffle cleared!")
 
+    @raffle.group(name="set")
+    @commands.guildowner()
+    async def _raffle_set(self, ctx: commands.Context):
+        """Change raffle/giveaway settings."""
+
+    @_raffle_set.command(name="mention", aliases=["role", "notification"])
+    async def _mention(self, ctx: commands.Context, role: Optional[discord.Role] = None):
+        """Set a role I should ping for raffles."""
+        if role:
+            await self.raffle_config.guild(ctx.guild).notification_role_id.set(role.id)
+            return await ctx.send(
+                f"I will now mention {bold(role if role.is_default() else role.name)} for new raffles."
+            )
+
+        await self.raffle_config.guild(ctx.guild).Mention.clear()
+        await ctx.send("I will no longer mention any role for new raffles.")
+
+    async def load_raffles(self) -> None:
+        await self.bot.wait_until_red_ready()
+        try:
+            coroutines = []
+            guilds = await self.raffle_config.all_guilds()
+            timestamp_now = int(datetime.now(timezone.utc).timestamp())
+            for g_id, g_data in guilds.items():
+                if len(g_data["raffles"]) > 0:
+                    guild = self.bot.get_guild(g_id)
+                    if guild is None:
+                        continue
+
+                    for m_id, raffle in g_data["raffles"].items():
+                        if timestamp_now > raffle["timestamp"]:
+                            await self.end_raffle(guild, int(m_id), raffle)
+                            continue
+
+                        channel = guild.get_channel_or_thread(raffle["channel_id"])
+
+                        if channel is None:
+                            continue
+
+                        message = await channel.fetch_message(int(m_id))
+
+                        if message is None:
+                            continue
+
+                        if raffle["use_buttons"]:
+                            roles: List[discord.Role] = []
+                            for role_id in raffle["roles"]:
+                                role = guild.get_role(role_id)
+                                if role is not None:
+                                    roles.append(role)
+
+                            view = RaffleView(
+                                config=self.raffle_config,
+                                roles=roles,
+                                dos=raffle["dos"],
+                            )
+                            self.bot.add_view(
+                                view,
+                                message_id=int(m_id),
+                            )
+                            await message.edit(view=view)
+
+                        coroutines.append(self.raffle_timer(guild, int(m_id), raffle["timestamp"]))
+
+            await asyncio.gather(*coroutines)
+        except Exception:
+            log.error("Error during raffle initialization", exc_info=True)
+
     async def raffle_selection(
         self, ctx: commands.Context, raffles: dict, message_id: Optional[int] = None
     ) -> Optional[discord.Message]:
@@ -569,73 +642,6 @@ class Raffle(MixinMeta):
             result = message
 
         return result
-
-    @raffle.group(name="set")
-    @commands.guildowner()
-    async def _raffle_set(self, ctx: commands.Context):
-        """Change raffle/giveaway settings."""
-
-    @_raffle_set.command(name="mention", aliases=["role", "notification"])
-    async def _mention(self, ctx: commands.Context, role: Optional[discord.Role] = None):
-        """Set a role I should ping for raffles."""
-        if role:
-            await self.raffle_config.guild(ctx.guild).notification_role_id.set(role.id)
-            return await ctx.send(
-                f"I will now mention {bold(role if role.is_default() else role.name)} for new raffles."
-            )
-
-        await self.raffle_config.guild(ctx.guild).Mention.clear()
-        await ctx.send("I will no longer mention any role for new raffles.")
-
-    async def load_raffles(self) -> None:
-        await self.bot.wait_until_red_ready()
-        try:
-            coroutines = []
-            guilds = await self.raffle_config.all_guilds()
-            timestamp_now = int(datetime.now(timezone.utc).timestamp())
-            for g_id, g_data in guilds.items():
-                if len(g_data["raffles"]) > 0:
-                    guild = self.bot.get_guild(g_id)
-                    if guild is None:
-                        continue
-
-                    for m_id, raffle in g_data["raffles"].items():
-                        if timestamp_now > raffle["timestamp"]:
-                            await self.end_raffle(guild, m_id, raffle)
-                            continue
-
-                        channel = guild.get_channel_or_thread(raffle["channel_id"])
-
-                        if channel is None:
-                            continue
-
-                        message = await channel.fetch_message(m_id)
-
-                        if message is None:
-                            continue
-
-                        roles: List[discord.Role] = []
-                        for role_id in raffle["roles"]:
-                            role = guild.get_role(role_id)
-                            if role is not None:
-                                roles.append(role)
-
-                        view = RaffleView(
-                            config=self.raffle_config,
-                            roles=roles,
-                            dos=raffle["dos"],
-                        )
-                        self.bot.add_view(
-                            view,
-                            message_id=m_id,
-                        )
-                        await message.edit(view=view)
-
-                        coroutines.append(self.raffle_timer(guild, m_id, raffle["timestamp"]))
-
-            await asyncio.gather(*coroutines)
-        except Exception:
-            log.error("Error during raffle initialization", exc_info=True)
 
     async def raffle_timer(self, guild: discord.Guild, message_id: int, timestamp: int) -> None:
         time = (
@@ -718,12 +724,32 @@ class Raffle(MixinMeta):
             discord.Thread,
         ],
         message: Optional[discord.Message],
-        data: Dict[str, Union[List[int], int]],
+        data: Dict[str, Union[List[int], int, bool]],
         reroll=False,
     ) -> Optional[List[discord.Member]]:
         raffle_embed = None
         if message is not None:
             raffle_embed = await self.get_finished_raffle_embed(guild, message.embeds[0])
+
+        if len(data["entries"]) == 0 and not data["use_buttons"]:
+            reaction = None
+            if message is not None:
+                reaction = next(
+                    filter(lambda x: x.emoji == raffle_entry_emoji, message.reactions), None
+                )
+
+            if reaction is None:
+                await channel.send(
+                    "Was unable to find/read the reaction emoji for the "
+                    f"{bold(data['title'])} raffle so no winner could be picked."
+                )
+                return
+
+            data["entries"] = [
+                member.id
+                for member in [user async for user in reaction.users()]
+                if isinstance(member, discord.Member) and not member == guild.me
+            ]
 
         if len(data["entries"]) == 0:
             if raffle_embed is not None:
@@ -879,7 +905,7 @@ class Raffle(MixinMeta):
         embed.add_field(name="Winners Pulled", value=1)
 
         embed.set_footer(
-            text="Click the button to enter the giveaway. If interaction fails, try again later. Bot might be down."
+            text="Click the button to enter the raffle. If interaction fails, try again later. Bot might be down."
         )
 
         embed_message = await ctx.send(embed=embed, view=RaffleView(preview=True))
@@ -904,7 +930,7 @@ class Raffle(MixinMeta):
             return
 
         await message.delete()
-        return RaffleSettings(embed=view.embed, roles=view.roles)
+        return RaffleSettings(embed=view.embed, roles=view.roles, use_buttons=view.use_buttons)
 
 
 class ItemSelectView(discord.ui.View):
@@ -1064,6 +1090,7 @@ class RaffleSetupView(discord.ui.View):
         self.end_time = datetime.fromtimestamp(timestamp, timezone.utc)
         self.result: bool = False
         self.roles: List[discord.Role] = []
+        self.use_buttons: bool = True
 
         self.winners_select = WinnerSelect(view=self, row=3)
 
@@ -1106,7 +1133,28 @@ class RaffleSetupView(discord.ui.View):
         row=0,
     )
     async def switch_type_button(self, interaction: discord.Interaction, button: discord.Button):
-        return
+        self.use_buttons = not self.use_buttons
+        if self.use_buttons:
+            self.switch_type_button.label = "Switch to reaction based entry"
+
+            self.embed.set_footer(
+                text="Click the button to enter the raffle. If interaction fails, try again later. Bot might be down."
+            )
+            await self.embed_message.clear_reactions()
+            await self.embed_message.edit(embed=self.embed, view=RaffleView(preview=True))
+        else:
+            self.switch_type_button.label = "Switch to button based entry"
+
+            self.embed.set_footer(text="React with the ticket emoji below to enter the raffle.")
+            await self.embed_message.edit(embed=self.embed, view=None)
+            await self.embed_message.add_reaction(raffle_entry_emoji)
+
+        await interaction.message.edit(view=self)
+        await interaction.response.send_message(
+            success("Successfully swapped the method of entry for the raffle!"),
+            ephemeral=True,
+            delete_after=10,
+        )
 
     @discord.ui.button(label="Add Title", style=discord.ButtonStyle.primary, row=1)
     async def title_button(self, interaction: discord.Interaction, button: discord.Button):
