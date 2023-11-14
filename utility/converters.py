@@ -29,6 +29,8 @@ SPLIT_RE = re.compile(r";")
 TIME_SPLIT = re.compile(r"t(?:ime)?=")
 MULTI_RE = re.compile(r"(multi-vote)", re.I)
 
+SNOWFLAKE_THRESHOLD = 2**63
+
 
 class PollOptions(Converter):
     """
@@ -91,3 +93,11 @@ class PollOptions(Converter):
         if time_data:
             result["duration"] = timedelta(**time_data)
         return result, argument
+
+
+class RawMessageIds(Converter):
+    async def convert(self, ctx: commands.Context, argument: str) -> int:
+        if argument.isnumeric() and len(argument) >= 17 and int(argument) < SNOWFLAKE_THRESHOLD:
+            return int(argument)
+
+        raise BadArgument(("{} doesn't look like a valid message ID.").format(argument))

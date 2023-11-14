@@ -35,10 +35,10 @@ class CompositeMetaClass(type(commands.Cog), type(ABC)):
 class Utility(commands.Cog, Raffle, metaclass=CompositeMetaClass):
     """Utility commands."""
 
-    raffle_defaults = {
-        "channel": None,
+    raffle_guild_defaults = {
         "raffles": {},
-        "mention": None,
+        "raffles_history": [],
+        "notification_role_id": None,
     }
 
     poll_guild_defaults = {
@@ -59,13 +59,13 @@ class Utility(commands.Cog, Raffle, metaclass=CompositeMetaClass):
             self, identifier=1387000, cog_name="UtilityReactPoll", force_registration=True
         )
 
-        self.raffle_config.register_guild(**self.raffle_defaults)
+        self.raffle_config.register_guild(**self.raffle_guild_defaults)
         self.poll_config.register_guild(**self.poll_guild_defaults)
         self.poll_config.register_global(polls=[])
 
         self._poll_loader_task = asyncio.create_task(self.load_polls())
         self.poll_task = asyncio.create_task(self.poll_closer())
-        self._raffle_load_task = asyncio.create_task(self.raffle_worker())
+        self._raffle_load_task = asyncio.create_task(self.load_raffles())
 
     async def red_delete_data_for_user(self, **kwargs):
         """Nothing to delete"""
