@@ -69,7 +69,7 @@ class Raffle(MixinMeta):
     async def raffle(self, ctx: commands.Context):
         """Raffles/Giveaways."""
 
-    @raffle.command(name="clearguild", hidden=True)
+    @raffle.command(name="clearguild", alises=["resetguild"], hidden=True)
     @commands.is_owner()
     async def _clear_guild(self, ctx: commands.Context):
         await self.raffle_config.guild(ctx.guild).raffles.clear()
@@ -77,7 +77,7 @@ class Raffle(MixinMeta):
         await ctx.send("Raffle data cleared out.")
 
     @commands.max_concurrency(1, commands.BucketType.guild)
-    @raffle.command(name="start")
+    @raffle.command(name="start", aliases=["create", "make", "new"])
     async def _start(
         self,
         ctx: commands.Context,
@@ -233,7 +233,7 @@ class Raffle(MixinMeta):
         )
 
     @commands.max_concurrency(1, commands.BucketType.guild)
-    @raffle.command(name="reroll")
+    @raffle.command(name="reroll", aliases=["redraw"])
     async def _reroll(self, ctx: commands.Context, message_id: Optional[RawMessageIds] = None):
         """Reroll the winner for a raffle.
 
