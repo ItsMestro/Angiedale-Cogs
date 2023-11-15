@@ -3,7 +3,7 @@ import logging
 import random
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Union
 
 import discord
 from redbot.core import Config, commands
@@ -39,6 +39,7 @@ numbered_emojis = (
 )
 
 
+# region Item Classes
 class RaffleSettings:
     def __init__(self, **kwargs):
         self.title: str = kwargs.get("title", None)
@@ -58,6 +59,18 @@ class RaffleSettings:
 
     def role_ids(self) -> List[int]:
         return [role.id for role in self.roles]
+
+
+class RaffleButtonType(Enum):
+    title = 0
+    description = 1
+    url = 2
+    roles = 3
+    winners = 4
+    dos = 5
+
+
+# endregion
 
 
 class Raffle(MixinMeta):
@@ -238,7 +251,6 @@ class Raffle(MixinMeta):
         """Reroll the winner for a raffle.
 
         The last 5 raffles ran can be rerolled.
-        It's possible for the same user(s) to be drawn.
 
         If `message_id` is left empty you're given a menu
         where you can pick which to one to reroll.
@@ -440,6 +452,8 @@ class Raffle(MixinMeta):
                 output = (
                     winners[0].mention if isinstance(winners[0], discord.Member) else winners[0]
                 )
+            elif len(winners) == 0:
+                output = "Nobody!"
             else:
                 mentions = []
                 for i, member in enumerate(winners):
@@ -456,8 +470,8 @@ class Raffle(MixinMeta):
                 allowed_roles = []
                 for role_id in raffle["roles"]:
                     role = ctx.guild.get_role(role_id)
-                    allowed_roles.append((role.id if role is not None else role_id))
-                allowed_roles = "\n".join([])
+                    allowed_roles.append((role.mention if role is not None else str(role_id)))
+                allowed_roles = "\n".join(allowed_roles)
 
             embed.add_field(name="Allowed Roles", value=allowed_roles, inline=True)
             embed.add_field(name="Winners Pulled", value=raffle["winners"], inline=True)
@@ -868,13 +882,7 @@ class Raffle(MixinMeta):
                 if role is not None:
                     roles.append(role)
 
-            members = [
-                member
-                for member in members
-                if any(
-                    role in [member_role.name for member_role in member.roles] for role in roles
-                )
-            ]
+            members = [member for member in members if any(role in member.roles for role in roles)]
 
         return members
 
@@ -933,6 +941,35 @@ class Raffle(MixinMeta):
         return RaffleSettings(embed=view.embed, roles=view.roles, use_buttons=view.use_buttons)
 
 
+class EmbedElement(Enum):
+    title = 0
+
+
+# region ui
+# region Views
+class EmbedEditorBaseView(discord.ui.View):
+    """Base class for embed editor views.
+
+    Parameters
+    ----------
+    embed: :class:`discord.Embed`
+        The embed object that is being edited.
+    embed_message: class:`discord.Message`
+        The message the embed object object is on.
+    timeout: Optional[:class:`float`]
+        Timeout in seconds from last interaction with the UI before no longer accepting input.
+        If ``None`` then there is no timeout.
+    """
+
+    def __init__(self, embed: discord.Embed, embed_message: discord.Message, timeout: float = 180):
+        super().__init__(timeout=timeout)
+        self.embed = embed
+        self.embed_message = embed_message
+
+    async def update_view(self, interaction: discord.Interaction) -> None:
+        await interaction.message.edit(view=self)
+
+
 class ItemSelectView(discord.ui.View):
     def __init__(
         self,
@@ -955,45 +992,6 @@ class ItemSelectView(discord.ui.View):
         if not await interaction.client.is_owner(interaction.user):
             return False
         return True
-
-
-class ItemSelect(discord.ui.Select):
-    def __init__(self, raffles: List[Dict[str, Union[int, str]]], placeholder: Optional[str]):
-        options: List[discord.SelectOption] = []
-        for i, raffle in enumerate(raffles):
-            options.append(
-                discord.SelectOption(
-                    label=raffle["title"],
-                    value=raffle["id"],
-                    emoji=numbered_emojis[i],
-                )
-            )
-
-        super().__init__(options=options, row=0, placeholder=placeholder)
-
-    async def callback(self, interaction: discord.Interaction) -> Any:
-        self.view.result = True
-        self.view.value = self.values[0]
-        await interaction.response.defer()
-        self.view.stop()
-
-
-class CancelButton(discord.ui.Button):
-    def __init__(self, row: int = 0):
-        super().__init__(style=discord.ButtonStyle.red, label="Cancel", row=max(0, min(row, 4)))
-
-    async def callback(self, interaction: discord.Interaction) -> Any:
-        await interaction.response.defer()
-        self.view.stop()
-
-
-class RaffleButtonType(Enum):
-    title = 0
-    description = 1
-    url = 2
-    roles = 3
-    winners = 4
-    dos = 5
 
 
 class RaffleView(discord.ui.View):
@@ -1073,7 +1071,7 @@ class RaffleView(discord.ui.View):
             )
 
 
-class RaffleSetupView(discord.ui.View):
+class RaffleSetupView(EmbedEditorBaseView):
     def __init__(
         self,
         bot: Red,
@@ -1082,11 +1080,9 @@ class RaffleSetupView(discord.ui.View):
         embed_message: discord.Message,
         timestamp: int,
     ):
-        super().__init__(timeout=60 * 5)
+        super().__init__(embed=embed, embed_message=embed_message, timeout=60 * 5)
         self.bot = bot
         self.ctx = ctx
-        self.embed = embed
-        self.embed_message = embed_message
         self.end_time = datetime.fromtimestamp(timestamp, timezone.utc)
         self.result: bool = False
         self.roles: List[discord.Role] = []
@@ -1159,53 +1155,139 @@ class RaffleSetupView(discord.ui.View):
     @discord.ui.button(label="Add Title", style=discord.ButtonStyle.primary, row=1)
     async def title_button(self, interaction: discord.Interaction, button: discord.Button):
         await interaction.response.send_modal(
-            RaffleModal(
+            SimpleModal(
                 "Title",
-                discord.ui.TextInput(
-                    label="Raffle Title",
-                    style=discord.TextStyle.short,
-                    required=True,
-                    default=self.embed.title,
-                    max_length=256,
-                ),
-                self,
-                RaffleButtonType.title,
+                [
+                    discord.ui.TextInput(
+                        label="Raffle Title",
+                        style=discord.TextStyle.short,
+                        required=True,
+                        default=self.embed.title,
+                        max_length=256,
+                    )
+                ],
+                callback=self.update_title_button,
             )
         )
+
+    async def update_title_button(
+        self, interaction: discord.Interaction, values: List[discord.ui.TextInput]
+    ) -> None:
+        value = values[0].value
+
+        if value == self.embed.title:
+            return
+
+        self.title_button.label = "Change Title"
+        self.title_button.style = discord.ButtonStyle.grey
+        self.finished_button.disabled = False
+
+        self.embed.title = value
+        await self.embed_message.edit(embed=self.embed)
+
+        await interaction.response.send_message(
+            success("Successfully changed the raffle title."), ephemeral=True, delete_after=10
+        )
+
+        await self.update_view(interaction)
 
     @discord.ui.button(label="Add Description", style=discord.ButtonStyle.grey, row=1)
     async def description_button(self, interaction: discord.Interaction, button: discord.Button):
         await interaction.response.send_modal(
-            RaffleModal(
+            SimpleModal(
                 "Description",
-                discord.ui.TextInput(
-                    label="Raffle Description",
-                    style=discord.TextStyle.paragraph,
-                    required=False,
-                    default=self.embed.description,
-                    max_length=4000,
-                ),
-                self,
-                RaffleButtonType.description,
+                [
+                    discord.ui.TextInput(
+                        label="Raffle Description",
+                        style=discord.TextStyle.paragraph,
+                        required=False,
+                        default=self.embed.description,
+                        max_length=4000,
+                    )
+                ],
+                callback=self.update_description_button,
             )
         )
+
+    async def update_description_button(
+        self, interaction: discord.Interaction, values: List[discord.ui.TextInput]
+    ) -> None:
+        value = values[0].value
+
+        if value == self.embed.description:
+            return
+
+        if value == "":
+            self.description_button.label = "Add Description"
+            text = "Cleared the raffle description."
+        else:
+            self.description_button.label = "Change Description"
+            text = "Successfully changed the raffle description."
+
+        self.embed.description = value
+        await self.embed_message.edit(embed=self.embed)
+
+        await interaction.response.send_message(
+            success(text),
+            ephemeral=True,
+            delete_after=10,
+        )
+
+        await self.update_view(interaction)
 
     @discord.ui.button(label="Add Link", style=discord.ButtonStyle.grey, row=1)
     async def link_button(self, interaction: discord.Interaction, button: discord.Button):
         await interaction.response.send_modal(
-            RaffleModal(
+            SimpleModal(
                 "Link",
-                discord.ui.TextInput(
-                    label="Raffle Website Link",
-                    style=discord.TextStyle.short,
-                    required=False,
-                    default=self.embed.url,
-                    min_length=10,
-                ),
-                self,
-                RaffleButtonType.url,
+                [
+                    discord.ui.TextInput(
+                        label="Raffle Website Link",
+                        style=discord.TextStyle.short,
+                        required=False,
+                        default=self.embed.url,
+                        min_length=10,
+                    )
+                ],
+                callback=self.update_link_button,
             )
         )
+
+    async def update_link_button(
+        self, interaction: discord.Interaction, values: List[discord.ui.TextInput]
+    ) -> None:
+        value = values[0].value
+
+        if value == self.embed.url:
+            return
+
+        if value == "":
+            self.link_button.label = "Add Link"
+            text = "Cleared the raffle url."
+        else:
+            self.link_button.label = "Change Link"
+            text = "Successfully changed the raffle website url."
+
+        self.embed.url = value
+        try:
+            await self.embed_message.edit(embed=self.embed)
+        except discord.HTTPException:
+            self.embed.url = ""
+            self.link_button.label = "Add Link"
+            await self.embed_message.edit(embed=self.embed)
+            return await interaction.response.send_message(
+                error("Failed to set the url. Are you sure it's a proper link?"),
+                ephemeral=True,
+                delete_after=10,
+            )
+
+        await interaction.response.send_message(
+            success(text),
+            ephemeral=True,
+            delete_after=10,
+        )
+
+        await self.update_view(interaction)
 
     @discord.ui.select(
         cls=discord.ui.RoleSelect,
@@ -1245,128 +1327,96 @@ class RaffleSetupView(discord.ui.View):
             default_value = self.embed.fields[4].value
 
         await interaction.response.send_modal(
-            RaffleModal(
+            SimpleModal(
                 "Days on Server",
-                discord.ui.TextInput(
-                    label="Days on Server requirement",
-                    style=discord.TextStyle.short,
-                    required=True,
-                    default=default_value,
-                ),
-                self,
-                RaffleButtonType.dos,
+                [
+                    discord.ui.TextInput(
+                        label="Days on Server requirement",
+                        style=discord.TextStyle.short,
+                        required=True,
+                        default=default_value,
+                    )
+                ],
+                callback=self.update_dos_button,
             )
         )
 
+    async def update_dos_button(
+        self, interaction: discord.Interaction, values: List[discord.ui.TextInput]
+    ) -> None:
+        try:
+            value = int(values[0].value)
+        except ValueError:
+            return await interaction.response.send_message(
+                warning(f"The value for {inline('Days on Server')} has to be a number."),
+                ephemeral=True,
+                delete_after=10,
+            )
 
-class RaffleModal(discord.ui.Modal):
+        if value < 0:
+            return await interaction.response.send_message(
+                warning(f"The value for {inline('Days on Server')} has to be a positive number."),
+                ephemeral=True,
+                delete_after=10,
+            )
+
+        if value == 0:
+            if len(self.embed.fields) < 5:
+                return
+
+            text = f"Removed the {inline('Days on Server')} requirement."
+            self.embed.remove_field(4)
+
+            self.dos_button.label = "Add Days on Server requirement"
+        else:
+            text = f"Set the {inline('Days on Server')} requirement to {bold(str(value))}."
+
+            if len(self.embed.fields) > 4:
+                self.embed.set_field_at(
+                    index=4,
+                    name="Days on Server to Enter",
+                    value=value,
+                    inline=True,
+                )
+            else:
+                self.embed.add_field(name="Days On Server To Enter", value=value, inline=True)
+
+                self.dos_button.label = "Change Days on Server requirement"
+
+        await self.embed_message.edit(embed=self.embed)
+
+        await interaction.response.send_message(
+            success(text),
+            ephemeral=True,
+            delete_after=10,
+        )
+
+        await self.update_view(interaction)
+
+
+# endregion
+# region Modals
+class SimpleModal(discord.ui.Modal):
     def __init__(
         self,
         title: str,
-        discord_ui: discord.ui.TextInput,
-        view: RaffleSetupView,
-        buttontype: RaffleButtonType,
+        inputs: List[discord.ui.TextInput],
+        callback: Callable[[discord.Interaction, List[discord.ui.TextInput]], Awaitable[None]],
     ):
         super().__init__(title=title)
+        self.callback = callback
+        self.text_inputs = inputs
 
-        self.answer = discord_ui
-        self.embed_message = view.embed_message
-        self.embed = view.embed
-        self.view = view
-
-        self.buttontype = buttontype
-
-        self.output = ""
-
-        self.add_item(self.answer)
+        for text_input in self.text_inputs:
+            self.add_item(text_input)
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
         if not await interaction.client.is_owner(interaction.user):
             return
 
-        if self.buttontype is RaffleButtonType.title:
-            self.output = "Successfully changed the raffle title."
-            self.view.title_button.label = "Change Title"
-            self.view.title_button.style = discord.ButtonStyle.grey
-            self.view.finished_button.disabled = False
-
-            self.embed.title = self.answer.value
-        elif self.buttontype is RaffleButtonType.description:
-            if self.answer.value == "":
-                self.output = "Cleared the raffle description."
-                self.view.description_button.label = "Add Description"
-            else:
-                self.output = "Successfully changed the raffle description."
-                self.view.description_button.label = "Change Description"
-
-            self.embed.description = self.answer.value
-        elif self.buttontype is RaffleButtonType.url:
-            if self.answer.value == "":
-                self.output = "Cleared the raffle url."
-                self.view.link_button.label = "Add Link"
-            else:
-                self.output = "Successfully changed the raffle website url."
-                self.view.link_button.label = "Change Link"
-
-            self.embed.url = self.answer.value
-        elif self.buttontype is RaffleButtonType.dos:
-            try:
-                int(self.answer.value)
-            except ValueError:
-                return await interaction.response.send_message(
-                    warning(f"The value for {inline('Days on Server')} has to be a number."),
-                    ephemeral=True,
-                    delete_after=10,
-                )
-
-            if int(self.answer.value) <= 0:
-                if len(self.embed.fields > 4):
-                    return
-
-                self.output = f"Removed the {inline('Days on Server')} requirement."
-                self.embed.remove_field(4)
-
-                self.view.dos_button.label = "Add Days on Server requirement"
-            else:
-                self.output = f"Set the {inline('Days on Server')} requirement to {bold(str(self.answer.value))}."
-
-                if len(self.embed.fields) > 4:
-                    self.embed.set_field_at(
-                        index=4,
-                        name="Days on Server to Enter",
-                        value=int(self.answer.value),
-                        inline=True,
-                    )
-                else:
-                    self.embed.add_field(
-                        name="Days On Server To Enter", value=int(self.answer.value), inline=True
-                    )
-
-                    self.view.dos_button.label = "Change Days on Server requirement"
-
-        self.view.embed = self.embed
-
-        await self.update_embed()
-
-        await interaction.message.edit(view=self.view)
-
-        return await interaction.response.send_message(
-            success(self.output), ephemeral=True, delete_after=10
-        )
-
-    async def update_embed(self):
-        await self.embed_message.edit(embed=self.embed)
+        await self.callback(interaction, self.text_inputs)
 
     async def on_error(self, interaction: discord.Interaction, exception: Exception) -> None:
-        if type(exception) is discord.HTTPException:
-            self.embed.url = ""
-            self.view.link_button.label = "Add Link"
-            return await interaction.response.send_message(
-                error("Failed to set the url. Are you sure it's a proper link?"),
-                ephemeral=True,
-                delete_after=10,
-            )
-
         if type(exception) is discord.NotFound:
             return await interaction.response.send_message(
                 error("Failed to submit response. Message has likely timed out."),
@@ -1384,6 +1434,40 @@ class RaffleModal(discord.ui.Modal):
             delete_after=20,
         )
         log.exception("Unhandled exception in raffle setup modal.", exc_info=exception)
+
+
+# endregion
+# region Buttons
+class CancelButton(discord.ui.Button):
+    def __init__(self, row: int = 0):
+        super().__init__(style=discord.ButtonStyle.red, label="Cancel", row=max(0, min(row, 4)))
+
+    async def callback(self, interaction: discord.Interaction) -> Any:
+        await interaction.response.defer()
+        self.view.stop()
+
+
+# endregion
+# region Selects
+class ItemSelect(discord.ui.Select):
+    def __init__(self, raffles: List[Dict[str, Union[int, str]]], placeholder: Optional[str]):
+        options: List[discord.SelectOption] = []
+        for i, raffle in enumerate(raffles):
+            options.append(
+                discord.SelectOption(
+                    label=raffle["title"],
+                    value=raffle["id"],
+                    emoji=numbered_emojis[i],
+                )
+            )
+
+        super().__init__(options=options, row=0, placeholder=placeholder)
+
+    async def callback(self, interaction: discord.Interaction) -> Any:
+        self.view.result = True
+        self.view.value = self.values[0]
+        await interaction.response.defer()
+        self.view.stop()
 
 
 class WinnerSelect(discord.ui.Select):
@@ -1425,3 +1509,7 @@ class WinnerSelect(discord.ui.Select):
             ephemeral=True,
             delete_after=10,
         )
+
+
+# endregion
+# endregion
