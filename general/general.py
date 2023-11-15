@@ -12,7 +12,7 @@ from dateutil.relativedelta import relativedelta
 from redbot.core import Config, commands
 from redbot.core.bot import Red
 from redbot.core.config import Group
-from redbot.core.utils.angiedale import patreons_in_tier
+from redbot.core.utils.angiedale import inkopolis_invite, patreons_in_tier
 from redbot.core.utils.chat_formatting import (
     bold,
     box,
@@ -1554,12 +1554,31 @@ class General(Reports, commands.Cog):
                 )
 
     @commands.command()
-    async def support(self, ctx):
-        """Sends invite to the support server."""
+    async def support(self, ctx: commands.Context):
+        """Sends invite to the community/support server."""
 
-        await ctx.send(
-            "Here's an invite link. Mestro should be able to help you in there.\n\nhttps://discord.gg/xxjdXmR"
-        )
+        await self.send_invite(ctx, True)
+
+    @commands.command(hidden=True)
+    async def community(self, ctx: commands.Context):
+        """Send invite to the community/support server."""
+
+        await self.send_invite(ctx)
+
+    async def send_invite(self, ctx: commands.Context, support: bool = False):
+        try:
+            await ctx.author.send(
+                "\n\n".join(
+                    [
+                        f"Here's an invite link.{' Mestro should be able to help you in there.' if support else ''}",
+                        inkopolis_invite,
+                    ]
+                )
+            )
+        except discord.Forbidden:
+            await ctx.send("I tried to DM you an invite link but wasn't allowed to.")
+        else:
+            await ctx.tick(message="I've DM'd you a link to the server!")
 
     @commands.command()
     async def pledge(self, ctx):
