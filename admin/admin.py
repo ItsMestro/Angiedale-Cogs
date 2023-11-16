@@ -162,7 +162,7 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
         self.adminconfig = Config.get_conf(
             self, identifier=1387000, force_registration=True, cog_name="OwnerAdmin"
         )
-        self.admin = self.adminconfig
+
         self.adminconfig.register_guild(
             announce_channel=None,  # Integer ID
             selfroles=[],  # List of integer ID's
@@ -187,6 +187,10 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
         default_rrole_settings = {"rroles": {}}
         self.rroleconfig.init_custom("RRole", 2)
         self.rroleconfig.register_custom("RRole", **default_rrole_settings)
+
+    @property
+    def config(self) -> Config:
+        return self.adminconfig
 
     async def red_delete_data_for_user(
         self,
