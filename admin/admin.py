@@ -162,6 +162,7 @@ class Admin(ModLog, ModSettings, Mutes, Warnings, commands.Cog):
         self.adminconfig = Config.get_conf(
             self, identifier=1387000, force_registration=True, cog_name="OwnerAdmin"
         )
+        self.admin = self.adminconfig
         self.adminconfig.register_guild(
             announce_channel=None,  # Integer ID
             selfroles=[],  # List of integer ID's
