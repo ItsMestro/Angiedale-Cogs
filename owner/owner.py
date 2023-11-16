@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import shutil
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -12,8 +13,9 @@ from zipfile import ZipFile
 import discord
 from dateutil.easter import easter
 from github import Auth, Github
-from redbot.core import Config, commands
+from redbot.core import Config, commands, data_manager
 from redbot.core.bot import Red
+from redbot.core.commands.converter import TimedeltaConverter
 from redbot.core.data_manager import bundled_data_path, cog_data_path
 from redbot.core.utils import AsyncIter
 from redbot.core.utils.angiedale import ANGIEDALE_VERSION
@@ -46,6 +48,8 @@ class Owner(commands.Cog):
         self.bot = bot
         self.interaction = []
         self.statuses: Dict[str, List[str]] = {}
+        self.new_traceback_alert_settings: bool = True
+        self.traceback_last_date: Optional[datetime] = None
 
         self.admin_config = Config.get_conf(
             self, identifier=1387000, force_registration=True, cog_name="OwnerAdmin"
@@ -69,17 +73,19 @@ class Owner(commands.Cog):
                 "github_pat": None,
                 "repo": None,
                 "role_id": None,
-            }
+            },
+            traceback={"channel_id": None, "interval": 216000},
         )
         self.stats_config.register_global(Channel=None, Message=None, bonk=0)
 
         self.__current_announcer: Optional[Announcer] = None
         self.stats_channel_id: Optional[int] = None
         self.stats_message_id: Optional[int] = None
+
         self.stats_task: Optional[asyncio.Task] = None
         self.changelog_task = asyncio.create_task(self.check_changelog())
-
         self.presence_task = asyncio.create_task(self.maybe_update_presence())
+        self.traceback_alert_task = asyncio.create_task(self.traceback_alert())
 
     async def red_delete_data_for_user(self, **kwargs):
         """Nothing to delete"""
@@ -93,6 +99,8 @@ class Owner(commands.Cog):
             self.stats_task = asyncio.create_task(self._update_stats())
 
     def cog_unload(self) -> None:
+        if self.traceback_alert_task:
+            self.traceback_alert_task.cancel()
         if self.presence_task:
             self.presence_task.cancel()
         if self.stats_task:
@@ -105,6 +113,120 @@ class Owner(commands.Cog):
             pass
         for user in self.interaction:
             asyncio.create_task(self.stop_interaction(user))
+
+    async def traceback_alert(self):
+        await self.bot.wait_until_red_ready()
+
+        channel: Optional[
+            Union[discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread]
+        ] = None
+        channel_id: Optional[int] = None
+        interval: int = 216000
+
+        try:
+            while True:
+                if self.new_traceback_alert_settings:
+                    async with self.owner_config.traceback() as traceback:
+                        channel_id = traceback["channel_id"]
+                        interval = traceback["interval"]
+                        channel = None
+
+                    self.new_traceback_alert_settings = False
+
+                if channel_id is None:
+                    self.traceback_last_date = None
+                    break
+
+                if channel is None:
+                    channel = self.bot.get_channel(channel_id)
+
+                if channel is None:
+                    self.traceback_last_date = None
+                    break
+
+                if self.traceback_last_date is None:
+                    self.traceback_last_date = datetime.now(timezone.utc)
+
+                await asyncio.sleep(interval)
+
+                location = data_manager.core_data_path() / "logs"
+                if not location.exists():
+                    break
+
+                latest_logs: List[Path] = []
+
+                for path in location.iterdir():
+                    match = re.match(r"latest(?:-part\d+)?\.log", path.name)
+                    if match:
+                        latest_logs.append(path)
+
+                latest_logs = sorted(latest_logs, key=lambda log: log.name, reverse=True)
+
+                count = {"ERROR": 0, "WARNING": 0, "INFO": 0}
+
+                break_loop = False
+                i = 0
+                for log_path in latest_logs:
+                    with open(log_path) as error_log:
+                        lines = error_log.readlines()
+
+                    for i, line in enumerate(reversed(lines)):
+                        date_match = re.match(
+                            r"\[(?P<date>(\d|-|\s|:)+)\] \[(?P<type>INFO|WARNING|ERROR)\]", line
+                        )
+                        if date_match is None:
+                            continue
+
+                        date = datetime.strptime(date_match.group("date"), "%Y-%m-%d %H:%M:%S")
+
+                        if date < self.traceback_last_date:
+                            break_loop = True
+                            break
+
+                        count[date_match.group("type")] += 1
+
+                    if break_loop or i > 20:
+                        break
+
+                    i += 1
+
+                if count["ERROR"] > 0 or count["WARNING"] > 0:
+                    output_list = []
+                    if count["ERROR"] > 0:
+                        output_list.append(
+                            f'{count["ERROR"]} error{"s" if len(count["ERROR"]) > 1 else ""}'
+                        )
+                    if count["WARNING"] > 0:
+                        output_list.append(
+                            f'{count["WARNING"]} warning{"s" if len(count["WARNING"]) > 1 else ""}'
+                        )
+                    if count["INFO"] > 0:
+                        output_list.append(
+                            f'{count["INFO"]} info message{"s" if len(count["INFO"]) > 1 else ""}'
+                        )
+
+                    output = humanize_list(output_list)
+                    try:
+                        timestamp = int(self.traceback_last_date.timestamp())
+                        owners = ""
+                        if self.bot.owner_ids is not None:
+                            for user_id in self.bot.owner_ids:
+                                if (member := channel.guild.get_member(user_id)) is not None:
+                                    owners += member.mention + " "
+
+                        await channel.send(
+                            f"{owners}"
+                            f"{inline(self.bot.user.display_name)} has experienced a total of "
+                            f"{bold(output)} since <t:{timestamp}:f> <t:{timestamp}:R>"
+                        )
+                    except:
+                        log.exception("broke")
+                        self.traceback_last_date = None
+                        break
+
+                self.traceback_last_date = datetime.now(timezone.utc)
+        except asyncio.CancelledError:
+            return
 
     async def _update_stats(self) -> None:
         await asyncio.sleep(30 * 1)
@@ -273,6 +395,49 @@ class Owner(commands.Cog):
             await ctx.send(("The bot is no longer serverlocked."))
         else:
             await ctx.send(("The bot is now serverlocked."))
+
+    @commands.command(name="settracebackalerts")
+    @commands.is_owner()
+    async def set_traceback_alerts(
+        self,
+        ctx: commands.Context,
+        channel: Optional[
+            Union[discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread]
+        ] = None,
+        *,
+        interval: Optional[TimedeltaConverter] = None,
+    ):
+        """Set a channel to recieve traceback alerts.
+
+        **Arguments:**
+        - `<channel>` - Discord channel to send alerts to.
+        - `[interval]` - The time interval between alerts.
+        """
+        if interval is not None and interval < timedelta(minutes=5):
+            return await ctx.send("interval can't be shorter than 5 minutes.")
+
+        async with self.owner_config.traceback() as traceback:
+            if channel is None:
+                traceback["channel_id"] = None
+                output = ["Removed the alerts channel."]
+            else:
+                traceback["channel_id"] = channel.id
+                output = [f"Set the alerts channel to {channel.mention}."]
+
+            if interval is not None:
+                traceback["interval"] = interval.total_seconds()
+                output.append(
+                    f"Updated the time interval between alerts to {humanize_timedelta(timedelta=interval)}."
+                )
+
+        await ctx.send("\n\n".join(output))
+
+        self.new_traceback_alert_settings = True
+
+        if not self.traceback_alert_task.done():
+            self.traceback_alert_task.cancel()
+
+        self.traceback_alert_task = asyncio.create_task(self.traceback_alert())
 
     async def say(
         self,
