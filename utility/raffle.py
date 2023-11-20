@@ -3,7 +3,7 @@ import logging
 import random
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Any, Awaitable, Callable, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import discord
 from redbot.core import Config, commands
@@ -20,6 +20,7 @@ from redbot.core.utils.chat_formatting import (
 
 from .abc import MixinMeta
 from .converters import RawMessageIds
+from .ui import EmbedEditorBaseView, ItemSelectView, SelectViewItem, SimpleModal
 
 log = logging.getLogger("red.angiedale.utility")
 
@@ -84,14 +85,14 @@ class Raffle(MixinMeta):
 
     @raffle.command(name="clearguild", alises=["resetguild"], hidden=True)
     @commands.is_owner()
-    async def _clear_guild(self, ctx: commands.Context):
+    async def _raffle_clear_guild(self, ctx: commands.Context):
         await self.raffle_config.guild(ctx.guild).raffles.clear()
         await self.raffle_config.guild(ctx.guild).raffles_history.clear()
         await ctx.send("Raffle data cleared out.")
 
     @commands.max_concurrency(1, commands.BucketType.guild)
     @raffle.command(name="start", aliases=["create", "make", "new"])
-    async def _start(
+    async def _raffle_start(
         self,
         ctx: commands.Context,
         channel: Union[
@@ -133,7 +134,7 @@ class Raffle(MixinMeta):
 
         if len(guild_settings["raffles"]) >= 4:
             return await ctx.send(
-                "You already have 4 raffles running in the server."
+                "You already have 4 raffles running in the server. "
                 "Wait for one of them to finish first before starting another one."
             )
 
@@ -200,11 +201,13 @@ class Raffle(MixinMeta):
                 "use_buttons": raffle.use_buttons,
             }
 
-        _ = asyncio.create_task(self.raffle_timer(ctx.guild, raffle_message.id, timestamp))
+        self.active_raffle_tasks.append(
+            asyncio.create_task(self.raffle_timer(ctx.guild, raffle_message.id, timestamp))
+        )
 
     @commands.max_concurrency(1, commands.BucketType.guild)
     @raffle.command(name="end", aliases=["stop"])
-    async def _end(self, ctx: commands.Context, message_id: Optional[RawMessageIds] = None):
+    async def _raffle_end(self, ctx: commands.Context, message_id: Optional[RawMessageIds] = None):
         """Ends a raffle early and picks winner(s).
 
         If `message_id` is left empty you're given a menu
@@ -222,7 +225,9 @@ class Raffle(MixinMeta):
 
     @commands.max_concurrency(1, commands.BucketType.guild)
     @raffle.command(name="cancel")
-    async def _cancel(self, ctx: commands.Context, message_id: Optional[RawMessageIds] = None):
+    async def _raffle_cancel(
+        self, ctx: commands.Context, message_id: Optional[RawMessageIds] = None
+    ):
         """Cancels an on-going raffle without picking a winner.
 
         If `message_id` is left empty you're given a menu
@@ -247,7 +252,9 @@ class Raffle(MixinMeta):
 
     @commands.max_concurrency(1, commands.BucketType.guild)
     @raffle.command(name="reroll", aliases=["redraw"])
-    async def _reroll(self, ctx: commands.Context, message_id: Optional[RawMessageIds] = None):
+    async def _raffle_reroll(
+        self, ctx: commands.Context, message_id: Optional[RawMessageIds] = None
+    ):
         """Reroll the winner for a raffle.
 
         The last 5 raffles ran can be rerolled.
@@ -267,7 +274,7 @@ class Raffle(MixinMeta):
 
             output: List[str] = []
             index = 0
-            valid_raffles: List[Dict[str, Union[int, str]]] = []
+            raffle_items: List[SelectViewItem] = []
             messages: Dict[int, discord.Message] = {}
             channels: Dict[int, Union[discord.abc.GuildChannel, discord.Thread]] = {}
             for raffle in raffles:
@@ -283,7 +290,9 @@ class Raffle(MixinMeta):
                     messages[message.id] = message
 
                 output.append(f"{numbered_emojis[index]} {bold(raffle['title'])}{extension}")
-                valid_raffles.append({"title": raffle["title"], "id": raffle["message_id"]})
+                raffle_items.append(
+                    SelectViewItem(label=raffle["title"], value=raffle["message_id"])
+                )
                 index += 1
 
             if len(channels) == 0:
@@ -293,7 +302,7 @@ class Raffle(MixinMeta):
 
             embed.description = "\n".join(output)
 
-            view = ItemSelectView(raffles=valid_raffles)
+            view = ItemSelectView(items=raffle_items)
             select_message = await ctx.send(embed=embed, view=view)
             timed_out = await view.wait()
             if timed_out:
@@ -352,7 +361,7 @@ class Raffle(MixinMeta):
 
     @commands.cooldown(1, 30, commands.BucketType.member)
     @raffle.command(name="list")
-    async def _list(self, ctx: commands.Context):
+    async def _raffle_list(self, ctx: commands.Context):
         """List current and past raffles."""
         guild_data: dict = await self.raffle_config.guild(ctx.guild).all()
         if len(guild_data["raffles"]) == 0 and len(guild_data["raffles_history"]) == 0:
@@ -389,7 +398,7 @@ class Raffle(MixinMeta):
 
         if len(guild_data["raffles_history"]) > 0:
             output = []
-            raffles: List[Dict[str, Union[int, str]]] = []
+            raffles: List[SelectViewItem] = []
             for raffle in guild_data["raffles_history"]:
                 jump_url = ""
                 channel = ctx.guild.get_channel_or_thread(raffle["channel_id"])
@@ -406,14 +415,14 @@ class Raffle(MixinMeta):
                         ]
                     )
                 )
-                raffles.append({"title": raffle["title"], "id": raffle["message_id"]})
+                raffles.append(SelectViewItem(label=raffle["title"], value=raffle["message_id"]))
 
             embed.add_field(name="Past Raffles", value="\n\n".join(output), inline=False)
 
             view = ItemSelectView(
                 raffles,
                 use_cancel=False,
-                selection_label="Select a past raffle to show it's results",
+                default_label="Select a past raffle to show it's results",
             )
 
         original_response = await ctx.send(embed=embed, view=view)
@@ -486,13 +495,13 @@ class Raffle(MixinMeta):
             view = ItemSelectView(
                 raffles,  # type: ignore
                 use_cancel=False,
-                selection_label="Select a past raffle to show it's results",
+                default_label="Select a past raffle to show it's results",
             )
             await original_response.edit(view=view)
 
     # @commands.max_concurrency(1, commands.BucketType.guild)
     # @raffle.command(name="removemissing", hidden=True)
-    # async def _remove(self, ctx: commands.Context, message_id: Optional[RawMessageIds] = None):
+    # async def _raffle_remove(self, ctx: commands.Context, message_id: Optional[RawMessageIds] = None):
     #     """Remove a raffle that the bot is still tracking but can't see.
 
     #     Useful in case the raffle message was manually deleted
@@ -519,7 +528,9 @@ class Raffle(MixinMeta):
         """Change raffle/giveaway settings."""
 
     @_raffle_set.command(name="mention", aliases=["role", "notification"])
-    async def _mention(self, ctx: commands.Context, role: Optional[discord.Role] = None):
+    async def _raffle_set_mention(
+        self, ctx: commands.Context, role: Optional[discord.Role] = None
+    ):
         """Set a role I should ping for raffles."""
         if role:
             await self.raffle_config.guild(ctx.guild).notification_role_id.set(role.id)
@@ -615,10 +626,13 @@ class Raffle(MixinMeta):
 
             embed.description = "\n".join(output)
 
-            valid_raffles: List[Dict[str, Union[int, str]]] = []
+            raffle_items: List[SelectViewItem] = []
             for message in messages:
-                valid_raffles.append({"title": message.embeds[0].title, "id": message.id})
-            view = ItemSelectView(raffles=valid_raffles)
+                raffle_items.append({"title": message.embeds[0].title, "id": message.id})
+                raffle_items.append(
+                    SelectViewItem(label=message.embeds[0].title, value=message.id)
+                )
+            view = ItemSelectView(items=raffle_items)
             select_message = await ctx.send(embed=embed, view=view)
             timed_out = await view.wait()
             if timed_out:
@@ -644,7 +658,7 @@ class Raffle(MixinMeta):
                 return
 
             channel = ctx.guild.get_channel_or_thread(raffle["channel_id"])
-            if raffle is None:
+            if channel is None:
                 await ctx.send("I couldn't find the channel that the raffle is supposed to be in.")
                 return
 
@@ -660,7 +674,7 @@ class Raffle(MixinMeta):
     async def raffle_timer(self, guild: discord.Guild, message_id: int, timestamp: int) -> None:
         time = (
             datetime.fromtimestamp(timestamp, timezone.utc) - datetime.now(timezone.utc)
-        ).seconds
+        ).total_seconds()
         await asyncio.sleep(time)
         async with self.raffle_config.guild(guild).raffles() as raffle:
             data: Dict[str, Union[List[int], int]] = raffle.get(str(message_id))
@@ -923,8 +937,12 @@ class Raffle(MixinMeta):
             "\n\n".join(
                 [
                     f"This is a preview of how the embed will look when sent in {channel.mention}",
-                    f"Use the buttons below to customize it and click {inline('Finished')} when done. "
-                    "Keep in mind that you can search in the list of roles.",
+                    "\n".join(
+                        [
+                            f"Use the buttons below to customize it and click {inline('Finished')} when done.",
+                            "Keep in mind that you can search in the list of roles.",
+                        ]
+                    ),
                 ]
             ),
             view=view,
@@ -941,59 +959,8 @@ class Raffle(MixinMeta):
         return RaffleSettings(embed=view.embed, roles=view.roles, use_buttons=view.use_buttons)
 
 
-class EmbedElement(Enum):
-    title = 0
-
-
 # region ui
 # region Views
-class EmbedEditorBaseView(discord.ui.View):
-    """Base class for embed editor views.
-
-    Parameters
-    ----------
-    embed: :class:`discord.Embed`
-        The embed object that is being edited.
-    embed_message: class:`discord.Message`
-        The message the embed object object is on.
-    timeout: Optional[:class:`float`]
-        Timeout in seconds from last interaction with the UI before no longer accepting input.
-        If ``None`` then there is no timeout.
-    """
-
-    def __init__(self, embed: discord.Embed, embed_message: discord.Message, timeout: float = 180):
-        super().__init__(timeout=timeout)
-        self.embed = embed
-        self.embed_message = embed_message
-
-    async def update_view(self, interaction: discord.Interaction) -> None:
-        await interaction.message.edit(view=self)
-
-
-class ItemSelectView(discord.ui.View):
-    def __init__(
-        self,
-        raffles: List[Dict[str, Union[int, str]]],
-        use_cancel=True,
-        selection_label: str = None,
-    ):
-        super().__init__(timeout=30)
-
-        self.raffles = raffles
-        self.result: bool = False
-        self.value: Optional[int] = None
-
-        self.add_item(ItemSelect(self.raffles, selection_label))
-
-        if use_cancel:
-            self.add_item(CancelButton(row=1))
-
-    async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        if not await interaction.client.is_owner(interaction.user):
-            return False
-        return True
-
-
 class RaffleView(discord.ui.View):
     def __init__(self, **kwargs):
         super().__init__(timeout=None)
@@ -1137,7 +1104,7 @@ class RaffleSetupView(EmbedEditorBaseView):
                 text="Click the button to enter the raffle. If interaction fails, try again later. Bot might be down."
             )
             await self.embed_message.clear_reactions()
-            await self.embed_message.edit(embed=self.embed, view=RaffleView(preview=True))
+            await self.embed_message.edit(embed=self.embed, view=RaffleView())
         else:
             self.switch_type_button.label = "Switch to button based entry"
 
@@ -1395,81 +1362,7 @@ class RaffleSetupView(EmbedEditorBaseView):
 
 
 # endregion
-# region Modals
-class SimpleModal(discord.ui.Modal):
-    def __init__(
-        self,
-        title: str,
-        inputs: List[discord.ui.TextInput],
-        callback: Callable[[discord.Interaction, List[discord.ui.TextInput]], Awaitable[None]],
-    ):
-        super().__init__(title=title)
-        self.callback = callback
-        self.text_inputs = inputs
-
-        for text_input in self.text_inputs:
-            self.add_item(text_input)
-
-    async def on_submit(self, interaction: discord.Interaction) -> None:
-        if not await interaction.client.is_owner(interaction.user):
-            return
-
-        await self.callback(interaction, self.text_inputs)
-
-    async def on_error(self, interaction: discord.Interaction, exception: Exception) -> None:
-        if type(exception) is discord.NotFound:
-            return await interaction.response.send_message(
-                error("Failed to submit response. Message has likely timed out."),
-                ephemeral=True,
-                delete_after=10,
-            )
-
-        await interaction.response.send_message(
-            error(
-                "A unknown error has occured and has been logged. "
-                "If you'd like to help out resolving it. Post a bug report in the support server "
-                f"which you can join with {inline('-support')}"
-            ),
-            ephemeral=True,
-            delete_after=20,
-        )
-        log.exception("Unhandled exception in raffle setup modal.", exc_info=exception)
-
-
-# endregion
-# region Buttons
-class CancelButton(discord.ui.Button):
-    def __init__(self, row: int = 0):
-        super().__init__(style=discord.ButtonStyle.red, label="Cancel", row=max(0, min(row, 4)))
-
-    async def callback(self, interaction: discord.Interaction) -> Any:
-        await interaction.response.defer()
-        self.view.stop()
-
-
-# endregion
 # region Selects
-class ItemSelect(discord.ui.Select):
-    def __init__(self, raffles: List[Dict[str, Union[int, str]]], placeholder: Optional[str]):
-        options: List[discord.SelectOption] = []
-        for i, raffle in enumerate(raffles):
-            options.append(
-                discord.SelectOption(
-                    label=raffle["title"],
-                    value=raffle["id"],
-                    emoji=numbered_emojis[i],
-                )
-            )
-
-        super().__init__(options=options, row=0, placeholder=placeholder)
-
-    async def callback(self, interaction: discord.Interaction) -> Any:
-        self.view.result = True
-        self.view.value = self.values[0]
-        await interaction.response.defer()
-        self.view.stop()
-
-
 class WinnerSelect(discord.ui.Select):
     def __init__(self, view: RaffleSetupView, row: Optional[int] = None):
         self.embed = view.embed
