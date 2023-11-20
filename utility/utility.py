@@ -12,11 +12,9 @@ from redbot.core.utils.chat_formatting import error, escape, info
 
 from .events import Events
 from .polls import Polls
-from .raffle import Raffle
+from .raffles import Raffles
 
 log = logging.getLogger("red.angiedale.utility")
-
-EMOJI_RE = re.compile(r"<a?:[a-zA-Z0-9\_]+:([0-9]+)>")
 
 
 class CompositeMetaClass(type(commands.Cog), type(ABC)):
@@ -28,8 +26,14 @@ class CompositeMetaClass(type(commands.Cog), type(ABC)):
     pass
 
 
-class Utility(commands.Cog, Raffle, Polls, Events, metaclass=CompositeMetaClass):
-    """Utility commands."""
+class Utility(commands.Cog, Raffles, Polls, Events, metaclass=CompositeMetaClass):
+    """Extra utility commands.
+
+    **Main Features of Cog**
+    - Run polls in servers.
+    - Host raffles/giveaways.
+    - Tools for randomly picking/rolling items.
+    """
 
     raffle_guild_defaults = {
         "raffles": {},
@@ -58,7 +62,6 @@ class Utility(commands.Cog, Raffle, Polls, Events, metaclass=CompositeMetaClass)
 
         self.raffle_config.register_guild(**self.raffle_guild_defaults)
         self.poll_config.register_guild(**self.poll_guild_defaults)
-        self.poll_config.register_global(polls=[])
 
         self._raffle_load_task = asyncio.create_task(self.load_raffles())
         self._poll_load_task = asyncio.create_task(self.load_polls())
@@ -298,45 +301,3 @@ class Utility(commands.Cog, Raffle, Polls, Events, metaclass=CompositeMetaClass)
                     )
                 )
             )
-
-    # @commands.Cog.listener()
-    # async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
-    #     """
-    #     Handle votes for polls
-    #     """
-    #     await self.bot.wait_until_red_ready()
-    #     guild = self.bot.get_guild(payload.guild_id)
-    #     if not guild:
-    #         return
-    #     member = guild.get_member(payload.user_id)
-    #     if not member or member.bot:
-    #         return
-    #     if guild.id not in self.oldpolls:
-    #         # log.info(f"No polls in guild {payload.guild_id}")
-    #         return
-    #     if payload.message_id not in self.oldpolls[guild.id]:
-    #         # log.info(f"No polls in message {payload.message_id}")
-    #         return
-    #     poll = self.oldpolls[guild.id][payload.message_id]
-    #     await poll.add_vote(payload.user_id, str(payload.emoji))
-
-    # @commands.Cog.listener()
-    # async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent):
-    #     """
-    #     Handle votes for polls
-    #     """
-    #     await self.bot.wait_until_red_ready()
-    #     guild = self.bot.get_guild(payload.guild_id)
-    #     if not guild:
-    #         return
-    #     member = guild.get_member(payload.user_id)
-    #     if not member or member.bot:
-    #         return
-    #     if guild.id not in self.oldpolls:
-    #         # log.info(f"No polls in guild {payload.guild_id}")
-    #         return
-    #     if payload.message_id not in self.oldpolls[guild.id]:
-    #         # log.info(f"No polls in message {payload.message_id}")
-    #         return
-    #     poll = self.oldpolls[guild.id][payload.message_id]
-    #     await poll.remove_vote(payload.user_id, str(payload.emoji))
