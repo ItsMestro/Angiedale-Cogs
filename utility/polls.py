@@ -128,7 +128,7 @@ class Poll:
 
     @property
     def roles(self) -> List[discord.Role]:
-        if len(self._init_roles) > 0 and len(self.roles) == 0 and self.guild is not None:
+        if len(self._init_roles) > 0 and len(self._roles) == 0 and self.guild is not None:
             self._set_role_list()
             return self._roles
 
@@ -319,7 +319,7 @@ class Polls(MixinMeta):
     @commands.group()
     @commands.guild_only()
     async def poll(self, ctx: commands.Context):
-        """Create and manage polls."""
+        """Create and manage Polls."""
 
     @poll.command(name="clearguild", alises=["resetguild"], hidden=True)
     @commands.is_owner()
@@ -350,7 +350,7 @@ class Polls(MixinMeta):
         - `[p]poll start channel-name 1week12days` (Channel Name)
         - `[p]poll start 661358360188289054 20 hours 30 min` (Channel ID)
 
-        Up to 4 polls can be active per server.
+        Up to four polls can be active per server.
         """
         if (
             not ctx.channel.permissions_for(ctx.guild.me).embed_links
@@ -846,7 +846,6 @@ class Polls(MixinMeta):
             discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread
         ],
     ) -> Optional[Poll]:
-        ctx.channel.fetch_message
         embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
 
         embed.set_thumbnail(url=ctx.guild.icon.url)
@@ -1011,7 +1010,7 @@ class PollSetupView(EmbedEditorBaseView):
 
         self.result: bool = False
         self._poll_option_select: Optional[PollOptionSelect] = None
-        self.custom_emojis: List[Union[discord.Emoji, str]] = []
+        self._custom_emojis: List[Union[discord.Emoji, str]] = []
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if not await interaction.client.is_owner(interaction.user):
@@ -1210,10 +1209,10 @@ class PollSetupView(EmbedEditorBaseView):
         index = len(self.poll.options)
         value = values[0].value
 
-        if index > len(self.custom_emojis) - 1:
+        if index > len(self._custom_emojis) - 1:
             emoji = ReactionPredicate.ALPHABET_EMOJIS[index]
         else:
-            emoji = self.custom_emojis[index]
+            emoji = self._custom_emojis[index]
 
         poll_option = PollOption(index=index, name=value, emoji=emoji)
 
@@ -1264,8 +1263,8 @@ class PollSetupView(EmbedEditorBaseView):
     async def custom_emojis_button(self, interaction: discord.Interaction, button: discord.Button):
         await interaction.response.defer(ephemeral=True)
 
-        if len(self.custom_emojis) > 0:
-            self.custom_emojis = []
+        if len(self._custom_emojis) > 0:
+            self._custom_emojis = []
 
             for option in self.poll.options:
                 option.emoji = ReactionPredicate.ALPHABET_EMOJIS[option.index]
@@ -1375,13 +1374,13 @@ class PollSetupView(EmbedEditorBaseView):
                 continue
             break
 
-        self.custom_emojis = actual_emojis
+        self._custom_emojis = actual_emojis
 
         for option in self.poll.options:
-            if option.index > len(self.custom_emojis) - 1:
+            if option.index > len(self._custom_emojis) - 1:
                 option.emoji = ReactionPredicate.ALPHABET_EMOJIS[option.index]
             else:
-                option.emoji = self.custom_emojis[option.index]
+                option.emoji = self._custom_emojis[option.index]
 
         self.embed.description = "\n".join([option.to_string() for option in self.poll.options])
 
@@ -1497,10 +1496,10 @@ class PollOptionSelect(discord.ui.Select):
 
         for i in range(len(self.parent_view.poll.options)):
             self.parent_view.poll.options[i].index = i
-            if i > len(self.parent_view.custom_emojis) - 1:
+            if i > len(self.parent_view._custom_emojis) - 1:
                 self.parent_view.poll.options[i].emoji = ReactionPredicate.ALPHABET_EMOJIS[i]
             else:
-                self.parent_view.poll.options[i].emoji = self.parent_view.custom_emojis[i]
+                self.parent_view.poll.options[i].emoji = self.parent_view._custom_emojis[i]
 
         self.parent_view.embed.description = (
             "\n".join([poll_option.to_string() for poll_option in self.parent_view.poll.options])
