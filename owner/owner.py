@@ -956,7 +956,7 @@ class Owner(commands.Cog):
         embed.set_thumbnail(url=self.bot.user.avatar.url)
 
         embed.title = data["repo"]
-        embed.url = f"https://github.com/{release.author.login}/{data['repo']}"
+        embed.url = f"https://github.com/{data['repo']}"
 
         preface = [f"# {release.title} - [Release Link]({release.html_url})"]
 
