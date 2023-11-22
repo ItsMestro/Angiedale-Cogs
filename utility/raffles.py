@@ -337,24 +337,34 @@ class Raffles(MixinMeta):
 
         notification_role = None
         if guild_settings["notification_role_id"]:
-            notification_role = ctx.guild.get_role(guild_settings["notification_role_id"])
+            if guild_settings["notification_role_id"] == "@here":
+                notification_role = "@here"
+            else:
+                notification_role = ctx.guild.get_role(guild_settings["notification_role_id"])
 
-            if notification_role is None:
-                await ctx.send(
-                    "\n".join(
-                        [
-                            "I was unable to get the notification role that's set.",
-                            "The raffle will still be sent but you should set a new notification role with "
-                            f"{inline(f'{ctx.clean_prefix}{self.raffle.name} {self._raffle_set.name} {self._raffle_set_mention.name} <role>')}",
-                        ]
+                if notification_role is None:
+                    await ctx.send(
+                        "\n".join(
+                            [
+                                "I was unable to get the notification role that's set.",
+                                "The raffle will still be sent but you should set a new notification role with "
+                                f"{inline(f'{ctx.clean_prefix}{self.raffle.name} {self._raffle_set.name} {self._raffle_set_mention.name} <role>')}",
+                            ]
+                        )
                     )
-                )
+                else:
+                    notification_role = (
+                        notification_role.mention
+                        if not notification_role.is_default()
+                        else notification_role
+                    )
 
         raffle_message: Union[
             discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread
         ] = await channel.send(
-            content=notification_role.mention if notification_role else None,
+            content=str(notification_role),
             embed=raffle.embed,
+            allowed_mentions=discord.AllowedMentions.all(),
         )
 
         if raffle.use_buttons:
@@ -545,7 +555,7 @@ class Raffles(MixinMeta):
     @raffle.command(name="list")
     async def _raffle_list(self, ctx: commands.Context):
         """List current and past raffles.
-        
+
         Also allows you to see the results for them.
         The last 5 raffles ran in the server are saved.
         """
@@ -683,19 +693,43 @@ class Raffles(MixinMeta):
             await original_response.edit(view=view)
 
     @raffle.group(name="set")
-    @commands.guildowner()
+    @commands.admin_or_permissions(administrator=True)
     async def _raffle_set(self, ctx: commands.Context):
         """Change raffle/giveaway settings."""
 
     @_raffle_set.command(name="mention", aliases=["role", "notification"])
-    async def _raffle_set_mention(
-        self, ctx: commands.Context, role: Optional[discord.Role] = None
-    ):
-        """Set a role I should ping for raffles."""
-        if role:
-            await self.raffle_config.guild(ctx.guild).notification_role_id.set(role.id)
+    async def _raffle_set_mention(self, ctx: commands.Context, role: str = None):
+        """Set a role I should ping for raffles.
+
+        For **@everyone** use `everyone`
+        For **@here** use `here`
+        Leave empty to stop pinging anything on new raffles.
+        """
+        if role is not None:
+            if role.lower() == "@here" or role.lower() == "here":
+                role = "@here"
+            else:
+                if role.lower() == "@everyone" or role.lower() == "everyone":
+                    role = "@everyone"
+
+                try:
+                    role = await commands.RoleConverter().convert(ctx, role)
+                except commands.RoleNotFound:
+                    return await ctx.send(
+                        f"Was unable to find a role that matched {role}",
+                        allowed_mentions=discord.AllowedMentions.none(),
+                    )
+
+            if isinstance(role, discord.Role):
+                role_mention = role.mention if not role.is_default() else role
+            else:
+                role_mention = role
+            await self.raffle_config.guild(ctx.guild).notification_role_id.set(
+                role.id if isinstance(role, discord.Role) else role
+            )
             return await ctx.send(
-                f"I will now mention {bold(role if role.is_default() else role.name)} for new raffles."
+                f"I will now mention {bold(str(role_mention))} for new raffles.",
+                allowed_mentions=discord.AllowedMentions.none(),
             )
 
         await self.raffle_config.guild(ctx.guild).notification_role_id.clear()
