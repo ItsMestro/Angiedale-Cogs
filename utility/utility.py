@@ -2,7 +2,6 @@ import asyncio
 import itertools
 import logging
 import random
-import re
 from abc import ABC
 from typing import List, Optional
 
