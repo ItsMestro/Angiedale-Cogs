@@ -6,9 +6,10 @@ import re
 from abc import ABC
 from typing import List, Optional
 
+import discord
 from redbot.core import Config, commands
 from redbot.core.bot import Red
-from redbot.core.utils.chat_formatting import error, escape, info
+from redbot.core.utils.chat_formatting import bold, box, error, escape, info, inline
 
 from .events import Events
 from .polls import Polls
@@ -29,10 +30,10 @@ class CompositeMetaClass(type(commands.Cog), type(ABC)):
 class Utility(commands.Cog, Raffles, Polls, Events, metaclass=CompositeMetaClass):
     """Extra utility commands.
 
-    **Main Features of Cog**
-    - Run polls in servers.
-    - Host raffles/giveaways.
-    - Tools for randomly picking/rolling items.
+    __Main Features of Cog__
+    - Run **polls** in servers.
+    - Host **raffles/giveaways**.
+    - Tools for randomly **picking/rolling items**.
     """
 
     raffle_guild_defaults = {
@@ -84,82 +85,247 @@ class Utility(commands.Cog, Raffles, Polls, Events, metaclass=CompositeMetaClass
 
     @commands.group(name="random", aliases=["rand", "rnd"])
     async def random(self, ctx: commands.Context):
-        """Draw/Pick/Roll random things."""
+        """Draw/pick/roll random things."""
 
     @random.command(name="pick", aliases=["choose", "random", "draw"])
     async def _pick(self, ctx: commands.Context, *items):
-        """Chooses/picks a random item from N multiple items.
+        """Chooses/picks a random item from a list of items.
 
-        To denote multiple-word items, you should use double quotes.
+        To denote multiple-word items, use double quotes.
+        Alternatively you can send a text file with each item on a new line.
 
         Example:
         - `[p]random pick item1 "item 2" "a 3rd item"`
         """
-        items = [escape(c, mass_mentions=True) for c in items]
+        if len(ctx.message.attachments) > 0:
+            attachement = ctx.message.attachments[0]
+            file = await attachement.read()
+            items = file.decode("utf-8").splitlines()
+
+        items = [escape(item, mass_mentions=True) for item in items]
         if len(items) < 1:
-            await ctx.send(error("Not enough items to pick from."))
-        else:
-            await ctx.send(
-                info("From {} items, I pick: {}".format(len(items), random.choice(items)))
+            return await ctx.send_help()
+
+        view = RerollView()
+        message = await ctx.send(
+            content=info(
+                "From {} item{}, I pick: {}".format(
+                    bold(str(len(items))),
+                    "s" if len(items) > 1 else "",
+                    inline(random.choice(items)),
+                )
+            ),
+            view=view,
+        )
+        timed_out = False
+        i = 1
+        while not timed_out:
+            timed_out = await view.wait()
+            if timed_out:
+                await message.edit(view=None)
+                break
+
+            view = RerollView()
+            await message.edit(
+                content=info(
+                    "From {} item{} and after rerolling {} time{}, I pick: {}".format(
+                        bold(str(len(items))),
+                        "s" if len(items) > 1 else "",
+                        bold(str(i)),
+                        "s" if i > 1 else "",
+                        inline(random.choice(items)),
+                    )
+                ),
+                view=view,
             )
+            i += 1
 
     @random.command(name="pickx", aliases=["choosex", "randomx", "drawx"])
     async def _pickx(self, ctx: commands.Context, x: int, *items):
-        """From a set of N items, chooses/picks X items and display them.
+        """From a list of items, chooses/picks X items and display them.
 
-        This is random choosing with replacement (Can be duplicate), and is the same as using the "pick" command multiple times.
+        This command can produce duplicates. Use `[p]pickuniquex` for a no duplicates version.
+
         To denote multiple-word items, use double quotes.
-        """
-        items = [escape(c, mass_mentions=True) for c in items]
-        if x < 1:
-            await ctx.send(error("Must pick a positive number of items."))
-        elif len(items) < 1:
-            await ctx.send(error("Not enough items to pick from."))
-        else:
-            await ctx.send(
-                info(
-                    "From {} items, I pick: {}".format(
-                        len(items), ", ".join(random.choices(items, k=x))
-                    )
-                )
-            )
+        Alternatively you can send a text file with each item on a new line.
 
-    @random.command(name="pickuniquex", aliases=["chooseuniquex", "randomuniquex", "drawuniquex"])
+        Example:
+        - `[p]random pickx 2 item1 "item 2" "a 3rd item"`
+        """
+        if len(ctx.message.attachments) > 0:
+            attachement = ctx.message.attachments[0]
+            file = await attachement.read()
+            items = file.decode("utf-8").splitlines()
+
+        items = [escape(item, mass_mentions=True) for item in items]
+        if x < 1:
+            return await ctx.send(error("Must pick a positive number of items."))
+
+        if len(items) < 1:
+            return await ctx.send_help()
+
+        view = RerollView()
+        message = await ctx.send(
+            info(
+                "From {} item{}, I pick:\n{}".format(
+                    bold(str(len(items))),
+                    "s" if len(items) > 1 else "",
+                    box("\n".join(random.choices(items, k=x))),
+                )
+            ),
+            view=view,
+        )
+        timed_out = False
+        i = 1
+        while not timed_out:
+            timed_out = await view.wait()
+            if timed_out:
+                await message.edit(view=None)
+                break
+
+            view = RerollView()
+            await message.edit(
+                content=info(
+                    "From {} item{} and after rerolling {} time{}, I pick:\n{}".format(
+                        bold(str(len(items))),
+                        "s" if len(items) > 1 else "",
+                        bold(str(i)),
+                        "s" if i > 1 else "",
+                        box("\n".join(random.choices(items, k=x))),
+                    )
+                ),
+                view=view,
+            )
+            i += 1
+
+    @random.command(
+        name="pickuniquex",
+        aliases=[
+            "chooseuniquex",
+            "randomuniquex",
+            "drawuniquex",
+            "pickux",
+            "chooseux",
+            "randomux",
+            "drawux",
+        ],
+    )
     async def _pickuniquex(self, ctx: commands.Context, x: int, *items):
         """From a set of N items, chooses/picks X items and display them.
 
-        This is random drawing without replacement (No dupllicates).
-        To denote multiple-word items, use double quotes."""
-        items = [escape(c, mass_mentions=True) for c in items]
+        This command avoids duplicates. Use `[p]pickx` for a version with duplicates allowed.
+
+        To denote multiple-word items, use double quotes.
+        Alternatively you can send a text file with each item on a new line.
+
+        Example:
+        - `[p]random pickuniquex 2 item1 "item 2" "a 3rd item"`
+        """
+        if len(ctx.message.attachments) > 0:
+            attachement = ctx.message.attachments[0]
+            file = await attachement.read()
+            items = file.decode("utf-8").splitlines()
+
+        items = [escape(item, mass_mentions=True) for item in items]
         if x < 1:
-            await ctx.send(error("Must draw a positive number of items."))
-        elif len(items) < 1 or len(items) < x:
-            await ctx.send(error("Not enough items to draw from."))
-        else:
+            return await ctx.send(error("Must pick a positive number of items."))
+
+        if len(items) < 1:
+            return await ctx.send_help()
+
+        if len(items) < x:
+            return await ctx.send(error("Not enough items to draw from."))
+
+        drawn = random.sample(range(len(items)), x)
+        drawn = [items[i] for i in sorted(drawn)]
+        view = RerollView()
+        message = await ctx.send(
+            info(
+                "From {} item{}, I pick:\n{}".format(
+                    bold(str(len(items))), "s" if len(items) > 1 else "", box("\n".join(drawn))
+                )
+            ),
+            view=view,
+        )
+        timed_out = False
+        i = 1
+        while not timed_out:
+            timed_out = await view.wait()
+            if timed_out:
+                await message.edit(view=None)
+                break
+
             drawn = random.sample(range(len(items)), x)
             drawn = [items[i] for i in sorted(drawn)]
-            await ctx.send(info("From {} items, I draw: {}".format(len(items), ", ".join(drawn))))
+            view = RerollView()
+            await message.edit(
+                content=info(
+                    "From {} item{} and after rerolling {} time{}, I pick:\n{}".format(
+                        bold(str(len(items))),
+                        "s" if len(items) > 1 else "",
+                        bold(str(i)),
+                        "s" if i > 1 else "",
+                        box("\n".join(drawn)),
+                    )
+                ),
+                view=view,
+            )
+            i += 1
 
     @random.command(name="mix", aliases=["shuffle"])
     async def _mix(self, ctx: commands.Context, *items):
         """Shuffles/mixes a list of items.
 
         To denote multiple-word items, use double quotes.
+        Alternatively you can send a text file with each item on a new line.
 
         Example:
         - `[p]random mix item1 "item 2" "a 3rd item"`
         """
-        items = [escape(c, mass_mentions=True) for c in items]
+        if len(ctx.message.attachments) > 0:
+            attachement = ctx.message.attachments[0]
+            file = await attachement.read()
+            items = file.decode("utf-8").splitlines()
+
+        items = [escape(item, mass_mentions=True) for item in items]
         if len(items) < 1:
-            await ctx.send(error("Not enough items to shuffle."))
-        else:
-            await ctx.send(
-                info(
-                    "A randomized order of {} items: {}".format(
-                        len(items), ", ".join(random.shuffle(items))
-                    )
+            return await ctx.send_help()
+
+        random.shuffle(items)
+        view = RerollView()
+        message = await ctx.send(
+            info(
+                "A randomized order of {} item{}:\n{}".format(
+                    bold(str(len(items))),
+                    "s" if len(items) > 1 else "",
+                    box("\n".join(items)),
                 )
+            ),
+            view=view,
+        )
+        timed_out = False
+        i = 1
+        while not timed_out:
+            timed_out = await view.wait()
+            if timed_out:
+                await message.edit(view=None)
+                break
+
+            random.shuffle(items)
+            view = RerollView()
+            await message.edit(
+                content=info(
+                    "A randomized order of {} item{} after rerolling {} time{}:\n{}".format(
+                        bold(str(len(items))),
+                        "s" if len(items) > 1 else "",
+                        bold(str(i)),
+                        "s" if i > 1 else "",
+                        box("\n".join(items)),
+                    )
+                ),
+                view=view,
             )
+            i += 1
 
     @random.command(name="dice", aliases=["rolldice", "rolld", "roll"], usage=["[arguments]"])
     async def _dice(self, ctx: commands.Context, *bounds):
@@ -257,17 +423,57 @@ class Utility(commands.Cog, Raffles, Polls, Events, metaclass=CompositeMetaClass
         if len(dice) < 100:
             dice_string = "\r\nValues: {}".format(", ".join(["`{}`".format(x) for x in dice_roll]))
 
-        await ctx.send(
+        view = RerollView()
+        message = await ctx.send(
             info(
-                "Collected and rolled {die_count:,} dice!{values}\r\nTotal number of sides: {side_count:,}\r\n**Total value: {total_sum:,}  Average value: {total_avg:,.2f}**".format(
-                    die_count=len(dice),
+                "Collected and rolled {die_count:,} dice!{values}\r\nTotal number of sides: {side_count:,}\r\n__Total value:__ **{total_sum:,}**  __Average value:__ **{total_avg:,.2f}**".format(
+                    die_count=bold(str(len(dice))),
                     values=dice_string,
-                    side_count=sum(dice),
+                    side_count=bold(str(sum(dice))),
                     total_sum=sum(dice_roll),
                     total_avg=sum(dice_roll) / len(dice),
                 )
-            )
+            ),
+            view=view,
         )
+        timed_out = False
+        i = 1
+        while not timed_out:
+            timed_out = await view.wait()
+            if timed_out:
+                await message.edit(view=None)
+                break
+
+            dice_roll = [random.randint(1, X) for X in dice]
+
+            dice_string = ""
+            if len(dice) < 100:
+                dice_string = "\r\nValues: {}".format(
+                    ", ".join(["`{}`".format(x) for x in dice_roll])
+                )
+
+            view = RerollView()
+            await message.edit(
+                content=info(
+                    "\n".join(
+                        [
+                            "After rerolling {} time{}.".format(
+                                bold(str(i)),
+                                "s" if i > 1 else "",
+                            ),
+                            "Collected and rolled {die_count:,} dice!{values}\r\nTotal number of sides: {side_count:,}\r\n**Total value: {total_sum:,}  Average value: {total_avg:,.2f}**".format(
+                                die_count=len(dice),
+                                values=dice_string,
+                                side_count=sum(dice),
+                                total_sum=sum(dice_roll),
+                                total_avg=sum(dice_roll) / len(dice),
+                            ),
+                        ]
+                    )
+                ),
+                view=view,
+            )
+            i += 1
 
     async def _roll_dice(self, ctx: commands.Context, roll_min: int, roll_max: int) -> None:
         """Perform and print a single dice roll."""
@@ -277,7 +483,7 @@ class Utility(commands.Cog, Raffles, Polls, Events, metaclass=CompositeMetaClass
         if roll_max >= 10e100:
             await ctx.send(error("Maximum value too large."))
             return
-        roll_sides = roll_max - roll_min + 1
+        roll_sides = bold(str(roll_max - roll_min + 1))
         strange = "strange "
         a_an = "a"
         roll_range = ""
@@ -287,17 +493,62 @@ class Utility(commands.Cog, Raffles, Polls, Events, metaclass=CompositeMetaClass
                 if roll_max == 8:
                     a_an = "an"
         else:
-            roll_range = " ({:,} to {:,})".format(roll_min, roll_max)
+            roll_range = " ({:,} to {:,})".format(bold(str(roll_min)), bold(str(roll_max)))
         if roll_max < roll_min:
             await ctx.send(
                 error("Between {} and {} is not a valid range.".format(roll_min, roll_max))
             )
-        else:
-            random_output = random.randint(roll_min, roll_max)
-            await ctx.send(
-                info(
-                    "I roll {} {}{}-sided die{}, and it lands on: **{:,}**".format(
-                        a_an, strange, roll_sides, roll_range, random_output
-                    )
+            return
+
+        random_output = random.randint(roll_min, roll_max)
+        view = RerollView()
+        message = await ctx.send(
+            info(
+                "I roll {} {}{}-sided die{}, and it lands on: **{:,}**".format(
+                    a_an, strange, roll_sides, roll_range, random_output
                 )
+            ),
+            view=view,
+        )
+        timed_out = False
+        i = 1
+        while not timed_out:
+            timed_out = await view.wait()
+            if timed_out:
+                await message.edit(view=None)
+                break
+
+            random_output = random.randint(roll_min, roll_max)
+            view = RerollView()
+            await message.edit(
+                content=info(
+                    "\n".join(
+                        [
+                            "After rerolling {} time{}.".format(
+                                bold(str(i)),
+                                "s" if i > 1 else "",
+                            ),
+                            "I roll {} {}{}-sided die{}, and it lands on: **{:,}**".format(
+                                a_an, strange, roll_sides, roll_range, random_output
+                            ),
+                        ]
+                    )
+                ),
+                view=view,
             )
+            i += 1
+
+
+class RerollView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=30)
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if not await interaction.client.is_owner(interaction.user):
+            return False
+        return True
+
+    @discord.ui.button(label="Re-Roll", style=discord.ButtonStyle.green, emoji="\N{GAME DIE}")
+    async def reroll_button(self, interaction: discord.Interaction, button: discord.Button):
+        await interaction.response.defer()
+        self.stop()

@@ -254,7 +254,7 @@ class Raffles(MixinMeta):
     @commands.guild_only()
     @commands.mod_or_permissions(administrator=True)
     async def raffle(self, ctx: commands.Context):
-        """Run Raffles/Giveaways."""
+        """Run raffles/giveaways."""
 
     @raffle.command(name="clearguild", alises=["resetguild"], hidden=True)
     @commands.is_owner()
@@ -274,7 +274,7 @@ class Raffles(MixinMeta):
         *,
         time: Optional[TimedeltaConverter] = None,
     ):
-        """Start a raffle/giveaway.
+        """Start a new raffle/giveaway.
 
         Time should be a string that doesn't exceed 8 weeks.
 
@@ -444,7 +444,7 @@ class Raffles(MixinMeta):
     async def _raffle_reroll(
         self, ctx: commands.Context, message_id: Optional[RawMessageIds] = None
     ):
-        """Reroll the winner for a raffle.
+        """Reroll the winner for a previous raffle.
 
         The last 5 raffles ran can be rerolled.
 
@@ -544,7 +544,11 @@ class Raffles(MixinMeta):
     @commands.cooldown(1, 30, commands.BucketType.member)
     @raffle.command(name="list")
     async def _raffle_list(self, ctx: commands.Context):
-        """List current and past raffles."""
+        """List current and past raffles.
+        
+        Also allows you to see the results for them.
+        The last 5 raffles ran in the server are saved.
+        """
         guild_data: dict = await self.raffle_config.guild(ctx.guild).all()
         if len(guild_data["raffles"]) == 0 and len(guild_data["raffles_history"]) == 0:
             return await ctx.send("There are no current or past raffles in this server.")

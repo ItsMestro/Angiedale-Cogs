@@ -307,7 +307,7 @@ class Poll:
 
 
 class Polls(MixinMeta):
-    """Interactive polling system."""
+    """Run polls with a interactive polling system."""
 
     def __init__(self):
         self.poll_cache: Dict[int, Dict[int, Poll]] = {}
@@ -319,7 +319,7 @@ class Polls(MixinMeta):
     @commands.group()
     @commands.guild_only()
     async def poll(self, ctx: commands.Context):
-        """Create and manage Polls."""
+        """Run polls with a interactive polling system."""
 
     @poll.command(name="clearguild", alises=["resetguild"], hidden=True)
     @commands.is_owner()
@@ -339,7 +339,7 @@ class Polls(MixinMeta):
         *,
         time: Optional[TimedeltaConverter] = None,
     ):
-        """Start a poll.
+        """Start a new poll.
 
         Time should be a string that doesn't exceed 8 weeks.
 
