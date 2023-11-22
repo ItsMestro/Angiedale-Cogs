@@ -766,6 +766,7 @@ class Raffles(MixinMeta):
                             view = RaffleView(
                                 config=self.raffle_config,
                                 raffle=raffle,
+                                starting_entries=len(raffle.entries),
                             )
                             self.bot.add_view(
                                 view,
@@ -1118,11 +1119,20 @@ class Raffles(MixinMeta):
 # region ui
 # region Views
 class RaffleView(discord.ui.View):
-    def __init__(self, config: Config = None, raffle: Raffle = None, preview: bool = False):
+    def __init__(
+        self,
+        config: Config = None,
+        raffle: Raffle = None,
+        starting_entries: Optional[int] = None,
+        preview: bool = False,
+    ):
         super().__init__(timeout=None)
         self.config = config
         self.raffle = raffle
         self.preview = preview
+
+        if starting_entries is not None:
+            self.entry_button.label = f"Enter Raffle! ◈ {starting_entries}"
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if self.preview:
