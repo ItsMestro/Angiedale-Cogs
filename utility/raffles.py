@@ -1199,7 +1199,7 @@ class RaffleView(discord.ui.View):
 
         if entered:
             await interaction.response.send_message(
-                "Successfully entered the raffle!", ephemeral=True, delete_after=30
+                "Successfully entered the raffle!", ephemeral=True
             )
         else:
             await interaction.response.send_message(
