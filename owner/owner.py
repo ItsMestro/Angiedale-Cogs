@@ -4,6 +4,7 @@ import logging
 import os
 import re
 import shutil
+from abc import ABC
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from random import choice
@@ -30,6 +31,8 @@ from redbot.core.utils.chat_formatting import (
 from redbot.core.utils.menus import menu
 from redbot.core.utils.tunnel import Tunnel
 
+from .events import Events
+
 log = logging.getLogger("red.angiedale.owner")
 
 
@@ -40,32 +43,42 @@ RUNNING_ANNOUNCEMENT = (
 )
 
 
-class Owner(commands.Cog):
+class CompositeMetaClass(type(commands.Cog), type(ABC)):
+    """
+    This allows the metaclass used for proper type detection to
+    coexist with discord.py's metaclass
+    """
+
+    pass
+
+
+class Owner(commands.Cog, Events, metaclass=CompositeMetaClass):
     """Bot set-up commands."""
 
     def __init__(self, bot: Red):
         super().__init__()
         self.bot = bot
-        self.interaction = []
+        self.interaction: List[Union[discord.Member, discord.User]] = []
         self.statuses: Dict[str, List[str]] = {}
         self.new_traceback_alert_settings: bool = True
         self.traceback_last_date: Optional[datetime] = None
+        self.current_announcer: Optional[Announcer] = None
 
         self.admin_config = Config.get_conf(
             self, identifier=1387000, force_registration=True, cog_name="OwnerAdmin"
         )
-        self.admin_config.register_global(serverlocked=False, schema_version=1)
-
         self.mutes_config = Config.get_conf(
             self, identifier=1387000, force_registration=True, cog_name="Mutes"
         )
-
         self.stats_config = Config.get_conf(
             self, identifier=1387000, force_registration=True, cog_name="Stats"
         )
         self.owner_config = Config.get_conf(
             self, identifier=1387000, force_registration=True, cog_name="Owner"
         )
+
+        self.admin_config.register_global(serverlocked=False, schema_version=1)
+        self.stats_config.register_global(channel_id=None, message_id=None, bonk=0)
         self.owner_config.register_global(
             changelog={
                 "channel_id": None,
@@ -76,27 +89,16 @@ class Owner(commands.Cog):
             },
             traceback={"channel_id": None, "interval": 216000},
         )
-        self.stats_config.register_global(Channel=None, Message=None, bonk=0)
 
-        self.__current_announcer: Optional[Announcer] = None
-        self.stats_channel_id: Optional[int] = None
-        self.stats_message_id: Optional[int] = None
-
-        self.stats_task: Optional[asyncio.Task] = None
-        self.changelog_task = asyncio.create_task(self.check_changelog())
         self.presence_task = asyncio.create_task(self.maybe_update_presence())
         self.traceback_alert_task = asyncio.create_task(self.traceback_alert())
+        self.stats_task = asyncio.create_task(self.update_stats())
+
+        self._changelog_task = asyncio.create_task(self.check_changelog())
 
     async def red_delete_data_for_user(self, **kwargs):
         """Nothing to delete"""
         return
-
-    async def cog_load(self) -> None:
-        async with self.stats_config.all() as sconfig:
-            self.stats_channel_id: int = sconfig["Channel"]
-            self.stats_message_id: int = sconfig["Message"]
-        if self.stats_channel_id:
-            self.stats_task = asyncio.create_task(self._update_stats())
 
     def cog_unload(self) -> None:
         if self.traceback_alert_task:
@@ -105,16 +107,16 @@ class Owner(commands.Cog):
             self.presence_task.cancel()
         if self.stats_task:
             self.stats_task.cancel()
-        if self.changelog_task:
-            self.changelog_task.cancel()
+        if self._changelog_task:
+            self._changelog_task.cancel()
         try:
-            self.__current_announcer.cancel()
+            self.current_announcer.cancel()
         except AttributeError:
             pass
         for user in self.interaction:
             asyncio.create_task(self.stop_interaction(user))
 
-    async def traceback_alert(self):
+    async def traceback_alert(self) -> None:
         await self.bot.wait_until_red_ready()
 
         channel: Optional[
@@ -228,19 +230,25 @@ class Owner(commands.Cog):
         except asyncio.CancelledError:
             return
 
-    async def _update_stats(self) -> None:
-        await asyncio.sleep(30 * 1)
+    async def update_stats(self) -> None:
+        await self.bot.wait_until_red_ready()
 
-        while True:
-            try:
-                await self.check_statsembed()
-            except asyncio.CancelledError:
-                break
-            except Exception as e:
-                log.exception(e, exc_info=e)
-            await asyncio.sleep(60 * 10)
+        async with self.stats_config.all() as data:
+            channel_id = data["channel_id"]
+            message_id = data["message_id"]
 
-    async def check_statsembed(self) -> None:
+        if channel_id is None:
+            return
+
+        try:
+            while True:
+                await self.update_statsembed(channel_id, message_id)
+
+                await asyncio.sleep(60 * 10)
+        except asyncio.CancelledError:
+            pass
+
+    async def update_statsembed(self, channel_id: int, message_id: int) -> None:
         latencies = self.bot.latencies
 
         latency_message = ""
@@ -249,9 +257,17 @@ class Owner(commands.Cog):
                 shard + 1, len(latencies), round(ping_time * 1000)
             )
 
-        channel = self.bot.get_channel(self.stats_channel_id)
-        message = await channel.fetch_message(self.stats_message_id)
+        channel = self.bot.get_channel(channel_id)
+        if channel is None:
+            return
+
+        message = await channel.fetch_message(message_id)
+        if message is None:
+            return
+
         embed = message.embeds[0]
+
+        time_now = datetime.now(timezone.utc)
 
         embed.set_field_at(0, name="Serving Users", value=len(self.bot.users))
         embed.set_field_at(1, name="In Servers", value=len(self.bot.guilds))
@@ -261,12 +277,12 @@ class Owner(commands.Cog):
         embed.set_field_at(
             5,
             name="Uptime",
-            value=humanize_timedelta(timedelta=datetime.utcnow() - self.bot.uptime),
+            value=humanize_timedelta(timedelta=time_now - self.bot.uptime),
             inline=False,
         )
         embed.set_field_at(6, name="Latency", value=latency_message, inline=False)
 
-        embed.timestamp = datetime.now(timezone.utc)
+        embed.timestamp = time_now
 
         await message.edit(embed=embed)
 
@@ -276,26 +292,45 @@ class Owner(commands.Cog):
     async def set_stats_channel(
         self,
         ctx: commands.Context,
-        channel: Union[
-            discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread
+        channel: Optional[
+            Union[discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread]
         ] = None,
     ):
         """Set a channel for displaying bot stats."""
         if not self.stats_message_id and not channel:
             return await ctx.send("Please provide a channel to start displaying bot stats in.")
+
         response: List[str] = []
-        if self.stats_message_id is not None:
-            if self.stats_task:
-                self.stats_task.cancel()
-            stats_channel = self.bot.get_channel(self.stats_channel_id)
-            stats_message = await stats_channel.fetch_message(self.stats_message_id)
-            try:
-                await stats_message.delete()
-            except:
-                pass
+        if self.stats_task is None:
+            return
+
+        if not self.stats_task.done():
+            self.stats_task.cancel()
+
+            data = await self.stats_config.all()
+
+            deletion_response = (
+                "removed your old stats channel from config but was unable to delete its message"
+            )
+
+            if data["channel_id"] is not None:
+                old_channel = self.bot.get_channel(data["channel_id"])
+
+                if old_channel is not None:
+                    try:
+                        old_message = await old_channel.fetch_message(data["message_id"])
+                    except:
+                        pass
+                    else:
+                        try:
+                            await old_message.delete()
+                            deletion_response = "deleted the previous stats message"
+                        except:
+                            pass
             await self.stats_config.clear_all()
-            response.append("deleted the previous stats message")
-        if channel:
+            response.append(deletion_response)
+
+        if channel is not None:
             if (
                 isinstance(channel, discord.Thread)
                 and not channel.permissions_for(ctx.guild.me).send_messages_in_threads
@@ -325,27 +360,16 @@ class Owner(commands.Cog):
 
                 message = await channel.send(embed=embed)
 
-                await self.stats_config.Channel.set(channel.id)
-                await self.stats_config.Message.set(message.id)
+                await self.stats_config.channel_id.set(channel.id)
+                await self.stats_config.message_id.set(message.id)
 
-                self.stats_channel_id = channel.id
-                self.stats_message_id = message.id
-                self.stats_task = asyncio.create_task(self._update_stats())
+                self.stats_task = asyncio.create_task(self.update_stats())
 
                 response.append(
                     f"started displaying stats for {self.bot.user.name} in {channel.mention}"
                 )
 
         await ctx.send(" and ".join(response).capitalize() + ".")
-
-    @commands.Cog.listener()
-    async def on_reaction_add(
-        self, reaction: discord.Reaction, user: Union[discord.Member, discord.User]
-    ):
-        if user in self.interaction:
-            channel = reaction.message.channel
-            if isinstance(channel, discord.DMChannel):
-                await self.stop_interaction(user)
 
     async def stop_interaction(self, user: Union[discord.Member, discord.User]) -> None:
         self.interaction.remove(user)
@@ -355,10 +379,10 @@ class Owner(commands.Cog):
         """
         Is the bot currently announcing something?
         """
-        if self.__current_announcer is None:
+        if self.current_announcer is None:
             return False
 
-        return self.__current_announcer.active or False
+        return self.current_announcer.active or False
 
     @commands.group(invoke_without_command=True)
     @commands.is_owner()
@@ -368,7 +392,7 @@ class Owner(commands.Cog):
             announcer = Announcer(ctx, message, config=self.admin_config)
             announcer.start()
 
-            self.__current_announcer = announcer
+            self.current_announcer = announcer
 
             await ctx.send(("The announcement has begun."))
         else:
@@ -376,12 +400,12 @@ class Owner(commands.Cog):
             await ctx.send((RUNNING_ANNOUNCEMENT).format(prefix=prefix))
 
     @announce.command(name="cancel")
-    async def announce_cancel(self, ctx: commands.Context):
+    async def _announce_cancel(self, ctx: commands.Context):
         """Cancel a running announce."""
         if not self.is_announcing():
             await ctx.send(("There is no currently running announcement."))
             return
-        self.__current_announcer.cancel()
+        self.current_announcer.cancel()
         await ctx.send(("The current announcement has been cancelled."))
 
     @commands.command()
@@ -439,7 +463,7 @@ class Owner(commands.Cog):
 
         self.traceback_alert_task = asyncio.create_task(self.traceback_alert())
 
-    async def say(
+    async def say_message(
         self,
         ctx: commands.Context,
         channel: Optional[
@@ -517,7 +541,7 @@ class Owner(commands.Cog):
 
     @commands.command(name="say")
     @commands.is_owner()
-    async def _say(
+    async def say(
         self,
         ctx: commands.Context,
         channel: Optional[
@@ -538,11 +562,11 @@ class Owner(commands.Cog):
         """
 
         files = await Tunnel.files_from_attatch(ctx.message)
-        await self.say(ctx, channel, text, files)
+        await self.say_message(ctx, channel, text, files)
 
-    @commands.command(name="sayd", aliases=["sd"])
+    @commands.command(name="saydelete", aliases=["sayd", "sd"])
     @commands.is_owner()
-    async def _saydelete(
+    async def say_delete(
         self,
         ctx: commands.Context,
         channel: Optional[
@@ -569,11 +593,11 @@ class Owner(commands.Cog):
             except discord.errors.Forbidden:
                 await author.send(("Not enough permissions to delete messages."), delete_after=15)
 
-        await self.say(ctx, channel, text, files)
+        await self.say_message(ctx, channel, text, files)
 
     @commands.command(name="interact")
     @commands.is_owner()
-    async def _interact(
+    async def interact(
         self,
         ctx: commands.Context,
         channel: Union[
@@ -651,7 +675,7 @@ class Owner(commands.Cog):
     @commands.is_owner()
     async def list_guilds(self, ctx: commands.Context):
         """List the servers the bot is in."""
-        guilds = sorted(self.bot.guilds, key=lambda g: -g.member_count)
+        guilds: List[discord.Guild] = sorted(self.bot.guilds, key=lambda g: g.member_count)
 
         base_embed = discord.Embed(color=await ctx.embed_colour())
 
@@ -678,18 +702,6 @@ class Owner(commands.Cog):
             i += 1
 
         await menu(ctx, embeds)
-
-    @commands.Cog.listener()
-    async def on_guild_join(self, guild: discord.Guild):
-        if await self.admin_config.serverlocked():
-            if len(self.bot.guilds) == 1:  # will be 0 once left
-                log.warning(
-                    f"Leaving guild '{guild.name}' ({guild.id}) due to serverlock. You can "
-                    "temporarily disable serverlock by starting up the bot with the --no-cogs flag."
-                )
-            else:
-                log.info(f"Leaving guild '{guild.name}' ({guild.id}) due to serverlock.")
-            await guild.leave()
 
     async def maybe_update_presence(self) -> None:
         await self.bot.wait_until_red_ready()
