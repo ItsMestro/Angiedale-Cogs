@@ -211,7 +211,7 @@ class Owner(commands.Cog, Events, metaclass=CompositeMetaClass):
                     try:
                         timestamp = int(self.traceback_last_date.timestamp())
                         owners = ""
-                        if self.bot.owner_ids is not None:
+                        if count["ERROR"] > 0 and self.bot.owner_ids is not None:
                             for user_id in self.bot.owner_ids:
                                 if (member := channel.guild.get_member(user_id)) is not None:
                                     owners += member.mention + " "
