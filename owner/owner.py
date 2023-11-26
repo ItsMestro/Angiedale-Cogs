@@ -130,8 +130,11 @@ class Owner(commands.Cog, Events, metaclass=CompositeMetaClass):
                 if self.new_traceback_alert_settings:
                     async with self.owner_config.traceback() as traceback:
                         channel_id = traceback["channel_id"]
-                        interval = traceback["interval"]
+                        new_interval = traceback["interval"]
                         channel = None
+
+                    if new_interval is not None:
+                        interval = new_interval
 
                     self.new_traceback_alert_settings = False
 
@@ -147,7 +150,7 @@ class Owner(commands.Cog, Events, metaclass=CompositeMetaClass):
                     break
 
                 if self.traceback_last_date is None:
-                    self.traceback_last_date = datetime.now(timezone.utc)
+                    self.traceback_last_date = datetime.now()
 
                 await asyncio.sleep(interval)
 
@@ -167,12 +170,11 @@ class Owner(commands.Cog, Events, metaclass=CompositeMetaClass):
                 count = {"ERROR": 0, "WARNING": 0, "INFO": 0}
 
                 break_loop = False
-                i = 0
                 for log_path in latest_logs:
                     with open(log_path) as error_log:
                         lines = error_log.readlines()
 
-                    for i, line in enumerate(reversed(lines)):
+                    for line in reversed(lines):
                         date_match = re.match(
                             r"\[(?P<date>(\d|-|\s|:)+)\] \[(?P<type>INFO|WARNING|ERROR)\]", line
                         )
@@ -187,24 +189,22 @@ class Owner(commands.Cog, Events, metaclass=CompositeMetaClass):
 
                         count[date_match.group("type")] += 1
 
-                    if break_loop or i > 20:
+                    if break_loop:
                         break
 
-                    i += 1
-
                 if count["ERROR"] > 0 or count["WARNING"] > 0:
-                    output_list = []
+                    output_list: List[str] = []
                     if count["ERROR"] > 0:
                         output_list.append(
-                            f'{count["ERROR"]} error{"s" if len(count["ERROR"]) > 1 else ""}'
+                            f'{count["ERROR"]} error{"s" if count["ERROR"] > 1 else ""}'
                         )
                     if count["WARNING"] > 0:
                         output_list.append(
-                            f'{count["WARNING"]} warning{"s" if len(count["WARNING"]) > 1 else ""}'
+                            f'{count["WARNING"]} warning{"s" if count["WARNING"] > 1 else ""}'
                         )
                     if count["INFO"] > 0:
                         output_list.append(
-                            f'{count["INFO"]} info message{"s" if len(count["INFO"]) > 1 else ""}'
+                            f'{count["INFO"]} info message{"s" if count["INFO"] > 1 else ""}'
                         )
 
                     output = humanize_list(output_list)
@@ -222,11 +222,11 @@ class Owner(commands.Cog, Events, metaclass=CompositeMetaClass):
                             f"{bold(output)} since <t:{timestamp}:f> <t:{timestamp}:R>"
                         )
                     except:
-                        log.exception("broke")
+                        log.exception("Traceback alerts failed to send message")
                         self.traceback_last_date = None
                         break
 
-                self.traceback_last_date = datetime.now(timezone.utc)
+                self.traceback_last_date = datetime.now()
         except asyncio.CancelledError:
             return
 
@@ -449,7 +449,7 @@ class Owner(commands.Cog, Events, metaclass=CompositeMetaClass):
                 output = [f"Set the alerts channel to {channel.mention}."]
 
             if interval is not None:
-                traceback["interval"] = interval.total_seconds()
+                traceback["interval"] = int(interval.total_seconds())
                 output.append(
                     f"Updated the time interval between alerts to {humanize_timedelta(timedelta=interval)}."
                 )
