@@ -184,6 +184,9 @@ class Poll:
 
     @property
     def guild_id(self) -> Optional[int]:
+        if self._guild_id is None and self._guild is not None:
+            return self._guild.id
+
         return self._guild_id
 
     @guild_id.setter
@@ -668,7 +671,7 @@ class Polls(MixinMeta):
             log.error("Error during poll initialization", exc_info=True)
 
     async def poll_timer(self, poll: Poll) -> None:
-        await asyncio.sleep(poll.timedelta.total_seconds())
+        await asyncio.sleep(int(poll.timedelta.total_seconds()))
 
         guild = self.bot.get_guild(poll.guild_id)
         if guild is None:
@@ -715,7 +718,7 @@ class Polls(MixinMeta):
         poll_embed.set_field_at(
             index=1, name="Ended", value=poll_embed.fields[1].value, inline=False
         )
-        poll_embed.set_footer(text=f"Guild polls brought to you by {poll.guild.me.display_name}!")
+        poll_embed.set_footer(text=f"Guild polls brought to you by {poll.guild.me.name}!")
 
         description = poll_embed.description.splitlines()
         description_dicts: List[Dict[str, Union[int, str]]] = []

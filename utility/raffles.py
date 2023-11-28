@@ -114,6 +114,9 @@ class Raffle:
 
     @property
     def guild_id(self) -> Optional[int]:
+        if self._guild_id is None and self._guild is not None:
+            return self._guild.id
+
         return self._guild_id
 
     @guild_id.setter
@@ -850,7 +853,7 @@ class Raffles(MixinMeta):
         return result
 
     async def raffle_timer(self, raffle: Raffle) -> None:
-        await asyncio.sleep(raffle.timedelta.total_seconds())
+        await asyncio.sleep(int(raffle.timedelta.total_seconds()))
 
         guild = self.bot.get_guild(raffle.guild_id)
         if guild is None:
@@ -1026,7 +1029,7 @@ class Raffles(MixinMeta):
             value=f"<t:{end_timestamp}:D> ◈ <t:{end_timestamp}:R>",
             inline=False,
         )
-        raffle_embed.set_footer(text=f"Guild raffles brought to you by {guild.me.display_name}!")
+        raffle_embed.set_footer(text=f"Guild raffles brought to you by {guild.me.name}!")
 
         return raffle_embed
 
