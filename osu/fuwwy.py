@@ -756,13 +756,13 @@ class Commands(Functions, Embeds):
                         FuwwyBeatmapIDs.JACKS,
                     ]
                 )
-                if len(stages) == 4:
-                    worst_stage: Dict[
+                worst_stage: Dict[
                         str, Union[Optional[FuwwyBeatmapIDs], Optional[FuwwyScore]]
                     ] = {
                         "stage": None,
                         "data": None,
                     }
+                if len(stages) == 4:
                     for stage, play_data in stages.items():
                         if (
                             worst_stage["stage"] is None

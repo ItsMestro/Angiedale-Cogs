@@ -94,7 +94,7 @@ class Embeds(MixinMeta):
             name="Favorites", value=humanize_number(data_set.favourite_count), inline=True
         )
         embed.add_field(name="Download", value=download, inline=True)
-        if not sum(data_set.ratings) == 0:
+        if not data_set.ratings is None and not sum(data_set.ratings) == 0:
             rating = 0
             p = 0
             s = 0
@@ -191,6 +191,9 @@ class Embeds(MixinMeta):
 
             categories: Dict[str, List[Dict[str, Union[bool, str]]]] = {}
 
+            if build.changelog_entries is None:
+                continue
+
             for entry in build.changelog_entries:
                 pr_link = ""
                 developer = ""
@@ -229,6 +232,7 @@ class Embeds(MixinMeta):
                     title_types.pop(0)
 
                 for category, items in entry.items():
+                    entries = ""
                     for key in title_types:
                         entries = ""
                         for item in items:
@@ -429,7 +433,7 @@ class Embeds(MixinMeta):
 
         for score in data.leaderboard.values():
             if arguments.g:
-                if not score.id in guild_users:
+                if not score.id in guild_users:  # type: ignore
                     continue
 
             if score.id == user_id and arguments.me:

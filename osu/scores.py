@@ -129,7 +129,7 @@ class Embeds(MixinMeta):
                     + score.statistics.count_miss
                     - 1
                 )
-            elif score.mode == GameMode.MANIA:
+            else:
                 fail_point = (
                     score.statistics.count_geki
                     + score.statistics.count_300
@@ -145,8 +145,11 @@ class Embeds(MixinMeta):
                 map_end = extra_data.hitobjects[-1].time
                 map_fail = extra_data.hitobjects[fail_point].time
                 fail_string = "{:.2%}".format((map_fail - map_start) / (map_end - map_start))
+                embed.title = f"Failed at {fail_string}"
             except KeyError:
-                fail_string = ""
+                embed.title = "Failed"
+        else:
+            embed.title = "Passed"
 
         mods = ""
         if score.mods != OsuMod.NM:
@@ -166,14 +169,6 @@ class Embeds(MixinMeta):
             url=score.beatmap.url,
             icon_url=score.user().avatar_url,
         )
-
-        if score.rank == OsuGrade.F:
-            if fail_string:
-                embed.title = f"Failed at {fail_string}"
-            else:
-                embed.title = "Failed"
-        else:
-            embed.title = "Passed"
 
         embed.set_image(url=score.beatmapset.covers.cover)
 
@@ -198,7 +193,7 @@ class Embeds(MixinMeta):
         )
 
         embed.set_footer(
-            text=f"Play {page + 1}/{len(data)} | {score.user().username} | osu!{pretty_mode.capitalize()} | Played"
+            text=f"Play {page if page is not None else 0 + 1}/{len(data)} | {score.user().username} | osu!{pretty_mode.capitalize()} | Played"
         )
 
         embed.timestamp = score.created_at

@@ -31,7 +31,7 @@ class Embeds(MixinMeta):
             global_rank = humanize_number(data.statistics.global_rank)
             country_rank = humanize_number(data.statistics.country_rank)
 
-        if mode == GameMode.MANIA:
+        if mode == GameMode.MANIA and data.statistics.variants is not None:
             pp_list: List[str] = []
             pp_list.append(f"{humanize_number(data.statistics.pp)}pp")
             if data.statistics.variants[0].pp:
@@ -239,6 +239,8 @@ class Embeds(MixinMeta):
         if pp_arg != 0:
             count = 0
             for score in data:
+                if score.pp is None:
+                    continue
                 if score.pp > pp_arg:
                     count += 1
             embed.title = f"You have {count} plays above {round(pp_arg, 2)}pp"

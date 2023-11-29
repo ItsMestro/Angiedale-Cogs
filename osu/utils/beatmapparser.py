@@ -17,6 +17,7 @@ class ObjectType:
 
         temp_value = self.value
 
+        value = None
         for i, v in enumerate(reversed(range(8))):
             value = bool(temp_value >> v)
             temp_value -= 1 << v if value else 0

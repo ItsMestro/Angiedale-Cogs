@@ -222,7 +222,7 @@ class Functions(Embeds):
         active_cache = deepcopy(self.tracking_cache)
 
         for mode, users in active_cache.items():
-            for user_id, channels in users.items():
+            for user_id in users.keys():
                 user_path = f"{path}/{user_id}_{mode.value}.json"
 
                 fresh_data = await self.api.user_scores(
