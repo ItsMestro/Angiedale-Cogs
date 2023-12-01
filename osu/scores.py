@@ -96,9 +96,9 @@ class Embeds(MixinMeta):
                 ]
             )
             stats = (
-                f"CS: `{score.beatmap.cs}` |"
-                f"AR: `{score.beatmap.ar}` |"
-                f"OD: `{score.beatmap.accuracy}` |"
+                f"CS: `{score.beatmap.cs}` | "
+                f"AR: `{score.beatmap.ar}` | "
+                f"OD: `{score.beatmap.accuracy}` | "
                 f"HP: `{score.beatmap.drain}`"
             )
 
