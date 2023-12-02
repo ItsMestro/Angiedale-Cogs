@@ -1,5 +1,6 @@
 import asyncio
 import re
+import time
 from math import ceil
 from typing import List, Optional, Union
 
@@ -160,6 +161,18 @@ class Embeds(MixinMeta):
         except TypeError:
             performance = 0
 
+        drain_time = time.gmtime(score.beatmap.hit_length)
+        if drain_time[3] > 0:
+            drain_time = time.strftime("%-H:%M:%S", drain_time)
+        else:
+            drain_time = time.strftime("%-M:%S", drain_time)
+
+        length = time.gmtime(score.beatmap.total_length)
+        if length[3] > 0:
+            length = time.strftime("%-H:%M:%S", length)
+        else:
+            length = time.strftime("%-M:%S", length)
+
         download = f"[Link]({OsuUrls.BEATMAP_DOWNLOAD.value}{score.beatmapset.id})"
         if score.beatmapset.video:
             download += f" ([No Video]({OsuUrls.BEATMAP_DOWNLOAD.value}{score.beatmapset.id}n))"
@@ -186,14 +199,14 @@ class Embeds(MixinMeta):
                     f' {EMOJI["BPM"]} `{score.beatmap.bpm}` |'
                     f" Objects: `{humanize_number(score.beatmap.count_circles + score.beatmap.count_sliders + score.beatmap.count_spinners)}` ",
                     f"Status: {inline(score.beatmapset.status.name.capitalize())} | {stats}",
-                    f"Download: {download}",
+                    f"Download: {download} | Length (Drain): {inline(length)} ({inline(drain_time)})",
                 ]
             ),
             inline=False,
         )
 
         embed.set_footer(
-            text=f"Play {page if page is not None else 0 + 1}/{len(data)} | {score.user().username} | osu!{pretty_mode.capitalize()} | Played"
+            text=f"Play {page + 1 if page is not None else 1}/{len(data)} | {score.user().username} | osu!{pretty_mode.capitalize()} | Played"
         )
 
         embed.timestamp = score.created_at
