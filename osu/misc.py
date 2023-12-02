@@ -9,6 +9,7 @@ from ossapi import Build as OsuBuild
 from ossapi import GameMode
 from ossapi import Mod as OsuMod
 from ossapi import Rankings, RankingType
+from ossapi import User as OsuUser
 from ossapi.models import NewsPost, RankStatus, UpdateStream
 from redbot.core import commands
 from redbot.core.utils.chat_formatting import humanize_number
@@ -68,12 +69,12 @@ class Embeds(MixinMeta):
             url=data.url,
         )
 
-        creator = await data_set.user()
+        creator: OsuUser = await data_set.user()
 
         embed.set_author(
             name=f"Mapped by {data_set.creator} | osu!{pretty_mode.capitalize()}",
             url=f"{OsuUrls.USER.value}{data_set.user_id}",
-            icon_url=creator.avatar.url,
+            icon_url=creator.avatar_url,
         )
 
         embed.set_footer(text=f"Status: {data.status.name.capitalize()}")

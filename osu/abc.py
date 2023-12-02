@@ -101,7 +101,7 @@ class MixinMeta(ABC):
     def prettify_mode(self, mode: GameMode) -> str:
         raise NotImplementedError()
 
-    @abstractmethod
     @staticmethod
+    @abstractmethod
     async def profile_linking_onboarding(ctx: commands.Context) -> None:
         raise NotImplementedError()
