@@ -251,7 +251,7 @@ class Utilities(MixinMeta):
 
         Will look through old embeds from the bot
         and try to find a matching map id, mods and gamemode
-        from the variou embeds formats the bot uses.
+        from the various embed formats the bot uses.
         """
         mods = OsuMod(0)
         embeds: List[discord.Embed] = []
@@ -275,7 +275,7 @@ class Utilities(MixinMeta):
                         if " | osu!" in embed.footer.text:  # Mode
                             for s in embed.footer.text.split(" | "):
                                 if "osu!" in s:
-                                    ugly_mode = s[:-4].lower()
+                                    ugly_mode = s[4:].lower()
                         if "+" in embed.fields[0].value:  # Mods
                             mods = OsuMod(embed.fields[0].value.split("+")[1])
                         break
@@ -284,7 +284,7 @@ class Utilities(MixinMeta):
                         map_id = embed.url.rsplit("/", 1)[-1]
                         if embed.author.name:  # Mode
                             if embed.author.name.startswith("osu!"):
-                                ugly_mode = embed.author.name[:-4].split(" ", 1)[0].lower()
+                                ugly_mode = embed.author.name[4:].split(" ", 1)[0].lower()
                         break
                 if embed.description:  # Description
                     description = re.search(r"beatmaps/(.*?)\)", embed.description)
