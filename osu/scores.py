@@ -508,7 +508,7 @@ class Commands(Embeds):
                 ctx, "Could not find any recently displayed maps in this channel."
             )
 
-        data = await self.api.beatmap_user_scores(map_id, user_id, mode)
+        data = await self.api.beatmap_user_scores(map_id, user_id, mode=mode)
 
         if not data:
             if user:
