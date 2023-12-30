@@ -10,6 +10,8 @@ from ossapi import Mod as OsuMod
 from ossapi import RankingType
 from ossapi import Score as OsuScore
 from ossapi import ScoreType
+from ossapi import User as OsuUser
+from ossapi import UserCompact as OsuUserCompact
 from ossapi.models import Grade as OsuGrade
 from redbot.core import commands
 from redbot.core.utils.chat_formatting import humanize_number, inline
@@ -177,10 +179,14 @@ class Embeds(MixinMeta):
         if score.beatmapset.video:
             download += f" ([No Video]({OsuUrls.BEATMAP_DOWNLOAD.value}{score.beatmapset.id}n))"
 
+        user = score.user()
+        if not isinstance(user, OsuUser) and not isinstance(user, OsuUserCompact):
+            user = await user
+
         embed.set_author(
             name=f"{score.beatmapset.artist} - {score.beatmapset.title} [{version}] [{str(score.beatmap.difficulty_rating)}★]",
             url=score.beatmap.url,
-            icon_url=score.user().avatar_url,
+            icon_url=user.avatar_url,
         )
 
         embed.set_image(url=score.beatmapset.covers.cover)
@@ -206,7 +212,7 @@ class Embeds(MixinMeta):
         )
 
         embed.set_footer(
-            text=f"Play {page + 1 if page is not None else 1}/{len(data)} | {score.user().username} | osu!{pretty_mode.capitalize()} | Played"
+            text=f"Play {page + 1 if page is not None else 1}/{len(data)} | {user.username} | osu!{pretty_mode.capitalize()} | Played"
         )
 
         embed.timestamp = score.created_at
