@@ -451,21 +451,21 @@ class Embeds(MixinMeta):
             if arguments.mode == GameMode.MANIA:
                 hits = "/".join(
                     [
-                        f"{humanize_number(score.statistics.count_geki)}",
-                        f"{humanize_number(score.statistics.count_300)}",
-                        f"{humanize_number(score.statistics.count_katu)}",
-                        f"{humanize_number(score.statistics.count_100)}",
-                        f"{humanize_number(score.statistics.count_50)}",
-                        f"{humanize_number(score.statistics.count_miss)}",
+                        f"{humanize_number(0 if score.statistics.count_geki is None else score.statistics.count_geki)}",
+                        f"{humanize_number(0 if score.statistics.count_300 is None else score.statistics.count_300)}",
+                        f"{humanize_number(0 if score.statistics.count_katu is None else score.statistics.count_katu)}",
+                        f"{humanize_number(0 if score.statistics.count_100 is None else score.statistics.count_100)}",
+                        f"{humanize_number(0 if score.statistics.count_50 is None else score.statistics.count_50)}",
+                        f"{humanize_number(0 if score.statistics.count_miss is None else score.statistics.count_miss)}",
                     ]
                 )
             else:
                 hits = "/".join(
                     [
-                        f"{humanize_number(score.statistics.count_300)}",
-                        f"{humanize_number(score.statistics.count_100)}",
-                        f"{humanize_number(score.statistics.count_50)}",
-                        f"{humanize_number(score.statistics.count_miss)}",
+                        f"{humanize_number(0 if score.statistics.count_300 is None else score.statistics.count_300)}",
+                        f"{humanize_number(0 if score.statistics.count_100 is None else score.statistics.count_100)}",
+                        f"{humanize_number(0 if score.statistics.count_50 is None else score.statistics.count_50)}",
+                        f"{humanize_number(0 if score.statistics.count_miss is None else score.statistics.count_miss)}",
                     ]
                 )
 

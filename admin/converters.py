@@ -49,7 +49,9 @@ class SelfRole(commands.Converter):
             role = await role_converter.convert(ctx, arg)
             if role.id not in selfroles:
                 raise commands.BadArgument(
-                    ('The role "{role_name}" is not a valid selfrole.').format(role_name=role.name)
+                    ('The role "{role_name}" is not a valid selfrole.').format(
+                        role_name=role.name
+                    )
                 )
         elif len(pool) > 1:
             raise commands.BadArgument(
@@ -125,13 +127,17 @@ class RRoleTypeConverter(commands.Converter):
                 if not callable(getattr(RRoleType, attr)) and not attr.startswith("__")
             ]:
                 typestr += f"{inline(t)}, "
-            raise commands.BadArgument(f"The type has to be one of {typestr[:len(typestr) - 2]}")
+            raise commands.BadArgument(
+                f"The type has to be one of {typestr[: len(typestr) - 2]}"
+            )
 
         return type
 
 
 class TrueEmojiConverter(commands.EmojiConverter):
-    async def convert(self, ctx: commands.Context, argument: str) -> Union[discord.Emoji, str]:
+    async def convert(
+        self, ctx: commands.Context, argument: str
+    ) -> Union[discord.Emoji, str]:
         try:
             emoji = await super().convert(ctx, argument)
         except commands.BadArgument:

@@ -71,9 +71,11 @@ class Embeds(MixinMeta):
 
         embed.set_author(
             name=f"osu!{self.prettify_mode(data.mode).capitalize()} Beat Competition!",
-            icon_url=ctx.guild.icon.url
-            if ctx.guild.icon is not None
-            else ctx.bot.user.display_avatar.url,
+            icon_url=(
+                ctx.guild.icon.url
+                if ctx.guild.icon is not None
+                else ctx.bot.user.display_avatar.url
+            ),
         )
 
         embed.title = f"{data.beatmap.beatmapset.artist} - {data.beatmap.beatmapset.title} [{data.beatmap.version}]"
@@ -158,9 +160,11 @@ class Embeds(MixinMeta):
 
         embed.set_author(
             name=f"osu!{self.prettify_mode(GameMode(osubeat.mode)).capitalize()} Beat Competition has finished! Here's the results!",
-            icon_url=channel.guild.icon.url
-            if channel.guild.icon is not None
-            else self.bot.user.display_avatar.url,
+            icon_url=(
+                channel.guild.icon.url
+                if channel.guild.icon is not None
+                else self.bot.user.display_avatar.url
+            ),
         )
 
         embed.title = f"{osubeat.beatmap.beatmapset.artist} - {osubeat.beatmap.beatmapset.title} [{osubeat.beatmap.version}]"
@@ -183,21 +187,21 @@ class Embeds(MixinMeta):
             if osubeat.mode == GameMode.MANIA:
                 hits = "/".join(
                     [
-                        f"{humanize_number(score.statistics.count_geki)}",
-                        f"{humanize_number(score.statistics.count_300)}",
-                        f"{humanize_number(score.statistics.count_katu)}",
-                        f"{humanize_number(score.statistics.count_100)}",
-                        f"{humanize_number(score.statistics.count_50)}",
-                        f"{humanize_number(score.statistics.count_miss)}",
+                        f"{humanize_number(0 if score.statistics.count_geki is None else score.statistics.count_geki)}",
+                        f"{humanize_number(0 if score.statistics.count_300 is None else score.statistics.count_300)}",
+                        f"{humanize_number(0 if score.statistics.count_katu is None else score.statistics.count_katu)}",
+                        f"{humanize_number(0 if score.statistics.count_100 is None else score.statistics.count_100)}",
+                        f"{humanize_number(0 if score.statistics.count_50 is None else score.statistics.count_50)}",
+                        f"{humanize_number(0 if score.statistics.count_miss is None else score.statistics.count_miss)}",
                     ]
                 )
             else:
                 hits = "/".join(
                     [
-                        f"{humanize_number(score.statistics.count_300)}",
-                        f"{humanize_number(score.statistics.count_100)}",
-                        f"{humanize_number(score.statistics.count_50)}",
-                        f"{humanize_number(score.statistics.count_miss)}",
+                        f"{humanize_number(0 if score.statistics.count_300 is None else score.statistics.count_300)}",
+                        f"{humanize_number(0 if score.statistics.count_100 is None else score.statistics.count_100)}",
+                        f"{humanize_number(0 if score.statistics.count_50 is None else score.statistics.count_50)}",
+                        f"{humanize_number(0 if score.statistics.count_miss is None else score.statistics.count_miss)}",
                     ]
                 )
 
@@ -302,21 +306,21 @@ class Embeds(MixinMeta):
             if osubeat.mode == GameMode.MANIA:  # Our hit string that differs for mania
                 hits = "/".join(
                     [
-                        f"{humanize_number(score.statistics.count_geki)}",
-                        f"{humanize_number(score.statistics.count_300)}",
-                        f"{humanize_number(score.statistics.count_katu)}",
-                        f"{humanize_number(score.statistics.count_100)}",
-                        f"{humanize_number(score.statistics.count_50)}",
-                        f"{humanize_number(score.statistics.count_miss)}",
+                        f"{humanize_number(0 if score.statistics.count_geki is None else score.statistics.count_geki)}",
+                        f"{humanize_number(0 if score.statistics.count_300 is None else score.statistics.count_300)}",
+                        f"{humanize_number(0 if score.statistics.count_katu is None else score.statistics.count_katu)}",
+                        f"{humanize_number(0 if score.statistics.count_100 is None else score.statistics.count_100)}",
+                        f"{humanize_number(0 if score.statistics.count_50 is None else score.statistics.count_50)}",
+                        f"{humanize_number(0 if score.statistics.count_miss is None else score.statistics.count_miss)}",
                     ]
                 )
             else:
                 hits = "/".join(
                     [
-                        f"{humanize_number(score.statistics.count_300)}",
-                        f"{humanize_number(score.statistics.count_100)}",
-                        f"{humanize_number(score.statistics.count_50)}",
-                        f"{humanize_number(score.statistics.count_miss)}",
+                        f"{humanize_number(0 if score.statistics.count_300 is None else score.statistics.count_300)}",
+                        f"{humanize_number(0 if score.statistics.count_100 is None else score.statistics.count_100)}",
+                        f"{humanize_number(0 if score.statistics.count_50 is None else score.statistics.count_50)}",
+                        f"{humanize_number(0 if score.statistics.count_miss is None else score.statistics.count_miss)}",
                     ]
                 )
 
@@ -413,9 +417,11 @@ class Embeds(MixinMeta):
         embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
         embed.set_author(
             name="Beat competition cancelled manually. No winners will be picked.",
-            icon_url=ctx.guild.icon.url
-            if ctx.guild.icon is not None
-            else ctx.bot.user.display_avatar.url,
+            icon_url=(
+                ctx.guild.icon.url
+                if ctx.guild.icon is not None
+                else ctx.bot.user.display_avatar.url
+            ),
         )
 
         embed.title = f"{osubeat.beatmap.beatmapset.artist} - {osubeat.beatmap.beatmapset.title} [{osubeat.beatmap.version}]"

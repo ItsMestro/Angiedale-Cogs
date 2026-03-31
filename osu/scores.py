@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import re
 import time
 from math import ceil
@@ -22,6 +23,8 @@ from .utilities import EMOJI, OsuUrls, del_message
 from .utils.beatmapparser import DatabaseBeatmap
 from .utils.classes import DoubleArgs, SingleArgs
 from .utils.custommenu import check_controls, custom_menu
+
+log = logging.getLogger("red.angiedale.osu")
 
 
 class Embeds(MixinMeta):
@@ -71,18 +74,29 @@ class Embeds(MixinMeta):
             comboratio = "Combo / Ratio"
             version = re.sub(r"^\S*\s", "", score.beatmap.version)
             try:
-                ratio = round(score.statistics.count_geki / score.statistics.count_300, 2)
+                ratio = round(
+                    (
+                        0
+                        if score.statistics.count_geki is None
+                        else (
+                            score.statistics.count_geki / 0
+                            if score.statistics.count_300 is None
+                            else score.statistics.count_300
+                        )
+                    ),
+                    2,
+                )
             except:
                 ratio = "Perfect"
             combo = f"**{score.max_combo:,}x** / {ratio}"
             hits = "/".join(
                 [
-                    f"{humanize_number(score.statistics.count_geki)}",
-                    f"{humanize_number(score.statistics.count_300)}",
-                    f"{humanize_number(score.statistics.count_katu)}",
-                    f"{humanize_number(score.statistics.count_100)}",
-                    f"{humanize_number(score.statistics.count_50)}",
-                    f"{humanize_number(score.statistics.count_miss)}",
+                    f"{humanize_number(0 if score.statistics.count_geki is None else score.statistics.count_geki)}",
+                    f"{humanize_number(0 if score.statistics.count_300 is None else score.statistics.count_300)}",
+                    f"{humanize_number(0 if score.statistics.count_katu is None else score.statistics.count_katu)}",
+                    f"{humanize_number(0 if score.statistics.count_100 is None else score.statistics.count_100)}",
+                    f"{humanize_number(0 if score.statistics.count_50 is None else score.statistics.count_50)}",
+                    f"{humanize_number(0 if score.statistics.count_miss is None else score.statistics.count_miss)}",
                 ]
             )
             stats = f"OD: `{score.beatmap.accuracy}` | HP: `{score.beatmap.drain}`"
@@ -92,10 +106,10 @@ class Embeds(MixinMeta):
             combo = f"**{score.max_combo:,}x**"
             hits = "/".join(
                 [
-                    f"{humanize_number(score.statistics.count_300)}",
-                    f"{humanize_number(score.statistics.count_100)}",
-                    f"{humanize_number(score.statistics.count_50)}",
-                    f"{humanize_number(score.statistics.count_miss)}",
+                    f"{humanize_number(0 if score.statistics.count_300 is None else score.statistics.count_300)}",
+                    f"{humanize_number(0 if score.statistics.count_100 is None else score.statistics.count_100)}",
+                    f"{humanize_number(0 if score.statistics.count_50 is None else score.statistics.count_50)}",
+                    f"{humanize_number(0 if score.statistics.count_miss is None else score.statistics.count_miss)}",
                 ]
             )
             stats = (
@@ -108,39 +122,86 @@ class Embeds(MixinMeta):
         if score.rank == OsuGrade.F:
             if score.mode == GameMode.OSU:
                 fail_point = (
-                    score.statistics.count_300
-                    + score.statistics.count_100
-                    + score.statistics.count_50
-                    + score.statistics.count_miss
-                    - 1
+                    0
+                    if score.statistics.count_300 is None
+                    else (
+                        score.statistics.count_300 + 0
+                        if score.statistics.count_100 is None
+                        else (
+                            score.statistics.count_100 + 0
+                            if score.statistics.count_50 is None
+                            else (
+                                score.statistics.count_50 + 0
+                                if score.statistics.count_miss is None
+                                else score.statistics.count_miss - 1
+                            )
+                        )
+                    )
                 )
             elif score.mode == GameMode.CATCH:
                 fail_point = (
-                    score.statistics.count_300
-                    - score.beatmap.count_sliders
-                    + score.beatmap.count_circles
-                    + score.statistics.count_katu
-                    - 1
+                    0
+                    if score.statistics.count_300 is None
+                    else (
+                        score.statistics.count_300
+                        - score.beatmap.count_sliders
+                        + score.beatmap.count_circles
+                        + 0
+                        if score.statistics.count_katu is None
+                        else score.statistics.count_katu - 1
+                    )
                 )
             elif score.mode == GameMode.TAIKO:
                 fail_point = (
-                    score.statistics.count_geki
-                    + score.statistics.count_300
-                    + score.statistics.count_katu
-                    + score.statistics.count_100
-                    + score.statistics.count_50
-                    + score.statistics.count_miss
-                    - 1
+                    0
+                    if score.statistics.count_geki is None
+                    else (
+                        score.statistics.count_geki + 0
+                        if score.statistics.count_300 is None
+                        else (
+                            score.statistics.count_300 + 0
+                            if score.statistics.count_katu is None
+                            else (
+                                score.statistics.count_katu + 0
+                                if score.statistics.count_100 is None
+                                else (
+                                    score.statistics.count_100 + 0
+                                    if score.statistics.count_50 is None
+                                    else (
+                                        score.statistics.count_50 + 0
+                                        if score.statistics.count_miss is None
+                                        else score.statistics.count_miss - 1
+                                    )
+                                )
+                            )
+                        )
+                    )
                 )
             else:
                 fail_point = (
-                    score.statistics.count_geki
-                    + score.statistics.count_300
-                    + score.statistics.count_katu
-                    + score.statistics.count_100
-                    + score.statistics.count_50
-                    + score.statistics.count_miss
-                    - 1
+                    0
+                    if score.statistics.count_geki is None
+                    else (
+                        score.statistics.count_geki + 0
+                        if score.statistics.count_300 is None
+                        else (
+                            score.statistics.count_300 + 0
+                            if score.statistics.count_katu is None
+                            else (
+                                score.statistics.count_katu + 0
+                                if score.statistics.count_100 is None
+                                else (
+                                    score.statistics.count_100 + 0
+                                    if score.statistics.count_50 is None
+                                    else (
+                                        score.statistics.count_50 + 0
+                                        if score.statistics.count_miss is None
+                                        else score.statistics.count_miss - 1
+                                    )
+                                )
+                            )
+                        )
+                    )
                 )
 
             try:
@@ -346,22 +407,22 @@ class Embeds(MixinMeta):
             version = re.sub(r"^\S*\s", "", score.beatmap.version)
             hits = "/".join(
                 [
-                    f"{humanize_number(score.statistics.count_geki)}",
-                    f"{humanize_number(score.statistics.count_300)}",
-                    f"{humanize_number(score.statistics.count_katu)}",
-                    f"{humanize_number(score.statistics.count_100)}",
-                    f"{humanize_number(score.statistics.count_50)}",
-                    f"{humanize_number(score.statistics.count_miss)}",
+                    f"{humanize_number(0 if score.statistics.count_geki is None else score.statistics.count_geki)}",
+                    f"{humanize_number(0 if score.statistics.count_300 is None else score.statistics.count_300)}",
+                    f"{humanize_number(0 if score.statistics.count_katu is None else score.statistics.count_katu)}",
+                    f"{humanize_number(0 if score.statistics.count_100 is None else score.statistics.count_100)}",
+                    f"{humanize_number(0 if score.statistics.count_50 is None else score.statistics.count_50)}",
+                    f"{humanize_number(0 if score.statistics.count_miss is None else score.statistics.count_miss)}",
                 ]
             )
         else:
             version = score.beatmap.version
             hits = "/".join(
                 [
-                    f"{humanize_number(score.statistics.count_300)}",
-                    f"{humanize_number(score.statistics.count_100)}",
-                    f"{humanize_number(score.statistics.count_50)}",
-                    f"{humanize_number(score.statistics.count_miss)}",
+                    f"{humanize_number(0 if score.statistics.count_300 is None else score.statistics.count_300)}",
+                    f"{humanize_number(0 if score.statistics.count_100 is None else score.statistics.count_100)}",
+                    f"{humanize_number(0 if score.statistics.count_50 is None else score.statistics.count_50)}",
+                    f"{humanize_number(0 if score.statistics.count_miss is None else score.statistics.count_miss)}",
                 ]
             )
 
