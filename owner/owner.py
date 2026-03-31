@@ -13,7 +13,6 @@ from zipfile import ZipFile
 
 import discord
 from dateutil.easter import easter
-from github import Auth, Github
 from redbot.core import Config, commands, data_manager
 from redbot.core.bot import Red
 from redbot.core.commands.converter import TimedeltaConverter
@@ -94,7 +93,7 @@ class Owner(commands.Cog, Events, metaclass=CompositeMetaClass):
         self.traceback_alert_task = asyncio.create_task(self.traceback_alert())
         self.stats_task = asyncio.create_task(self.update_stats())
 
-        self._changelog_task = asyncio.create_task(self.check_changelog())
+        # self._changelog_task = asyncio.create_task(self.check_changelog())
 
     async def red_delete_data_for_user(self, **kwargs):
         """Nothing to delete"""
@@ -107,8 +106,8 @@ class Owner(commands.Cog, Events, metaclass=CompositeMetaClass):
             self.presence_task.cancel()
         if self.stats_task:
             self.stats_task.cancel()
-        if self._changelog_task:
-            self._changelog_task.cancel()
+        # if self._changelog_task:
+        #     self._changelog_task.cancel()
         try:
             self.current_announcer.cancel()
         except AttributeError:
@@ -120,7 +119,12 @@ class Owner(commands.Cog, Events, metaclass=CompositeMetaClass):
         await self.bot.wait_until_red_ready()
 
         channel: Optional[
-            Union[discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread]
+            Union[
+                discord.TextChannel,
+                discord.VoiceChannel,
+                discord.StageChannel,
+                discord.Thread,
+            ]
         ] = None
         channel_id: Optional[int] = None
         interval: int = 216000
@@ -165,7 +169,9 @@ class Owner(commands.Cog, Events, metaclass=CompositeMetaClass):
                     if match:
                         latest_logs.append(path)
 
-                latest_logs = sorted(latest_logs, key=lambda log: log.name, reverse=True)
+                latest_logs = sorted(
+                    latest_logs, key=lambda log: log.name, reverse=True
+                )
 
                 count = {"ERROR": 0, "WARNING": 0, "INFO": 0}
 
@@ -176,12 +182,15 @@ class Owner(commands.Cog, Events, metaclass=CompositeMetaClass):
 
                     for line in reversed(lines):
                         date_match = re.match(
-                            r"\[(?P<date>(\d|-|\s|:)+)\] \[(?P<type>INFO|WARNING|ERROR)\]", line
+                            r"\[(?P<date>(\d|-|\s|:)+)\] \[(?P<type>INFO|WARNING|ERROR)\]",
+                            line,
                         )
                         if date_match is None:
                             continue
 
-                        date = datetime.strptime(date_match.group("date"), "%Y-%m-%d %H:%M:%S")
+                        date = datetime.strptime(
+                            date_match.group("date"), "%Y-%m-%d %H:%M:%S"
+                        )
 
                         if date < self.traceback_last_date:
                             break_loop = True
@@ -196,15 +205,15 @@ class Owner(commands.Cog, Events, metaclass=CompositeMetaClass):
                     output_list: List[str] = []
                     if count["ERROR"] > 0:
                         output_list.append(
-                            f'{count["ERROR"]} error{"s" if count["ERROR"] > 1 else ""}'
+                            f"{count['ERROR']} error{'s' if count['ERROR'] > 1 else ''}"
                         )
                     if count["WARNING"] > 0:
                         output_list.append(
-                            f'{count["WARNING"]} warning{"s" if count["WARNING"] > 1 else ""}'
+                            f"{count['WARNING']} warning{'s' if count['WARNING'] > 1 else ''}"
                         )
                     if count["INFO"] > 0:
                         output_list.append(
-                            f'{count["INFO"]} info message{"s" if count["INFO"] > 1 else ""}'
+                            f"{count['INFO']} info message{'s' if count['INFO'] > 1 else ''}"
                         )
 
                     output = humanize_list(output_list)
@@ -213,7 +222,9 @@ class Owner(commands.Cog, Events, metaclass=CompositeMetaClass):
                         owners = ""
                         if self.bot.owner_ids is not None:
                             for user_id in self.bot.owner_ids:
-                                if (member := channel.guild.get_member(user_id)) is not None:
+                                if (
+                                    member := channel.guild.get_member(user_id)
+                                ) is not None:
                                     owners += member.mention + " "
 
                         await channel.send(
@@ -293,12 +304,19 @@ class Owner(commands.Cog, Events, metaclass=CompositeMetaClass):
         self,
         ctx: commands.Context,
         channel: Optional[
-            Union[discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread]
+            Union[
+                discord.TextChannel,
+                discord.VoiceChannel,
+                discord.StageChannel,
+                discord.Thread,
+            ]
         ] = None,
     ):
         """Set a channel for displaying bot stats."""
         if not self.stats_message_id and not channel:
-            return await ctx.send("Please provide a channel to start displaying bot stats in.")
+            return await ctx.send(
+                "Please provide a channel to start displaying bot stats in."
+            )
 
         response: List[str] = []
         if self.stats_task is None:
@@ -309,16 +327,16 @@ class Owner(commands.Cog, Events, metaclass=CompositeMetaClass):
 
             data = await self.stats_config.all()
 
-            deletion_response = (
-                "removed your old stats channel from config but was unable to delete its message"
-            )
+            deletion_response = "removed your old stats channel from config but was unable to delete its message"
 
             if data["channel_id"] is not None:
                 old_channel = self.bot.get_channel(data["channel_id"])
 
                 if old_channel is not None:
                     try:
-                        old_message = await old_channel.fetch_message(data["message_id"])
+                        old_message = await old_channel.fetch_message(
+                            data["message_id"]
+                        )
                     except:
                         pass
                     else:
@@ -426,7 +444,12 @@ class Owner(commands.Cog, Events, metaclass=CompositeMetaClass):
         self,
         ctx: commands.Context,
         channel: Optional[
-            Union[discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread]
+            Union[
+                discord.TextChannel,
+                discord.VoiceChannel,
+                discord.StageChannel,
+                discord.Thread,
+            ]
         ] = None,
         *,
         interval: Optional[TimedeltaConverter] = None,
@@ -467,7 +490,12 @@ class Owner(commands.Cog, Events, metaclass=CompositeMetaClass):
         self,
         ctx: commands.Context,
         channel: Optional[
-            Union[discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread]
+            Union[
+                discord.TextChannel,
+                discord.VoiceChannel,
+                discord.StageChannel,
+                discord.Thread,
+            ]
         ],
         text: str,
         files: list,
@@ -526,7 +554,8 @@ class Owner(commands.Cog, Events, metaclass=CompositeMetaClass):
             elif not channel.permissions_for(ctx.me).attach_files:
                 try:
                     await ctx.send(
-                        ("I am not allowed to upload files in ") + channel.mention, delete_after=2
+                        ("I am not allowed to upload files in ") + channel.mention,
+                        delete_after=2,
                     )
                 except discord.errors.Forbidden:
                     await ctx.author.send(
@@ -545,7 +574,12 @@ class Owner(commands.Cog, Events, metaclass=CompositeMetaClass):
         self,
         ctx: commands.Context,
         channel: Optional[
-            Union[discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread]
+            Union[
+                discord.TextChannel,
+                discord.VoiceChannel,
+                discord.StageChannel,
+                discord.Thread,
+            ]
         ],
         *,
         text: str = "",
@@ -570,7 +604,12 @@ class Owner(commands.Cog, Events, metaclass=CompositeMetaClass):
         self,
         ctx: commands.Context,
         channel: Optional[
-            Union[discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread]
+            Union[
+                discord.TextChannel,
+                discord.VoiceChannel,
+                discord.StageChannel,
+                discord.Thread,
+            ]
         ],
         *,
         text: str = "",
@@ -589,9 +628,13 @@ class Owner(commands.Cog, Events, metaclass=CompositeMetaClass):
             await ctx.message.delete()
         except discord.errors.Forbidden:
             try:
-                await ctx.send(("Not enough permissions to delete messages."), delete_after=2)
+                await ctx.send(
+                    ("Not enough permissions to delete messages."), delete_after=2
+                )
             except discord.errors.Forbidden:
-                await author.send(("Not enough permissions to delete messages."), delete_after=15)
+                await author.send(
+                    ("Not enough permissions to delete messages."), delete_after=15
+                )
 
         await self.say_message(ctx, channel, text, files)
 
@@ -601,7 +644,10 @@ class Owner(commands.Cog, Events, metaclass=CompositeMetaClass):
         self,
         ctx: commands.Context,
         channel: Union[
-            discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread
+            discord.TextChannel,
+            discord.VoiceChannel,
+            discord.StageChannel,
+            discord.Thread,
         ] = None,
     ):
         """Start receiving and sending messages as the bot through DM"""
@@ -639,15 +685,21 @@ class Owner(commands.Cog, Events, metaclass=CompositeMetaClass):
                 return
 
             try:
-                message: discord.Message = await self.bot.wait_for("message", timeout=300)
+                message: discord.Message = await self.bot.wait_for(
+                    "message", timeout=300
+                )
             except asyncio.TimeoutError:
                 await ctx.author.send(("Request timed out. Session closed"))
                 self.interaction.remove(ctx.author)
                 return
 
-            if message.author == ctx.author and isinstance(message.channel, discord.DMChannel):
+            if message.author == ctx.author and isinstance(
+                message.channel, discord.DMChannel
+            ):
                 files = await Tunnel.files_from_attatch(message)
-                if message.content.startswith(tuple(await self.bot.get_valid_prefixes())):
+                if message.content.startswith(
+                    tuple(await self.bot.get_valid_prefixes())
+                ):
                     return
                 await channel.send(message.content, files=files)
             elif (
@@ -671,11 +723,15 @@ class Owner(commands.Cog, Events, metaclass=CompositeMetaClass):
 
                 await ctx.author.send(embed=embed)
 
-    @commands.command(name="listguilds", aliases=["listservers", "guildlist", "serverlist"])
+    @commands.command(
+        name="listguilds", aliases=["listservers", "guildlist", "serverlist"]
+    )
     @commands.is_owner()
     async def list_guilds(self, ctx: commands.Context):
         """List the servers the bot is in."""
-        guilds: List[discord.Guild] = sorted(self.bot.guilds, key=lambda g: g.member_count)
+        guilds: List[discord.Guild] = sorted(
+            self.bot.guilds, key=lambda g: g.member_count
+        )
 
         base_embed = discord.Embed(color=await ctx.embed_colour())
 
@@ -714,7 +770,9 @@ class Owner(commands.Cog, Events, metaclass=CompositeMetaClass):
             try:
                 await self.presence_updater()
             except Exception as e:
-                log.exception("Something went wrong in maybe_update_presence task:", exc_info=e)
+                log.exception(
+                    "Something went wrong in maybe_update_presence task:", exc_info=e
+                )
 
             await asyncio.sleep(int(delay))
 
@@ -845,7 +903,8 @@ class Owner(commands.Cog, Events, metaclass=CompositeMetaClass):
 
         with open(f"{path}.zip", "rb") as fp:
             await ctx.send(
-                content="Here's your emotes!", file=discord.File(fp, f"{guild.name} Emotes.zip")
+                content="Here's your emotes!",
+                file=discord.File(fp, f"{guild.name} Emotes.zip"),
             )
 
         os.remove(f"{path}.zip")
@@ -862,7 +921,10 @@ class Owner(commands.Cog, Events, metaclass=CompositeMetaClass):
         self,
         ctx: commands.Context,
         channel: Union[
-            discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread
+            discord.TextChannel,
+            discord.VoiceChannel,
+            discord.StageChannel,
+            discord.Thread,
         ] = None,
     ):
         """Set the channel where changelogs will be sent."""
@@ -873,7 +935,9 @@ class Owner(commands.Cog, Events, metaclass=CompositeMetaClass):
         async with self.owner_config.changelog() as config:
             config["channel_id"] = channel.id
 
-        await ctx.maybe_send_embed(f"Now set the changelog channel to {channel.mention}")
+        await ctx.maybe_send_embed(
+            f"Now set the changelog channel to {channel.mention}"
+        )
 
     @set_changelog.command(name="pat")
     @commands.dm_only()
@@ -885,7 +949,9 @@ class Owner(commands.Cog, Events, metaclass=CompositeMetaClass):
             await ctx.send("PAT key cleared.")
         else:
             view = PATView(self.owner_config)
-            message = await ctx.send("Click the button below to set your PAT key.", view=view)
+            message = await ctx.send(
+                "Click the button below to set your PAT key.", view=view
+            )
             timed_out = await view.wait()
             if timed_out:
                 await message.edit(content="The key submission timed out.", view=None)
@@ -919,101 +985,101 @@ class Owner(commands.Cog, Events, metaclass=CompositeMetaClass):
                 data["role_id"] = role.id
             await ctx.maybe_send_embed(f"Set the role used to {role.name}")
 
-    async def check_changelog(self) -> None:
-        await self.bot.wait_until_red_ready()
+    # async def check_changelog(self) -> None:
+    #     await self.bot.wait_until_red_ready()
 
-        data = await self.owner_config.changelog()
+    #     data = await self.owner_config.changelog()
 
-        if data["channel_id"] is None:
-            return
+    #     if data["channel_id"] is None:
+    #         return
 
-        if data["github_pat"] is None:
-            return
+    #     if data["github_pat"] is None:
+    #         return
 
-        if data["repo"] is None:
-            return
+    #     if data["repo"] is None:
+    #         return
 
-        github = Github(auth=Auth.Token(data["github_pat"]))
+    #     github = Github(auth=Auth.Token(data["github_pat"]))
 
-        repo = github.get_repo(data["repo"])
-        release = repo.get_latest_release()
+    #     repo = github.get_repo(data["repo"])
+    #     release = repo.get_latest_release()
 
-        new_version = release.title
+    #     new_version = release.title
 
-        if "v" in new_version:
-            new_version = new_version.replace("v", "")
+    #     if "v" in new_version:
+    #         new_version = new_version.replace("v", "")
 
-        if new_version == data["last_version"]:
-            return log.info(f"{self.bot.user.name} is running the most recent version.")
+    #     if new_version == data["last_version"]:
+    #         return log.info(f"{self.bot.user.name} is running the most recent version.")
 
-        if ANGIEDALE_VERSION != new_version:
-            return log.info(
-                f"{self.bot.user.name} isn't running the same version as is available on github."
-            )
+    #     if ANGIEDALE_VERSION != new_version:
+    #         return log.info(
+    #             f"{self.bot.user.name} isn't running the same version as is available on github."
+    #         )
 
-        channel = self.bot.get_channel(data["channel_id"])
-        if channel is None:
-            return log.warning(
-                f"Couldn't find the channel with id {data['channel_id']} to send the changelog embed to."
-            )
+    #     channel = self.bot.get_channel(data["channel_id"])
+    #     if channel is None:
+    #         return log.warning(
+    #             f"Couldn't find the channel with id {data['channel_id']} to send the changelog embed to."
+    #         )
 
-        embed = discord.Embed(color=await self.bot.get_embed_color(channel))
+    #     embed = discord.Embed(color=await self.bot.get_embed_color(channel))
 
-        embed.set_author(
-            name=f"{release.author.name} ◈ {release.target_commitish[:7]}",
-            url=release.author.html_url,
-            icon_url=release.author.avatar_url,
-        )
+    #     embed.set_author(
+    #         name=f"{release.author.name} ◈ {release.target_commitish[:7]}",
+    #         url=release.author.html_url,
+    #         icon_url=release.author.avatar_url,
+    #     )
 
-        embed.set_thumbnail(url=self.bot.user.avatar.url)
+    #     embed.set_thumbnail(url=self.bot.user.avatar.url)
 
-        embed.title = data["repo"]
-        embed.url = f"https://github.com/{data['repo']}"
+    #     embed.title = data["repo"]
+    #     embed.url = f"https://github.com/{data['repo']}"
 
-        preface = [f"# {release.title} - [Release Link]({release.html_url})"]
+    #     preface = [f"# {release.title} - [Release Link]({release.html_url})"]
 
-        embed.timestamp = release.created_at
+    #     embed.timestamp = release.created_at
 
-        lines = release.body.split("\r\n")
+    #     lines = release.body.split("\r\n")
 
-        current_header = None
-        headers: Dict[str, List[str]] = {}
-        for line in lines:
-            if not line:
-                continue
+    #     current_header = None
+    #     headers: Dict[str, List[str]] = {}
+    #     for line in lines:
+    #         if not line:
+    #             continue
 
-            if line.startswith("---"):
-                continue
+    #         if line.startswith("---"):
+    #             continue
 
-            if line.startswith("## "):
-                current_header = line
-                headers[line] = []
-                continue
+    #         if line.startswith("## "):
+    #             current_header = line
+    #             headers[line] = []
+    #             continue
 
-            if line.startswith("### "):
-                line = f"- {bold(line[4:])}"
+    #         if line.startswith("### "):
+    #             line = f"- {bold(line[4:])}"
 
-            if len(headers) == 0:
-                preface.append(line)
-                continue
+    #         if len(headers) == 0:
+    #             preface.append(line)
+    #             continue
 
-            headers[current_header].append(line)
+    #         headers[current_header].append(line)
 
-            embed.description = "\n\n".join(preface)
+    #         embed.description = "\n\n".join(preface)
 
-        for header, body in headers.items():
-            embed.add_field(name=header[3:], value="\n".join(body), inline=False)
+    #     for header, body in headers.items():
+    #         embed.add_field(name=header[3:], value="\n".join(body), inline=False)
 
-        role = channel.guild.get_role(data["role_id"])
-        try:
-            if role is not None:
-                await channel.send(content=role.mention, embed=embed)
-            else:
-                await channel.send(embed=embed)
-            async with self.owner_config.changelog() as config:
-                config["last_version"] = new_version
-        except Exception as e:
-            log.exception("Error trying to send changelog embed", exc_info=e)
+    #     role = channel.guild.get_role(data["role_id"])
+    #     try:
+    #         if role is not None:
+    #             await channel.send(content=role.mention, embed=embed)
+    #         else:
+    #             await channel.send(embed=embed)
+    #         async with self.owner_config.changelog() as config:
+    #             config["last_version"] = new_version
+    #     except Exception as e:
+    #         log.exception("Error trying to send changelog embed", exc_info=e)
 
 
 class PATModal(discord.ui.Modal, title="PAT Key"):
@@ -1053,7 +1119,9 @@ class PATView(discord.ui.View):
 
 
 class Announcer:
-    def __init__(self, ctx: commands.Context, message: str, config: Optional[Config] = None):
+    def __init__(
+        self, ctx: commands.Context, message: str, config: Optional[Config] = None
+    ):
         """
         :param ctx:
         :param message:
@@ -1084,7 +1152,12 @@ class Announcer:
     async def _get_announce_channel(
         self, guild: discord.Guild
     ) -> Optional[
-        Union[discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread]
+        Union[
+            discord.TextChannel,
+            discord.VoiceChannel,
+            discord.StageChannel,
+            discord.Thread,
+        ]
     ]:
         if await self.ctx.bot.cog_disabled_in_guild_raw("Admin", guild.id):
             return
@@ -1121,7 +1194,9 @@ class Announcer:
                     failed.append(str(g.id))
 
         if failed:
-            msg = f"Finished announcing to {count} server{'s' if count > 1 else ''}.\n\n"
+            msg = (
+                f"Finished announcing to {count} server{'s' if count > 1 else ''}.\n\n"
+            )
             msg += (
                 ("I could not announce to the following server: ")
                 if len(failed) == 1
