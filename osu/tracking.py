@@ -8,10 +8,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
 
+import aiohttp
 import discord
-from ossapi import GameMode
+from ossapi import GameMode, ScoreType
 from ossapi import Score as OsuScore
-from ossapi import ScoreType
 from redbot.core import commands
 from redbot.core.data_manager import cog_data_path
 from redbot.core.utils.chat_formatting import humanize_number, inline
@@ -54,7 +54,7 @@ class Embeds(MixinMeta):
 
         for tracking in tracking_entries:
             tracked_string.append(
-                f'{tracking["id"]} ◈ {tracking["mode"].name.capitalize()} ◈ {tracking["channel"].mention}'
+                f"{tracking['id']} ◈ {tracking['mode'].name.capitalize()} ◈ {tracking['channel'].mention}"
             )
 
         tracked_string = "\n".join(tracked_string)
@@ -78,40 +78,44 @@ class Embeds(MixinMeta):
             version = re.sub(r"^\S*\s", "", data["beatmap"]["version"])
             try:
                 ratio = round(
-                    data["statistics"]["count_geki"] / data["statistics"]["count_300"], 2
+                    data["statistics"]["count_geki"] / data["statistics"]["count_300"],
+                    2,
                 )
             except:
                 ratio = "Perfect"
-            combo = f'**{data["max_combo"]:,}x** / {ratio}'
+            combo = f"**{data['max_combo']:,}x** / {ratio}"
             hits = (
-                f'{humanize_number(data["statistics"]["count_geki"])}/'
-                f'{humanize_number(data["statistics"]["count_300"])}/'
-                f'{humanize_number(data["statistics"]["count_katu"])}/'
-                f'{humanize_number(data["statistics"]["count_100"])}/'
-                f'{humanize_number(data["statistics"]["count_50"])}/'
-                f'{humanize_number(data["statistics"]["count_miss"])}'
+                f"{humanize_number(data['statistics']['count_geki'])}/"
+                f"{humanize_number(data['statistics']['count_300'])}/"
+                f"{humanize_number(data['statistics']['count_katu'])}/"
+                f"{humanize_number(data['statistics']['count_100'])}/"
+                f"{humanize_number(data['statistics']['count_50'])}/"
+                f"{humanize_number(data['statistics']['count_miss'])}"
             )
-            stats = f'OD: `{data["beatmap"]["accuracy"]}` | ' f'HP: `{data["beatmap"]["drain"]}`'
+            stats = (
+                f"OD: `{data['beatmap']['accuracy']}` | "
+                f"HP: `{data['beatmap']['drain']}`"
+            )
         else:
             version = data["beatmap"]["version"]
             combo_ratio = "Combo"
-            combo = f'**{data["max_combo"]:,}x**'
+            combo = f"**{data['max_combo']:,}x**"
             hits = (
-                f'{humanize_number(data["statistics"]["count_300"])}/'
-                f'{humanize_number(data["statistics"]["count_100"])}/'
-                f'{humanize_number(data["statistics"]["count_50"])}/'
-                f'{humanize_number(data["statistics"]["count_miss"])}'
+                f"{humanize_number(data['statistics']['count_300'])}/"
+                f"{humanize_number(data['statistics']['count_100'])}/"
+                f"{humanize_number(data['statistics']['count_50'])}/"
+                f"{humanize_number(data['statistics']['count_miss'])}"
             )
             stats = (
-                f'CS: `{data["beatmap"]["cs"]}` | '
-                f'AR: `{data["beatmap"]["ar"]}` | '
-                f'OD: `{data["beatmap"]["accuracy"]}` | '
-                f'HP: `{data["beatmap"]["drain"]}`'
+                f"CS: `{data['beatmap']['cs']}` | "
+                f"AR: `{data['beatmap']['ar']}` | "
+                f"OD: `{data['beatmap']['accuracy']}` | "
+                f"HP: `{data['beatmap']['drain']}`"
             )
 
         mods = ""
         if data["mods"] != "NM":
-            mods = f' +{data["mods"]}'
+            mods = f" +{data['mods']}"
 
         status = inline(
             data["beatmapset"]["status"].capitalize()
@@ -121,10 +125,10 @@ class Embeds(MixinMeta):
 
         pp_addon = ""
         accuracy_addon = ""
-        embed_title = f'New #{data["index"] + 1} for {data["user"]["username"]}'
+        embed_title = f"New #{data['index'] + 1} for {data['user']['username']}"
         embed_color = discord.Color.green()
         try:
-            performance = f'{humanize_number(round(data["pp"], 2))}'
+            performance = f"{humanize_number(round(data['pp'], 2))}"
         except TypeError:
             performance = 0
         try:
@@ -132,16 +136,16 @@ class Embeds(MixinMeta):
                 checked_pp = round(data["pp"] - data["old_pp"], 2)
                 checked_accuracy = data["accuracy"] - data["old_accuracy"]
                 pp_addon = f" ({humanize_number(checked_pp)})"
-                accuracy_addon = f' ({"{:.2%}".format(checked_accuracy)})'
+                accuracy_addon = f" ({'{:.2%}'.format(checked_accuracy)})"
                 if checked_pp > 0:
                     pp_addon = f" (+{humanize_number(checked_pp)})"
                 if checked_accuracy > 0:
-                    accuracy_addon = f' (+{"{:.2%}".format(checked_accuracy)})'
+                    accuracy_addon = f" (+{'{:.2%}'.format(checked_accuracy)})"
                 if data["index"] < data["old_index"]:
-                    embed_title = f'Improved #{data["index"] + 1} from #{data["old_index"] + 1} for {data["user"]["username"]}'
+                    embed_title = f"Improved #{data['index'] + 1} from #{data['old_index'] + 1} for {data['user']['username']}"
                     embed_color = discord.Color.blue()
                 else:
-                    embed_title = f'Changed #{data["index"] + 1} from #{data["old_index"] + 1} for {data["user"]["username"]}'
+                    embed_title = f"Changed #{data['index'] + 1} from #{data['old_index'] + 1} for {data['user']['username']}"
                     embed_color = discord.Color.yellow()
         except KeyError:
             pass
@@ -149,7 +153,7 @@ class Embeds(MixinMeta):
         embed = discord.Embed(color=embed_color)
 
         embed.set_author(
-            name=f'{data["beatmapset"]["artist"]} - {data["beatmapset"]["title"]} [{version}] [{str(data["beatmap"]["difficulty_rating"])}★]',
+            name=f"{data['beatmapset']['artist']} - {data['beatmapset']['title']} [{version}] [{str(data['beatmap']['difficulty_rating'])}★]",
             url=data["beatmap"]["url"],
             icon_url=data["user"]["avatar_url"],
         )
@@ -158,10 +162,12 @@ class Embeds(MixinMeta):
 
         embed.set_image(url=data["beatmapset"]["cover"])
 
-        embed.add_field(name="Grade", value=f'{EMOJI[data["rank"]]}{mods}', inline=True)
+        embed.add_field(name="Grade", value=f"{EMOJI[data['rank']]}{mods}", inline=True)
         embed.add_field(name="Score", value=humanize_number(data["score"]), inline=True)
         embed.add_field(
-            name="Accuracy", value="{:.2%}{}".format(data["accuracy"], accuracy_addon), inline=True
+            name="Accuracy",
+            value="{:.2%}{}".format(data["accuracy"], accuracy_addon),
+            inline=True,
         )
         embed.add_field(name="PP", value=f"**{performance}pp{pp_addon}**", inline=True)
         embed.add_field(name=combo_ratio, value=combo, inline=True)
@@ -170,9 +176,9 @@ class Embeds(MixinMeta):
             name="Map Info",
             value="\n".join(
                 [
-                    f'Mapper: [{data["beatmapset"]["creator"]}]({OsuUrls.USER.value}{data["beatmapset"]["creator_id"]}) | '
-                    f'{EMOJI["BPM"]} `{data["beatmap"]["bpm"]}` | '
-                    f'Objects: `{humanize_number(data["beatmap"]["count_circles"] + data["beatmap"]["count_sliders"] + data["beatmap"]["count_spinners"])}` ',
+                    f"Mapper: [{data['beatmapset']['creator']}]({OsuUrls.USER.value}{data['beatmapset']['creator_id']}) | "
+                    f"{EMOJI['BPM']} `{data['beatmap']['bpm']}` | "
+                    f"Objects: `{humanize_number(data['beatmap']['count_circles'] + data['beatmap']['count_sliders'] + data['beatmap']['count_spinners'])}` ",
                     f"Status: {status} | {stats}",
                 ]
             ),
@@ -180,7 +186,7 @@ class Embeds(MixinMeta):
         )
 
         embed.set_footer(
-            text=f'{data["user"]["username"]} | osu!{self.prettify_mode(GameMode(data["mode"])).capitalize()} | Played'
+            text=f"{data['user']['username']} | osu!{self.prettify_mode(GameMode(data['mode'])).capitalize()} | Played"
         )
 
         embed.timestamp = datetime.strptime(data["created_at"], "%Y-%m-%dT%H:%M:%S%z")
@@ -198,7 +204,7 @@ class Functions(Embeds):
         """First time tracking logic when starting up."""
 
         await self.bot.wait_until_red_ready()
-        
+
         return
 
         log.info("Initializing osu! tracking.")
@@ -245,20 +251,22 @@ class Functions(Embeds):
     async def ping_api(self) -> bool:
         """Pings the api with a long cooldown to test if it's alive."""
         await asyncio.sleep(600)
-        data = (
-            await self.api.seasonal_backgrounds()
-        )  # I'll probably regret using this endpoint in the future but I thought it was funny
+        data = await self.api.seasonal_backgrounds()  # I'll probably regret using this endpoint in the future but I thought it was funny
         if data is None:
             return False
         return True
 
-    async def restart_tracking(self, exception: Exception = None, api_fail: bool = False):
+    async def restart_tracking(
+        self, exception: Exception = None, api_fail: bool = False
+    ):
         """Restarts tracking in case of an error.
 
         Will wait on api to become alive again if it detected the api as down.
         """
         if exception:
-            log.warning("Tracking loop failed and will restart shortly.", exc_info=exception)
+            log.warning(
+                "Tracking loop failed and will restart shortly.", exc_info=exception
+            )
         await asyncio.sleep(60 * 10)
 
         if api_fail:
@@ -283,12 +291,16 @@ class Functions(Embeds):
 
         log.info("Starting tracking loop.")
 
-        retry_attempt = False  # For running the loop one extra time in case it was api error.
+        retry_attempt = (
+            False  # For running the loop one extra time in case it was api error.
+        )
         remove_fails = False  # Allow the loop to delete entries.
 
         while True:
             try:
-                await asyncio.sleep(60)  # Arbitrary break for the api. Will make dynamic some day.
+                await asyncio.sleep(
+                    60
+                )  # Arbitrary break for the api. Will make dynamic some day.
 
                 fail_count = 0
                 active_cache = deepcopy(
@@ -304,7 +316,10 @@ class Functions(Embeds):
                             fresh_data = await self.api.user_scores(
                                 user_id, ScoreType.BEST, mode=mode, limit=100
                             )
-                        except (asyncio.exceptions.TimeoutError, aiohttp.client_exceptions.ServerDisconnectedError):
+                        except (
+                            asyncio.exceptions.TimeoutError,
+                            aiohttp.client_exceptions.ServerDisconnectedError,
+                        ):
                             continue
                         if fresh_data:
                             fresh_data = self.scores_to_dict(fresh_data)
@@ -316,7 +331,9 @@ class Functions(Embeds):
                                     json.dump(fresh_data, data, indent=4)
                             else:
                                 try:
-                                    with open(user_path) as data:  # Try to get the users data.
+                                    with open(
+                                        user_path
+                                    ) as data:  # Try to get the users data.
                                         stored_data = json.load(data)
                                 except FileNotFoundError:
                                     pass
@@ -327,14 +344,14 @@ class Functions(Embeds):
                                     with open(user_path, "w+") as data:
                                         json.dump(fresh_data, data, indent=4)
 
-                                    await self.tracking_payload(channels, stored_data, fresh_data)
+                                    await self.tracking_payload(
+                                        channels, stored_data, fresh_data
+                                    )
                                     await asyncio.sleep(10)
 
                             await asyncio.sleep(5)
                         else:
-                            if (
-                                not remove_fails
-                            ):  # We don't remove entries until we're sure it's not the api having issues.
+                            if not remove_fails:  # We don't remove entries until we're sure it's not the api having issues.
                                 fail_count += 1
                                 continue
                             await self.update_tracking_config(
@@ -343,7 +360,10 @@ class Functions(Embeds):
                             await self.refresh_tracking_cache()
 
                 count = 0
-                for mode, users in self.tracking_cache.items():  # Count users in warm cache.
+                for (
+                    mode,
+                    users,
+                ) in self.tracking_cache.items():  # Count users in warm cache.
                     count += len(users)
                 if count == 0:
                     log.info("Stopping tracking loop due to empty cache.")
@@ -353,8 +373,12 @@ class Functions(Embeds):
                 for mode, users in active_cache.items():  # Count users in cold cache.
                     count += len(users)
                 if fail_count > 0:
-                    if not remove_fails and retry_attempt:  # We've already retried once.
-                        if fail_count >= count:  # Stop the loop and double check the api.
+                    if (
+                        not remove_fails and retry_attempt
+                    ):  # We've already retried once.
+                        if (
+                            fail_count >= count
+                        ):  # Stop the loop and double check the api.
                             raise APIFailingError
                         else:  # Remove entries next run.
                             remove_fails = True
@@ -369,9 +393,7 @@ class Functions(Embeds):
                 self.tracking_restart_task = asyncio.create_task(
                     self.restart_tracking(api_fail=True)
                 )
-            except (
-                Exception
-            ) as e:  # I've had so many issues with this that I'm just gonna catch all and restart at this point.
+            except Exception as e:  # I've had so many issues with this that I'm just gonna catch all and restart at this point.
                 self.tracking_restart_task = asyncio.create_task(
                     self.restart_tracking(exception=e)
                 )
@@ -395,12 +417,17 @@ class Functions(Embeds):
 
         if self.tracking_task:  # Restart tracking if needed
             if self.tracking_task.done():
-                self.tracking_init_task = asyncio.create_task(self.initialize_tracking())
+                self.tracking_init_task = asyncio.create_task(
+                    self.initialize_tracking()
+                )
 
     async def tracking_payload(
         self,
         channels: Union[
-            discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread
+            discord.TextChannel,
+            discord.VoiceChannel,
+            discord.StageChannel,
+            discord.Thread,
         ],
         stored_data: List[dict],
         fresh_data: List[dict],
@@ -419,8 +446,12 @@ class Functions(Embeds):
                         fresh_data.pop(fresh_index)
                         break
                     fresh_data[fresh_index]["old_pp"] = stored_data[stored_index]["pp"]
-                    fresh_data[fresh_index]["old_index"] = stored_data[stored_index]["index"]
-                    fresh_data[fresh_index]["old_accuracy"] = stored_data[stored_index]["accuracy"]
+                    fresh_data[fresh_index]["old_index"] = stored_data[stored_index][
+                        "index"
+                    ]
+                    fresh_data[fresh_index]["old_accuracy"] = stored_data[stored_index][
+                        "accuracy"
+                    ]
 
         bad_channels = []
 
@@ -445,7 +476,9 @@ class Functions(Embeds):
         if len(bad_channels) == 0:
             return
 
-        log.info(f"Missing tracking channels found. Removing them from config: {bad_channels}")
+        log.info(
+            f"Missing tracking channels found. Removing them from config: {bad_channels}"
+        )
 
         async with self.osu_config.tracking() as data:
             for channel_id in bad_channels:
@@ -571,7 +604,10 @@ class Functions(Embeds):
     async def count_tracking(
         self,
         channel: Union[
-            discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread
+            discord.TextChannel,
+            discord.VoiceChannel,
+            discord.StageChannel,
+            discord.Thread,
         ] = None,
         user: str = None,
         guild: discord.Guild = None,
@@ -636,7 +672,10 @@ class Functions(Embeds):
         user: int,
         mode: GameMode,
         channel: Union[
-            discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread
+            discord.TextChannel,
+            discord.VoiceChannel,
+            discord.StageChannel,
+            discord.Thread,
         ] = None,
         remove_only: bool = False,
     ) -> None:
@@ -646,7 +685,9 @@ class Functions(Embeds):
         updating our config or to just clear the data.
         """
         async with self.osu_config.tracking() as data:
-            users: Dict[str, List[int]] = data[mode.value]  # Get users of the given mode
+            users: Dict[str, List[int]] = data[
+                mode.value
+            ]  # Get users of the given mode
 
             channels = []
 
@@ -657,7 +698,9 @@ class Functions(Embeds):
                         if channel.guild.get_channel_or_thread(
                             channel_id
                         ):  # If channel is in guild
-                            channels.remove(channel_id)  # Remove it from list to allow new channel
+                            channels.remove(
+                                channel_id
+                            )  # Remove it from list to allow new channel
                             raise ValueFound
             except (ValueFound, KeyError):
                 pass
@@ -668,7 +711,9 @@ class Functions(Embeds):
                 except KeyError:
                     pass
                 try:
-                    os.remove(f"{cog_data_path(self)}/tracking/{user}_{mode.value}.json")
+                    os.remove(
+                        f"{cog_data_path(self)}/tracking/{user}_{mode.value}.json"
+                    )
                 except:
                     pass
                 return
@@ -684,7 +729,10 @@ class Commands(Functions, Embeds):
         self,
         ctx: commands.Context,
         channel: Union[
-            discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread
+            discord.TextChannel,
+            discord.VoiceChannel,
+            discord.StageChannel,
+            discord.Thread,
         ],
         mode: str,
         user: Union[discord.Member, str],
@@ -737,13 +785,17 @@ class Commands(Functions, Embeds):
         count = await self.count_tracking(user=str(user_id))
 
         if count == 0:
-            return await del_message(ctx, f"{username} isn't being tracked in this server.")
+            return await del_message(
+                ctx, f"{username} isn't being tracked in this server."
+            )
 
         await self.update_tracking_config(
             user=user_id, mode=mode, channel=ctx.channel, remove_only=True
         )
         await self.refresh_tracking_cache()
-        await ctx.maybe_send_embed(f"Stopped tracking {username} in osu!{mode.name.capitalize()}")
+        await ctx.maybe_send_embed(
+            f"Stopped tracking {username} in osu!{mode.name.capitalize()}"
+        )
 
     async def tracking_list_command(self, ctx: commands.Context) -> None:
         count = await self.count_tracking(guild=ctx.guild)
@@ -772,7 +824,10 @@ class Tracking(Commands):
         self,
         ctx: commands.Context,
         channel: Union[
-            discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread
+            discord.TextChannel,
+            discord.VoiceChannel,
+            discord.StageChannel,
+            discord.Thread,
         ],
         mode: str,
         *,
@@ -805,7 +860,10 @@ class Tracking(Commands):
         self,
         ctx: commands.Context,
         channel: Union[
-            discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread
+            discord.TextChannel,
+            discord.VoiceChannel,
+            discord.StageChannel,
+            discord.Thread,
         ],
         mode: str,
         *,
