@@ -9,7 +9,6 @@ from ossapi import Build as OsuBuild
 from ossapi import GameMode
 from ossapi import Mod as OsuMod
 from ossapi import Rankings, RankingType
-from ossapi import User as OsuUser
 from ossapi.models import NewsPost, RankStatus, UpdateStream
 from redbot.core import commands
 from redbot.core.utils.chat_formatting import humanize_number
@@ -69,12 +68,12 @@ class Embeds(MixinMeta):
             url=data.url,
         )
 
-        creator: OsuUser = await data_set.user()
+        creator = await data_set.user()
 
         embed.set_author(
             name=f"Mapped by {data_set.creator} | osu!{pretty_mode.capitalize()}",
             url=f"{OsuUrls.USER.value}{data_set.user_id}",
-            icon_url=creator.avatar_url,
+            icon_url=creator.avatar.url,
         )
 
         embed.set_footer(text=f"Status: {data.status.name.capitalize()}")
@@ -95,7 +94,7 @@ class Embeds(MixinMeta):
             name="Favorites", value=humanize_number(data_set.favourite_count), inline=True
         )
         embed.add_field(name="Download", value=download, inline=True)
-        if not data_set.ratings is None and not sum(data_set.ratings) == 0:
+        if not sum(data_set.ratings) == 0:
             rating = 0
             p = 0
             s = 0
@@ -192,9 +191,6 @@ class Embeds(MixinMeta):
 
             categories: Dict[str, List[Dict[str, Union[bool, str]]]] = {}
 
-            if build.changelog_entries is None:
-                continue
-
             for entry in build.changelog_entries:
                 pr_link = ""
                 developer = ""
@@ -233,7 +229,6 @@ class Embeds(MixinMeta):
                     title_types.pop(0)
 
                 for category, items in entry.items():
-                    entries = ""
                     for key in title_types:
                         entries = ""
                         for item in items:
@@ -434,7 +429,7 @@ class Embeds(MixinMeta):
 
         for score in data.leaderboard.values():
             if arguments.g:
-                if not score.id in guild_users:  # type: ignore
+                if not score.id in guild_users:
                     continue
 
             if score.id == user_id and arguments.me:
@@ -451,21 +446,21 @@ class Embeds(MixinMeta):
             if arguments.mode == GameMode.MANIA:
                 hits = "/".join(
                     [
-                        f"{humanize_number(0 if score.statistics.count_geki is None else score.statistics.count_geki)}",
-                        f"{humanize_number(0 if score.statistics.count_300 is None else score.statistics.count_300)}",
-                        f"{humanize_number(0 if score.statistics.count_katu is None else score.statistics.count_katu)}",
-                        f"{humanize_number(0 if score.statistics.count_100 is None else score.statistics.count_100)}",
-                        f"{humanize_number(0 if score.statistics.count_50 is None else score.statistics.count_50)}",
-                        f"{humanize_number(0 if score.statistics.count_miss is None else score.statistics.count_miss)}",
+                        f"{humanize_number(score.statistics.count_geki)}",
+                        f"{humanize_number(score.statistics.count_300)}",
+                        f"{humanize_number(score.statistics.count_katu)}",
+                        f"{humanize_number(score.statistics.count_100)}",
+                        f"{humanize_number(score.statistics.count_50)}",
+                        f"{humanize_number(score.statistics.count_miss)}",
                     ]
                 )
             else:
                 hits = "/".join(
                     [
-                        f"{humanize_number(0 if score.statistics.count_300 is None else score.statistics.count_300)}",
-                        f"{humanize_number(0 if score.statistics.count_100 is None else score.statistics.count_100)}",
-                        f"{humanize_number(0 if score.statistics.count_50 is None else score.statistics.count_50)}",
-                        f"{humanize_number(0 if score.statistics.count_miss is None else score.statistics.count_miss)}",
+                        f"{humanize_number(score.statistics.count_300)}",
+                        f"{humanize_number(score.statistics.count_100)}",
+                        f"{humanize_number(score.statistics.count_50)}",
+                        f"{humanize_number(score.statistics.count_miss)}",
                     ]
                 )
 

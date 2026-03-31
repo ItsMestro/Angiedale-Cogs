@@ -8,8 +8,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
 
-import aiohttp
-import aiohttp.client_exceptions
 import discord
 from ossapi import GameMode
 from ossapi import Score as OsuScore
@@ -200,6 +198,8 @@ class Functions(Embeds):
         """First time tracking logic when starting up."""
 
         await self.bot.wait_until_red_ready()
+        
+        return
 
         log.info("Initializing osu! tracking.")
 
@@ -224,17 +224,14 @@ class Functions(Embeds):
         active_cache = deepcopy(self.tracking_cache)
 
         for mode, users in active_cache.items():
-            for user_id in users.keys():
+            for user_id, channels in users.items():
                 user_path = f"{path}/{user_id}_{mode.value}.json"
 
                 try:
                     fresh_data = await self.api.user_scores(
                         user_id, ScoreType.BEST, mode=mode, limit=100
                     )
-                except (
-                    asyncio.exceptions.TimeoutError,
-                    aiohttp.client_exceptions.ServerDisconnectedError,
-                ):
+                except asyncio.exceptions.TimeoutError:
                     return self.restart_tracking(api_fail=True)
                 if fresh_data:
                     fresh_data = self.scores_to_dict(fresh_data)
@@ -307,7 +304,7 @@ class Functions(Embeds):
                             fresh_data = await self.api.user_scores(
                                 user_id, ScoreType.BEST, mode=mode, limit=100
                             )
-                        except asyncio.TimeoutError:
+                        except (asyncio.exceptions.TimeoutError, aiohttp.client_exceptions.ServerDisconnectedError):
                             continue
                         if fresh_data:
                             fresh_data = self.scores_to_dict(fresh_data)
@@ -497,24 +494,12 @@ class Functions(Embeds):
             data["rank"] = score.rank.value
 
             data["statistics"] = {}  # Hit counts
-            data["statistics"]["count_geki"] = (
-                0 if score.statistics.count_geki is None else score.statistics.count_geki
-            )
-            data["statistics"]["count_katu"] = (
-                0 if score.statistics.count_katu is None else score.statistics.count_katu
-            )
-            data["statistics"]["count_300"] = (
-                0 if score.statistics.count_300 is None else score.statistics.count_300
-            )
-            data["statistics"]["count_100"] = (
-                0 if score.statistics.count_100 is None else score.statistics.count_100
-            )
-            data["statistics"]["count_50"] = (
-                0 if score.statistics.count_50 is None else score.statistics.count_50
-            )
-            data["statistics"]["count_miss"] = (
-                0 if score.statistics.count_miss is None else score.statistics.count_miss
-            )
+            data["statistics"]["count_geki"] = score.statistics.count_geki
+            data["statistics"]["count_katu"] = score.statistics.count_katu
+            data["statistics"]["count_300"] = score.statistics.count_300
+            data["statistics"]["count_100"] = score.statistics.count_100
+            data["statistics"]["count_50"] = score.statistics.count_50
+            data["statistics"]["count_miss"] = score.statistics.count_miss
 
             data["user"] = {}  # User data
             user = score.user()

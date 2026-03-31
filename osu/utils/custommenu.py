@@ -10,18 +10,7 @@ import contextlib
 import functools
 import logging
 from types import MappingProxyType
-from typing import (
-    Any,
-    Awaitable,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    Mapping,
-    Optional,
-    TypeVar,
-    Union,
-)
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, TypeVar, Union
 
 import discord
 from ossapi import Score as OsuScore
@@ -30,6 +19,7 @@ from redbot.core.utils.predicates import ReactionPredicate
 
 log = logging.getLogger("red.angiedale.osu")
 
+_T = TypeVar("_T")
 _PageList = TypeVar("_PageList", List[str], List[discord.Embed])
 _ReactableEmoji = Union[str, discord.Emoji]
 _ControlCallable = Callable[
@@ -45,7 +35,7 @@ _ControlCallable = Callable[
         Optional[functools.partial],
         bool,
     ],
-    Any,
+    _T,
 ]
 
 
@@ -136,11 +126,9 @@ async def custom_menu(
     chapter: int = 0,
     timeout: float = 30.0,
     data: List[OsuScore] = None,
-    funct: Optional[
-        Callable[[commands.Context, List[OsuScore], int], Awaitable[List[discord.Embed]]]
-    ] = None,
+    funct: Optional[functools.partial] = None,
     run_funct: bool = True,
-) -> Any:
+) -> _T:
     if message is not None and message.id in _active_menus:
         # prevents the expected callback from going any further
         # our custom button will always pass the message the view is
@@ -270,7 +258,7 @@ async def custom_menu(
 
         if len(done) == 0:
             raise asyncio.TimeoutError()
-        react, _ = done.pop().result()
+        react, user = done.pop().result()
     except asyncio.TimeoutError:
         if not ctx.me:
             return
@@ -293,7 +281,6 @@ async def custom_menu(
         except discord.NotFound:
             return
     else:
-        return react.emoji
         return await controls[react.emoji](
             ctx,
             pages,
@@ -319,22 +306,20 @@ async def custom_next_page(
     timeout: float,
     emoji: str,
     data: Optional[List[OsuScore]],
-    funct: Optional[
-        Callable[[commands.Context, List[OsuScore], int], Awaitable[List[discord.Embed]]]
-    ],
+    funct: Optional[functools.partial],
     run_funct: bool,
-) -> Any:
+) -> _T:
     if page >= len(data) - 1:
         page = 0
     else:
         page += 1
 
-    if run_funct and funct is not None:
-        pages = await funct(ctx, data, page)
+    if run_funct:
+        embeds = await funct(ctx, data, page)
 
     return await custom_menu(
         ctx,
-        pages,
+        embeds,
         controls,
         message=message,
         page=page,
@@ -356,22 +341,20 @@ async def custom_prev_page(
     timeout: float,
     emoji: str,
     data: Optional[List[OsuScore]],
-    funct: Optional[
-        Callable[[commands.Context, List[OsuScore], int], Awaitable[List[discord.Embed]]]
-    ],
+    funct: Optional[functools.partial],
     run_funct: bool,
-) -> Any:
+) -> _T:
     if page <= 0:
         page = len(data) - 1
     else:
         page -= 1
 
-    if run_funct and funct is not None:
-        pages = await funct(ctx, data, page)
+    if run_funct:
+        embeds = await funct(ctx, data, page)
 
     return await custom_menu(
         ctx,
-        pages,
+        embeds,
         controls,
         message=message,
         page=page,
@@ -393,9 +376,7 @@ async def custom_close_menu(
     timeout: float,
     emoji: str,
     data: Optional[List[OsuScore]],
-    funct: Optional[
-        Callable[[commands.Context, List[OsuScore], int], Awaitable[List[discord.Embed]]]
-    ],
+    funct: Optional[functools.partial],
     run_funct: bool,
 ) -> None:
     with contextlib.suppress(discord.NotFound):
@@ -407,7 +388,7 @@ async def custom_close_menu(
 async def chapter_menu(
     ctx: commands.Context,
     data: List[dict],
-    funct: Callable[[commands.Context, List[OsuScore], int], Awaitable[List[discord.Embed]]],
+    funct: functools.partial,
     chapter: int = 0,
     message: discord.Message = None,
 ):
@@ -435,11 +416,9 @@ async def custom_next_chapter(
     timeout: float,
     emoji: str,
     data: Optional[List[OsuScore]],
-    funct: Optional[
-        Callable[[commands.Context, List[OsuScore], int], Awaitable[List[discord.Embed]]]
-    ],
+    funct: Optional[functools.partial],
     run_funct: bool,
-) -> Any:
+) -> _T:
     if chapter >= len(data) - 1:
         chapter = 0
     else:
@@ -458,11 +437,9 @@ async def custom_prev_chapter(
     timeout: float,
     emoji: str,
     data: Optional[List[OsuScore]],
-    funct: Optional[
-        Callable[[commands.Context, List[OsuScore], int], Awaitable[List[discord.Embed]]]
-    ],
+    funct: Optional[functools.partial],
     run_funct: bool,
-) -> Any:
+) -> _T:
     if chapter <= 0:
         chapter = len(data) - 1
     else:

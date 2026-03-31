@@ -853,21 +853,24 @@ class Raffles(MixinMeta):
         return result
 
     async def raffle_timer(self, raffle: Raffle) -> None:
-        await asyncio.sleep(int(raffle.timedelta.total_seconds()))
+        try:
+            await asyncio.sleep(int(raffle.timedelta.total_seconds()))
 
-        guild = self.bot.get_guild(raffle.guild_id)
-        if guild is None:
-            return
+            guild = self.bot.get_guild(raffle.guild_id)
+            if guild is None:
+                return
 
-        async with self.raffle_config.guild(guild).raffles() as raffles:
-            fresh_raffle_data: Dict[str, Union[List[int], int]] = raffles.get(
-                str(raffle.message_id)
-            )
-        if fresh_raffle_data:
-            fresh_raffle = Raffle(**fresh_raffle_data)
-            fresh_raffle.guild = guild
+            async with self.raffle_config.guild(guild).raffles() as raffles:
+                fresh_raffle_data: Dict[str, Union[List[int], int]] = raffles.get(
+                    str(raffle.message_id)
+                )
+            if fresh_raffle_data:
+                fresh_raffle = Raffle(**fresh_raffle_data)
+                fresh_raffle.guild = guild
 
-            await self.end_raffle(fresh_raffle)
+                await self.end_raffle(fresh_raffle)
+        except Exception as e:
+            log.exception("Raffle timer exception", exc_info=e)
 
     async def end_raffle(
         self,

@@ -211,7 +211,7 @@ class Owner(commands.Cog, Events, metaclass=CompositeMetaClass):
                     try:
                         timestamp = int(self.traceback_last_date.timestamp())
                         owners = ""
-                        if count["ERROR"] > 0 and self.bot.owner_ids is not None:
+                        if self.bot.owner_ids is not None:
                             for user_id in self.bot.owner_ids:
                                 if (member := channel.guild.get_member(user_id)) is not None:
                                     owners += member.mention + " "
@@ -222,7 +222,7 @@ class Owner(commands.Cog, Events, metaclass=CompositeMetaClass):
                             f"{bold(output)} since <t:{timestamp}:f> <t:{timestamp}:R>"
                         )
                     except:
-                        log.exception("Traceback alerts failed to send message")
+                        log.exception("Traceback alerts broke")
                         self.traceback_last_date = None
                         break
 

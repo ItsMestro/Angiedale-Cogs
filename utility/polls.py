@@ -59,9 +59,7 @@ class PollOption:
         return {
             "name": self.name,
             "index": self.index,
-            "emoji": self.emoji.id
-            if isinstance(self.emoji, discord.Emoji)
-            else self.emoji,
+            "emoji": self.emoji.id if isinstance(self.emoji, discord.Emoji) else self.emoji,
             "votes": self.votes,
         }
 
@@ -80,9 +78,7 @@ class Poll:
         self.use_buttons: bool = kwargs.get("use_buttons", True)
 
         self._options: Union[List[PollOption], dict] = kwargs.get("options", [])
-        self._vote_type: Union[VoteType, str] = kwargs.get(
-            "vote_type", VoteType.single_vote
-        )
+        self._vote_type: Union[VoteType, str] = kwargs.get("vote_type", VoteType.single_vote)
         self._init_roles: List[Union[discord.Role, int]] = kwargs.get("roles", [])
         self._roles: List[discord.Role] = []
 
@@ -94,12 +90,7 @@ class Poll:
         self._guild: Optional[discord.Guild] = None
         self._channel_id: Optional[int] = kwargs.get("channel_id", None)
         self._channel: Optional[
-            Union[
-                discord.TextChannel,
-                discord.VoiceChannel,
-                discord.StageChannel,
-                discord.Thread,
-            ]
+            Union[discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread]
         ] = None
         self._message_id: Optional[int] = kwargs.get("message_id", None)
         self._message: Optional[discord.Message] = None
@@ -137,11 +128,7 @@ class Poll:
 
     @property
     def roles(self) -> List[discord.Role]:
-        if (
-            len(self._init_roles) > 0
-            and len(self._roles) == 0
-            and self.guild is not None
-        ):
+        if len(self._init_roles) > 0 and len(self._roles) == 0 and self.guild is not None:
             self._set_role_list()
             return self._roles
 
@@ -197,9 +184,6 @@ class Poll:
 
     @property
     def guild_id(self) -> Optional[int]:
-        if self._guild_id is None and self._guild is not None:
-            return self._guild.id
-
         return self._guild_id
 
     @guild_id.setter
@@ -229,18 +213,9 @@ class Poll:
     def channel(
         self,
     ) -> Optional[
-        Union[
-            discord.TextChannel,
-            discord.VoiceChannel,
-            discord.StageChannel,
-            discord.Thread,
-        ]
+        Union[discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread]
     ]:
-        if (
-            self._channel is None
-            and self._guild is not None
-            and self._channel_id is not None
-        ):
+        if self._channel is None and self._guild is not None and self._channel_id is not None:
             self._channel = self._guild.get_channel_or_thread(self._channel_id)
 
         return self._channel
@@ -249,10 +224,7 @@ class Poll:
     def channel(
         self,
         value: Union[
-            discord.TextChannel,
-            discord.VoiceChannel,
-            discord.StageChannel,
-            discord.Thread,
+            discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread
         ],
     ) -> None:
         self._channel = value
@@ -294,12 +266,7 @@ class Poll:
     def get_channel(
         self, guild: discord.Guild
     ) -> Optional[
-        Union[
-            discord.TextChannel,
-            discord.VoiceChannel,
-            discord.StageChannel,
-            discord.Thread,
-        ]
+        Union[discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread]
     ]:
         return guild.get_channel_or_thread(self._channel_id)
 
@@ -312,9 +279,7 @@ class Poll:
     def to_role_ids(self) -> List[int]:
         return [role.id for role in self.roles]
 
-    def options_to_emojis(
-        self, return_as_string: bool = False
-    ) -> List[Union[discord.Emoji, str]]:
+    def options_to_emojis(self, return_as_string: bool = False) -> List[Union[discord.Emoji, str]]:
         if return_as_string:
             return [str(o.emoji) for o in self.options]
         return [o.emoji for o in self.options]
@@ -369,10 +334,7 @@ class Polls(MixinMeta):
         self,
         ctx: commands.Context,
         channel: Union[
-            discord.TextChannel,
-            discord.VoiceChannel,
-            discord.StageChannel,
-            discord.Thread,
+            discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread
         ],
         *,
         time: Optional[TimedeltaConverter] = None,
@@ -417,14 +379,10 @@ class Polls(MixinMeta):
             or not isinstance(channel, discord.Thread)
             and not channel.permissions_for(ctx.author).send_messages
         ):
-            return await ctx.send(
-                "You don't have permission to send messages in that location!"
-            )
+            return await ctx.send("You don't have permission to send messages in that location!")
 
         if time is None:
-            return await ctx.send(
-                "You need to provide a valid time for the poll to last."
-            )
+            return await ctx.send("You need to provide a valid time for the poll to last.")
 
         active_polls: dict = await self.poll_config.guild(ctx.guild).polls()
 
@@ -437,9 +395,7 @@ class Polls(MixinMeta):
         if time > timedelta(weeks=8):
             return await ctx.send(f"The time can't be longer than {inline('8 weeks')}.")
         if time < timedelta(minutes=5):
-            return await ctx.send(
-                f"The poll can't be shorter than {inline('5 minutes')}."
-            )
+            return await ctx.send(f"The poll can't be shorter than {inline('5 minutes')}.")
 
         poll = await self.poll_setup(
             ctx, Poll(end_time=datetime.now(timezone.utc) + time), channel
@@ -449,10 +405,7 @@ class Polls(MixinMeta):
             return
 
         poll_message: Union[
-            discord.TextChannel,
-            discord.VoiceChannel,
-            discord.StageChannel,
-            discord.Thread,
+            discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread
         ] = await channel.send(
             embed=poll.embed,
         )
@@ -486,9 +439,7 @@ class Polls(MixinMeta):
 
     @commands.max_concurrency(1, commands.BucketType.guild)
     @poll.command(name="end", aliases=["stop"])
-    async def _poll_end(
-        self, ctx: commands.Context, message_id: Optional[RawMessageIds] = None
-    ):
+    async def _poll_end(self, ctx: commands.Context, message_id: Optional[RawMessageIds] = None):
         """Ends a poll early.
 
         If `message_id` is left empty you're given a menu
@@ -520,14 +471,11 @@ class Polls(MixinMeta):
         """
         guild_data: dict = await self.poll_config.guild(ctx.guild).all()
         if len(guild_data["polls"]) == 0 and len(guild_data["polls_history"]) == 0:
-            return await ctx.send(
-                "There are no current or past raffles in this server."
-            )
+            return await ctx.send("There are no current or past raffles in this server.")
 
         embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
         embed.set_author(
-            name=f"List of polls in {ctx.guild.name}",
-            icon_url=ctx.guild.me.display_avatar.url,
+            name=f"List of polls in {ctx.guild.name}", icon_url=ctx.guild.me.display_avatar.url
         )
         embed.set_thumbnail(url=ctx.guild.icon.url)
 
@@ -536,7 +484,7 @@ class Polls(MixinMeta):
         view: Optional[ItemSelectView] = None
         if len(guild_data["polls"]) > 0:
             output = []
-            for poll_data in guild_data["raffles"].values():
+            for poll_data in guild_data["polls"].values():
                 poll = Poll(**poll_data)
                 poll.guild = ctx.guild
                 jump_url = ""
@@ -547,16 +495,14 @@ class Polls(MixinMeta):
                 output.append(
                     "\n".join(
                         [
-                            f"{poll.question}{jump_url}",
+                            f"{poll.question}" f"{jump_url}",
                             f"<t:{poll.timestamp}:D> <t:{poll.timestamp}:R>"
                             f" ◈ Votes: {poll.total_votes}",
                         ]
                     )
                 )
 
-            embed.add_field(
-                name="Active Polls", value="\n\n".join(output), inline=False
-            )
+            embed.add_field(name="Active Polls", value="\n\n".join(output), inline=False)
 
         if len(guild_data["polls_history"]) > 0:
             output = []
@@ -575,7 +521,7 @@ class Polls(MixinMeta):
                 output.append(
                     "\n".join(
                         [
-                            f"{poll.question}{jump_url}",
+                            f"{poll.question}" f"{jump_url}",
                             f"<t:{poll.timestamp}:D> <t:{poll.timestamp}:R>"
                             f" ◈ Votes: {poll.total_votes}",
                         ]
@@ -633,8 +579,7 @@ class Polls(MixinMeta):
             embed.title = poll.question
             embed.set_thumbnail(url=poll.guild.icon.url)
             embed.set_author(
-                name=f"{poll.guild.name} Poll Results!",
-                icon_url=self.bot.user.display_avatar.url,
+                name=f"{poll.guild.name} Poll Results!", icon_url=self.bot.user.display_avatar.url
             )
 
             embed.add_field(
@@ -652,9 +597,7 @@ class Polls(MixinMeta):
             embed.description = "\n".join(
                 [
                     x["string"]
-                    for x in sorted(
-                        description_dicts, key=lambda y: y["votes"], reverse=True
-                    )
+                    for x in sorted(description_dicts, key=lambda y: y["votes"], reverse=True)
                 ]
             )
 
@@ -701,9 +644,7 @@ class Polls(MixinMeta):
                             continue
 
                         if poll.use_buttons:
-                            view = PollView(
-                                config=self.poll_config, poll=poll, cog=self
-                            )
+                            view = PollView(config=self.poll_config, poll=poll, cog=self)
                             self.bot.add_view(
                                 view,
                                 message_id=int(m_id),
@@ -727,7 +668,7 @@ class Polls(MixinMeta):
             log.error("Error during poll initialization", exc_info=True)
 
     async def poll_timer(self, poll: Poll) -> None:
-        await asyncio.sleep(int(poll.timedelta.total_seconds()))
+        await asyncio.sleep(poll.timedelta.total_seconds())
 
         guild = self.bot.get_guild(poll.guild_id)
         if guild is None:
@@ -738,9 +679,7 @@ class Polls(MixinMeta):
             await asyncio.wait_for(self.poll_cache_task, timeout=30)
 
         async with self.poll_config.guild(guild).polls() as polls:
-            fresh_poll_data: Dict[str, Union[List[int], int]] = polls.get(
-                str(poll.message_id)
-            )
+            fresh_poll_data: Dict[str, Union[List[int], int]] = polls.get(str(poll.message_id))
         if fresh_poll_data:
             fresh_poll = Poll(**fresh_poll_data)
             fresh_poll.guild = guild
@@ -776,9 +715,7 @@ class Polls(MixinMeta):
         poll_embed.set_field_at(
             index=1, name="Ended", value=poll_embed.fields[1].value, inline=False
         )
-        poll_embed.set_footer(
-            text=f"Guild polls brought to you by {poll.guild.me.name}!"
-        )
+        poll_embed.set_footer(text=f"Guild polls brought to you by {poll.guild.me.display_name}!")
 
         description = poll_embed.description.splitlines()
         description_dicts: List[Dict[str, Union[int, str]]] = []
@@ -812,14 +749,11 @@ class Polls(MixinMeta):
 
         embed.set_thumbnail(url=poll.guild.icon.url)
         embed.set_author(
-            name=f"{poll.guild.name} Poll Results!",
-            icon_url=self.bot.user.display_avatar.url,
+            name=f"{poll.guild.name} Poll Results!", icon_url=self.bot.user.display_avatar.url
         )
 
         embed.add_field(
-            name="Ended",
-            value=f"<t:{poll.timestamp}:D> ◈ <t:{poll.timestamp}:R>",
-            inline=False,
+            name="Ended", value=f"<t:{poll.timestamp}:D> ◈ <t:{poll.timestamp}:R>", inline=False
         )
 
         footer_text = f"A total of {poll.total_votes} votes were submitted!"
@@ -831,9 +765,7 @@ class Polls(MixinMeta):
         embed.description = "\n".join(
             [
                 x["string"]
-                for x in sorted(
-                    description_dicts, key=lambda y: y["votes"], reverse=True
-                )
+                for x in sorted(description_dicts, key=lambda y: y["votes"], reverse=True)
             ]
         )
 
@@ -845,8 +777,7 @@ class Polls(MixinMeta):
         if message_id is None:
             embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
             embed.set_author(
-                name="List of currently active polls.",
-                icon_url=ctx.me.display_avatar.url,
+                name="List of currently active polls.", icon_url=ctx.me.display_avatar.url
             )
             embed.title = "Select which poll you'd like to end"
             embed.set_thumbnail(url=ctx.guild.icon.url)
@@ -873,29 +804,21 @@ class Polls(MixinMeta):
 
             poll_items: List[SelectViewItem] = []
             for message in messages:
-                poll_items.append(
-                    SelectViewItem(label=message.embeds[0].title, value=message.id)
-                )
+                poll_items.append(SelectViewItem(label=message.embeds[0].title, value=message.id))
             view = ItemSelectView(items=poll_items)
             select_message = await ctx.send(embed=embed, view=view)
             timed_out = await view.wait()
             if timed_out:
-                await select_message.edit(
-                    content="Selection timed out!", embed=None, view=None
-                )
+                await select_message.edit(content="Selection timed out!", embed=None, view=None)
                 return
 
             if not view.result:
-                await select_message.edit(
-                    content="Selection cancelled!", embed=None, view=None
-                )
+                await select_message.edit(content="Selection cancelled!", embed=None, view=None)
                 return
 
             await select_message.delete()
 
-            result = next(
-                filter(lambda p: p.message_id == int(view.value), polls), None
-            )
+            result = next(filter(lambda p: p.message_id == int(view.value), polls), None)
         else:
             poll = next(filter(lambda p: p.message_id == message_id, polls), None)
 
@@ -904,9 +827,7 @@ class Polls(MixinMeta):
                 return
 
             if poll.channel is None:
-                await ctx.send(
-                    "I couldn't find the channel that the poll is supposed to be in."
-                )
+                await ctx.send("I couldn't find the channel that the poll is supposed to be in.")
                 return
 
             if await poll.fetch_message() is None:
@@ -922,24 +843,17 @@ class Polls(MixinMeta):
         ctx: commands.Context,
         poll: Poll,
         channel: Union[
-            discord.TextChannel,
-            discord.VoiceChannel,
-            discord.StageChannel,
-            discord.Thread,
+            discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread
         ],
     ) -> Optional[Poll]:
         embed = discord.Embed(color=await self.bot.get_embed_color(ctx))
 
         embed.set_thumbnail(url=ctx.guild.icon.url)
 
-        embed.set_author(
-            name=f"{ctx.guild.name} Poll!", icon_url=self.bot.user.display_avatar.url
-        )
+        embed.set_author(name=f"{ctx.guild.name} Poll!", icon_url=self.bot.user.display_avatar.url)
 
         embed.add_field(
-            name="Ends",
-            value=f"<t:{poll.timestamp}:D> ◈ <t:{poll.timestamp}:R>",
-            inline=False,
+            name="Ends", value=f"<t:{poll.timestamp}:D> ◈ <t:{poll.timestamp}:R>", inline=False
         )
 
         embed.add_field(name="Hosted By", value=ctx.author.mention, inline=True)
@@ -950,9 +864,7 @@ class Polls(MixinMeta):
             text="Click the buttons below to vote. If interaction fails, try again later. Bot might be down."
         )
 
-        embed_message = await ctx.send(
-            embed=embed, view=PollView(poll=poll, preview=True)
-        )
+        embed_message = await ctx.send(embed=embed, view=PollView(poll=poll, preview=True))
 
         view = PollSetupView(self.bot, ctx, embed, embed_message, poll)
         message = await ctx.send(
@@ -1042,11 +954,7 @@ class Polls(MixinMeta):
 # region Views
 class PollView(discord.ui.View):
     def __init__(
-        self,
-        config: Config = None,
-        poll: Poll = None,
-        cog: Polls = None,
-        preview: bool = False,
+        self, config: Config = None, poll: Poll = None, cog: Polls = None, preview: bool = False
     ):
         super().__init__(timeout=None)
         self.config = config
@@ -1079,9 +987,7 @@ class PollView(discord.ui.View):
     def update_options(self) -> None:
         self.clear_items()
 
-        row_split = (
-            ceil(len(self.poll.options) / 2) if len(self.poll.options) > 5 else 5
-        )
+        row_split = ceil(len(self.poll.options) / 2) if len(self.poll.options) > 5 else 5
         for option in self.poll.options:
             self.add_item(
                 PollOptionButton(option, row=0 if option.index < row_split else 1),
@@ -1119,12 +1025,8 @@ class PollSetupView(EmbedEditorBaseView):
             await self.embed_message.clear_reactions()
         start_adding_reactions(self.embed_message, self.poll.options_to_emojis())
 
-    @discord.ui.button(
-        label="Finished", style=discord.ButtonStyle.green, row=0, disabled=True
-    )
-    async def finished_button(
-        self, interaction: discord.Interaction, button: discord.Button
-    ):
+    @discord.ui.button(label="Finished", style=discord.ButtonStyle.green, row=0, disabled=True)
+    async def finished_button(self, interaction: discord.Interaction, button: discord.Button):
         await self.embed_message.delete()
         if datetime.now(timezone.utc) > self.poll.end_time:
             await interaction.message.edit(
@@ -1141,9 +1043,7 @@ class PollSetupView(EmbedEditorBaseView):
         style=discord.ButtonStyle.red,
         row=0,
     )
-    async def cancel_button(
-        self, interaction: discord.Interaction, button: discord.Button
-    ):
+    async def cancel_button(self, interaction: discord.Interaction, button: discord.Button):
         await self.embed_message.delete()
         await interaction.message.edit(content="Cancelled poll creation!", view=None)
         self.stop()
@@ -1153,9 +1053,7 @@ class PollSetupView(EmbedEditorBaseView):
         style=discord.ButtonStyle.primary,
         row=0,
     )
-    async def switch_type_button(
-        self, interaction: discord.Interaction, button: discord.Button
-    ):
+    async def switch_type_button(self, interaction: discord.Interaction, button: discord.Button):
         self.poll.use_buttons = not self.poll.use_buttons
         if self.poll.use_buttons:
             self.switch_type_button.label = "Switch to reaction based entry"
@@ -1173,9 +1071,7 @@ class PollSetupView(EmbedEditorBaseView):
             text = "Successfully swapped to using reactions for poll entries! "
             f"Keep in mind that reactions to the poll while the bot is down will {bold('not')} count."
 
-            self.embed.set_footer(
-                text="React to one of the emojis below to vote in this poll."
-            )
+            self.embed.set_footer(text="React to one of the emojis below to vote in this poll.")
             await self.embed_message.edit(embed=self.embed, view=None)
             start_adding_reactions(self.embed_message, self.poll.options_to_emojis())
 
@@ -1187,9 +1083,7 @@ class PollSetupView(EmbedEditorBaseView):
         )
 
     @discord.ui.button(label="Add Question", style=discord.ButtonStyle.primary, row=1)
-    async def question_button(
-        self, interaction: discord.Interaction, button: discord.Button
-    ):
+    async def question_button(self, interaction: discord.Interaction, button: discord.Button):
         await interaction.response.send_modal(
             SimpleModal(
                 "Question",
@@ -1238,12 +1132,8 @@ class PollSetupView(EmbedEditorBaseView):
 
         asyncio.create_task(delete_message())
 
-    @discord.ui.button(
-        label="Switch to Multi-vote", style=discord.ButtonStyle.secondary, row=1
-    )
-    async def poll_type_button(
-        self, interaction: discord.Interaction, button: discord.Button
-    ):
+    @discord.ui.button(label="Switch to Multi-vote", style=discord.ButtonStyle.secondary, row=1)
+    async def poll_type_button(self, interaction: discord.Interaction, button: discord.Button):
         if self.poll.vote_type == VoteType.single_vote:
             self.poll.vote_type = VoteType.multi_vote
             self.poll_type_button.label = "Switch to Single-vote"
@@ -1261,9 +1151,7 @@ class PollSetupView(EmbedEditorBaseView):
         await self.embed_message.edit(embed=self.embed)
 
         await interaction.response.send_message(
-            success(
-                f"Successfully swapped poll mode to {inline(self.poll.vote_type.value)}"
-            ),
+            success(f"Successfully swapped poll mode to {inline(self.poll.vote_type.value)}"),
             ephemeral=True,
             delete_after=10,
         )
@@ -1275,9 +1163,7 @@ class PollSetupView(EmbedEditorBaseView):
         max_values=5,
         row=2,
     )
-    async def roles_select(
-        self, interaction: discord.Interaction, select: discord.ui.RoleSelect
-    ):
+    async def roles_select(self, interaction: discord.Interaction, select: discord.ui.RoleSelect):
         if select.values == self.poll.roles:
             return
 
@@ -1288,9 +1174,7 @@ class PollSetupView(EmbedEditorBaseView):
             if len(self.poll.roles) > 0
             else "@everyone"
         )
-        self.embed.set_field_at(
-            index=3, name="Allowed Roles", value=roles_string, inline=True
-        )
+        self.embed.set_field_at(index=3, name="Allowed Roles", value=roles_string, inline=True)
 
         await self.update_view(interaction)
         await self.embed_message.edit(embed=self.embed)
@@ -1300,12 +1184,8 @@ class PollSetupView(EmbedEditorBaseView):
             delete_after=10,
         )
 
-    @discord.ui.button(
-        label="Add Vote Option", style=discord.ButtonStyle.primary, row=3
-    )
-    async def vote_option_button(
-        self, interaction: discord.Interaction, button: discord.Button
-    ):
+    @discord.ui.button(label="Add Vote Option", style=discord.ButtonStyle.primary, row=3)
+    async def vote_option_button(self, interaction: discord.Interaction, button: discord.Button):
         index = len(self.poll.options)
         await interaction.response.send_modal(
             SimpleModal(
@@ -1366,11 +1246,7 @@ class PollSetupView(EmbedEditorBaseView):
         await self.update_view(interaction)
         await self.embed_message.edit(embed=self.embed, view=view)
         followup_message: discord.WebhookMessage = await interaction.followup.send(
-            success(
-                "\n\n".join(
-                    ["Successfully added poll option:", poll_option.to_string()]
-                )
-            ),
+            success("\n\n".join(["Successfully added poll option:", poll_option.to_string()])),
             ephemeral=True,
         )
 
@@ -1383,12 +1259,8 @@ class PollSetupView(EmbedEditorBaseView):
 
         asyncio.create_task(delete_message())
 
-    @discord.ui.button(
-        label="Set Custom Emojis", style=discord.ButtonStyle.secondary, row=3
-    )
-    async def custom_emojis_button(
-        self, interaction: discord.Interaction, button: discord.Button
-    ):
+    @discord.ui.button(label="Set Custom Emojis", style=discord.ButtonStyle.secondary, row=3)
+    async def custom_emojis_button(self, interaction: discord.Interaction, button: discord.Button):
         await interaction.response.defer(ephemeral=True)
 
         if len(self._custom_emojis) > 0:
@@ -1419,8 +1291,7 @@ class PollSetupView(EmbedEditorBaseView):
             await self.update_view(interaction)
             await self.embed_message.edit(embed=self.embed, view=view)
             await interaction.followup.send(
-                content="Successfully reset the poll option emojis to default!",
-                ephemeral=True,
+                content="Successfully reset the poll option emojis to default!", ephemeral=True
             )
             return
 
@@ -1463,10 +1334,7 @@ class PollSetupView(EmbedEditorBaseView):
             except asyncio.TimeoutError:
                 await message.edit(content="Custom emoji submission timed out!")
                 return
-            if (
-                pred_result.content.lower() == "cancel"
-                or pred_result.content.lower() == "stop"
-            ):
+            if pred_result.content.lower() == "cancel" or pred_result.content.lower() == "stop":
                 await pred_result.delete()
                 await message.edit(content="Cancelled custom emoji submission!")
                 return
@@ -1514,9 +1382,7 @@ class PollSetupView(EmbedEditorBaseView):
             else:
                 option.emoji = self._custom_emojis[option.index]
 
-        self.embed.description = "\n".join(
-            [option.to_string() for option in self.poll.options]
-        )
+        self.embed.description = "\n".join([option.to_string() for option in self.poll.options])
 
         self.custom_emojis_button.style = discord.ButtonStyle.red
         self.custom_emojis_button.label = "Remove Custom Emojis"
@@ -1574,18 +1440,13 @@ class PollOptionButton(discord.ui.Button):
 
             if option.index == self.option.index:
                 if interaction.user.id not in self.view.poll.options[i].votes:
-                    text = (
-                        f"Successfully counted your vote for: {self.option.to_string()}"
-                    )
+                    text = f"Successfully counted your vote for: {self.option.to_string()}"
                     self.view.poll.options[i].votes.append(interaction.user.id)
                 else:
                     text = f"Removed your vote for: {self.option.to_string()}"
                     self.view.poll.options[i].votes.remove(interaction.user.id)
 
-        if (
-            self.view.poll.vote_type == VoteType.single_vote
-            and removed_vote is not None
-        ):
+        if self.view.poll.vote_type == VoteType.single_vote and removed_vote is not None:
             text += f"\n\nAnd removed your previous vote for: {removed_vote}"
 
         await self.view.update_view(interaction)
@@ -1636,21 +1497,12 @@ class PollOptionSelect(discord.ui.Select):
         for i in range(len(self.parent_view.poll.options)):
             self.parent_view.poll.options[i].index = i
             if i > len(self.parent_view._custom_emojis) - 1:
-                self.parent_view.poll.options[
-                    i
-                ].emoji = ReactionPredicate.ALPHABET_EMOJIS[i]
+                self.parent_view.poll.options[i].emoji = ReactionPredicate.ALPHABET_EMOJIS[i]
             else:
-                self.parent_view.poll.options[
-                    i
-                ].emoji = self.parent_view._custom_emojis[i]
+                self.parent_view.poll.options[i].emoji = self.parent_view._custom_emojis[i]
 
         self.parent_view.embed.description = (
-            "\n".join(
-                [
-                    poll_option.to_string()
-                    for poll_option in self.parent_view.poll.options
-                ]
-            )
+            "\n".join([poll_option.to_string() for poll_option in self.parent_view.poll.options])
             if len(self.parent_view.poll.options) > 0
             else None
         )
@@ -1665,9 +1517,7 @@ class PollOptionSelect(discord.ui.Select):
             self.parent_view.vote_option_button.style = discord.ButtonStyle.primary
             self.parent_view._poll_option_select = None
         else:
-            self.parent_view._poll_option_select = PollOptionSelect(
-                self.parent_view, self._row
-            )
+            self.parent_view._poll_option_select = PollOptionSelect(self.parent_view, self._row)
             self.parent_view.add_item(self.parent_view._poll_option_select)
 
         if self.parent_view.poll.use_buttons:
@@ -1677,9 +1527,7 @@ class PollOptionSelect(discord.ui.Select):
             await self.parent_view.update_reactions(clear_first=True)
 
         await self.parent_view.update_view(interaction)
-        await self.parent_view.embed_message.edit(
-            embed=self.parent_view.embed, view=view
-        )
+        await self.parent_view.embed_message.edit(embed=self.parent_view.embed, view=view)
 
         return await interaction.response.send_message(
             success(

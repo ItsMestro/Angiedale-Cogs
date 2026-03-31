@@ -586,24 +586,12 @@ class OsubeatScore:
         output["mods"] = self.mods.short_name()
 
         output["statistics"] = {}
-        output["statistics"]["count_geki"] = (
-            0 if self.statistics.count_geki is None else self.statistics.count_geki
-        )
-        output["statistics"]["count_katu"] = (
-            0 if self.statistics.count_katu is None else self.statistics.count_katu
-        )
-        output["statistics"]["count_300"] = (
-            0 if self.statistics.count_300 is None else self.statistics.count_300
-        )
-        output["statistics"]["count_100"] = (
-            0 if self.statistics.count_100 is None else self.statistics.count_100
-        )
-        output["statistics"]["count_50"] = (
-            0 if self.statistics.count_50 is None else self.statistics.count_50
-        )
-        output["statistics"]["count_miss"] = (
-            0 if self.statistics.count_miss is None else self.statistics.count_miss
-        )
+        output["statistics"]["count_geki"] = self.statistics.count_geki
+        output["statistics"]["count_katu"] = self.statistics.count_katu
+        output["statistics"]["count_300"] = self.statistics.count_300
+        output["statistics"]["count_100"] = self.statistics.count_100
+        output["statistics"]["count_50"] = self.statistics.count_50
+        output["statistics"]["count_miss"] = self.statistics.count_miss
 
         output["user"] = {}
         output["user"]["id"] = self.user.id

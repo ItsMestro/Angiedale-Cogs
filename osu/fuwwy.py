@@ -118,24 +118,12 @@ class FuwwyScore:
         output["map_version"] = self.map_version.strftime("%Y-%m-%dT%H:%M:%S%z")
 
         output["statistics"] = {}
-        output["statistics"]["count_geki"] = (
-            0 if self.statistics.count_geki is None else self.statistics.count_geki
-        )
-        output["statistics"]["count_katu"] = (
-            0 if self.statistics.count_katu is None else self.statistics.count_katu
-        )
-        output["statistics"]["count_300"] = (
-            0 if self.statistics.count_300 is None else self.statistics.count_300
-        )
-        output["statistics"]["count_100"] = (
-            0 if self.statistics.count_100 is None else self.statistics.count_100
-        )
-        output["statistics"]["count_50"] = (
-            0 if self.statistics.count_50 is None else self.statistics.count_50
-        )
-        output["statistics"]["count_miss"] = (
-            0 if self.statistics.count_miss is None else self.statistics.count_miss
-        )
+        output["statistics"]["count_geki"] = self.statistics.count_geki
+        output["statistics"]["count_katu"] = self.statistics.count_katu
+        output["statistics"]["count_300"] = self.statistics.count_300
+        output["statistics"]["count_100"] = self.statistics.count_100
+        output["statistics"]["count_50"] = self.statistics.count_50
+        output["statistics"]["count_miss"] = self.statistics.count_miss
 
         return output
 
@@ -284,12 +272,12 @@ class Embeds(MixinMeta):
 
         hits = "/".join(
             [
-                f"{humanize_number(0 if score.statistics.count_geki is None else score.statistics.count_geki)}",
-                f"{humanize_number(0 if score.statistics.count_300 is None else score.statistics.count_300)}",
-                f"{humanize_number(0 if score.statistics.count_katu is None else score.statistics.count_katu)}",
-                f"{humanize_number(0 if score.statistics.count_100 is None else score.statistics.count_100)}",
-                f"{humanize_number(0 if score.statistics.count_50 is None else score.statistics.count_50)}",
-                f"{humanize_number(0 if score.statistics.count_miss is None else score.statistics.count_miss)}",
+                f"{humanize_number(score.statistics.count_geki)}",
+                f"{humanize_number(score.statistics.count_300)}",
+                f"{humanize_number(score.statistics.count_katu)}",
+                f"{humanize_number(score.statistics.count_100)}",
+                f"{humanize_number(score.statistics.count_50)}",
+                f"{humanize_number(score.statistics.count_miss)}",
             ]
         )
 
@@ -768,11 +756,13 @@ class Commands(Functions, Embeds):
                         FuwwyBeatmapIDs.JACKS,
                     ]
                 )
-                worst_stage: Dict[str, Union[Optional[FuwwyBeatmapIDs], Optional[FuwwyScore]]] = {
-                    "stage": None,
-                    "data": None,
-                }
                 if len(stages) == 4:
+                    worst_stage: Dict[
+                        str, Union[Optional[FuwwyBeatmapIDs], Optional[FuwwyScore]]
+                    ] = {
+                        "stage": None,
+                        "data": None,
+                    }
                     for stage, play_data in stages.items():
                         if (
                             worst_stage["stage"] is None
