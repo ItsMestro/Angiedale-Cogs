@@ -2,14 +2,15 @@ import asyncio
 import logging
 from abc import ABC
 from datetime import datetime
+from pathlib import Path
 from typing import ClassVar, Dict, List, Literal, Optional, Set, Union
 
 import discord
-from ossapi import GameMode
+from ossapi import GameMode, OssapiAsync
 from ossapi import Mod as OsuMod
-from ossapi import OssapiAsync
 from redbot.core import Config, commands
 from redbot.core.bot import Red
+from redbot.core.data_manager import cog_data_path
 from redbot.core.utils.menus import start_adding_reactions
 from redbot.core.utils.predicates import ReactionPredicate
 from redbot.core.utils.views import ConfirmView
@@ -111,7 +112,7 @@ class Osu(
         "fuwwy_clan": {"score": 0, "map_version": "2007-09-16T00:00:00+0000", "role_id": None},
     }
     default_mongodb: ClassVar[dict[str, str | int | None]] = {
-        "host": "localhost",
+        "host": "angiedale-database",
         "port": 27017,
         "username": None,
         "password": None,
@@ -227,8 +228,10 @@ class Osu(
             return log.error(
                 "Can't load osu! API object. Missing either client_id or client_secret."
             )
-
-        self.api = OssapiAsync(tokens.get("client_id"), tokens.get("client_secret"))
+        
+        token_path = Path(f'{cog_data_path(raw_name="Osu")}/apitokens')
+        token_path.mkdir(parents=True, exist_ok=True)
+        self.api = OssapiAsync(tokens.get("client_id"), tokens.get("client_secret"), token_directory=str(token_path))
         if not "dev" in self.bot.user.name:
             self.api.log.setLevel("WARNING")
 
