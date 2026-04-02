@@ -6,7 +6,11 @@ from pathlib import Path
 from typing import List, Optional, Set
 
 import aiohttp
-from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorCollection, AsyncIOMotorDatabase
+from motor.motor_asyncio import (
+    AsyncIOMotorClient,
+    AsyncIOMotorCollection,
+    AsyncIOMotorDatabase,
+)
 from ossapi import Beatmap, GameMode
 from ossapi import Score as OsuScore
 from ossapi.models import Grade as OsuGrade
@@ -27,6 +31,9 @@ class Database(MixinMeta):
     def __init__(self):
         self.map_path = Path(f'{cog_data_path(raw_name="Osu")}/db/maps')
         self.map_path.mkdir(parents=True, exist_ok=True)
+        for path in self.map_path.glob("*.osu"):
+            if path.is_file():
+                path.unlink()
 
         self.last_caching: Optional[datetime] = None
         self.db_connected = False
@@ -54,9 +61,9 @@ class Database(MixinMeta):
         Otherwise downloads and caches the beatmap in database.
 
         This beatmap info is needed for some of the features I use that
-        requires the hitobjects of a .osu file. It's also keeping all the .osu
-        files for the future in case I ever decide to add pp calc features, which
-        the wrappers for it usually need the .osu file.
+        requires the hitobjects of a .osu file. It used to also keep all the .osu
+        files for the future in case I ever decided to add pp calc features, which
+        the wrappers for it usually needed the .osu file. No longer happends cause sadness.
         """
         if not self.db_connected:
             return
@@ -91,16 +98,19 @@ class Database(MixinMeta):
         or are forced to.
         """
 
-        file_path = f"{self.map_path}/{map_id}.osu"
+        file_path = Path(f"{self.map_path}/{map_id}.osu")
 
-        if not os.path.exists(file_path) or forced:
+        if not await self.db.beatmaps.find_one({"_id": map_id}) or forced:
             await self.download_osu_file(map_id)
 
         try:
-            beatmap = parse_beatmap(file_path)
+            beatmap = parse_beatmap(str(file_path))
         # TODO: If this becomes an issue I need to add proper exception handling for it.
         except Exception as e:
+            file_path.unlink()
             return log.exception("There was an error parsing beatmap", exc_info=e)
+        
+        file_path.unlink()
 
         beatmap_entry = {"_id": map_id, "data": beatmap.flatten_to_dict()}
 
